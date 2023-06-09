@@ -15,15 +15,14 @@
 
 use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
-use m3::goff;
 use m3::kif::boot;
-use m3::mem::GlobAddr;
+use m3::mem::{GlobAddr, GlobOff};
 
 use crate::subsys::Subsystem;
 
 pub struct Mod {
     addr: GlobAddr,
-    size: goff,
+    size: GlobOff,
     name: String,
     mgate: MemGate,
 }
@@ -33,7 +32,7 @@ impl Mod {
         self.addr
     }
 
-    pub fn size(&self) -> goff {
+    pub fn size(&self) -> GlobOff {
         self.size
     }
 

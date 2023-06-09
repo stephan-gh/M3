@@ -24,9 +24,8 @@ use num_enum::IntoPrimitive;
 use m3::cfg;
 use m3::com::{EpMng, MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
-use m3::goff;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::tcu::EpId;
 use m3::tiles::{ChildActivity, RunningDeviceActivity, Tile};
 use m3::util::math;
@@ -35,8 +34,8 @@ const EP_INT: EpId = 16;
 const EP_DMA: EpId = 17;
 
 // hardcoded for now
-const REG_ADDR: goff = 0x4000;
-const PCI_CFG_ADDR: goff = 0x0F00_0000;
+const REG_ADDR: GlobOff = 0x4000;
+const PCI_CFG_ADDR: GlobOff = 0x0F00_0000;
 
 const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = MSG_SIZE * 8;
@@ -261,7 +260,7 @@ impl Device {
         let act_sel = act.sel();
         let mem = act.get_mem(
             VirtAddr::null(),
-            (PCI_CFG_ADDR + REG_ADDR) + cfg::PAGE_SIZE as goff,
+            (PCI_CFG_ADDR + REG_ADDR) + cfg::PAGE_SIZE as GlobOff,
             Perm::RW,
         )?;
         let sep = EpMng::acquire_for(act_sel, EP_INT, 0)?;
@@ -301,19 +300,19 @@ impl Device {
             .and_then(|msg| self.rgate.ack_msg(msg))
     }
 
-    pub fn read_reg<T>(&self, off: goff) -> Result<T, Error> {
+    pub fn read_reg<T>(&self, off: GlobOff) -> Result<T, Error> {
         self.mem.read_obj(REG_ADDR + off)
     }
 
-    pub fn write_reg<T>(&self, off: goff, val: T) -> Result<(), Error> {
+    pub fn write_reg<T>(&self, off: GlobOff, val: T) -> Result<(), Error> {
         self.mem.write_obj(&val, REG_ADDR + off)
     }
 
-    pub fn read_config<T>(&self, off: goff) -> Result<T, Error> {
+    pub fn read_config<T>(&self, off: GlobOff) -> Result<T, Error> {
         self.mem.read_obj(REG_ADDR + PCI_CFG_ADDR + off)
     }
 
-    pub fn write_config<T>(&self, off: goff, val: T) -> Result<(), Error> {
+    pub fn write_config<T>(&self, off: GlobOff, val: T) -> Result<(), Error> {
         self.mem.write_obj(&val, REG_ADDR + PCI_CFG_ADDR + off)
     }
 
@@ -343,14 +342,14 @@ impl Device {
     }
 
     fn read_bar(&self, idx: usize) -> Result<Bar, Error> {
-        let val: u32 = self.read_config(Type0::BaseAddr0 as goff + idx as goff * 4)?;
+        let val: u32 = self.read_config(Type0::BaseAddr0 as GlobOff + idx as GlobOff * 4)?;
         self.write_config(
-            Type0::BaseAddr0 as goff + idx as goff * 4,
+            Type0::BaseAddr0 as GlobOff + idx as GlobOff * 4,
             0xFFFF_FFF0 | (val & 0x1),
         )?;
 
         let mut flags = BarFlags::empty();
-        let mut size: u32 = self.read_config(Type0::BaseAddr0 as goff + idx as goff * 4)?;
+        let mut size: u32 = self.read_config(Type0::BaseAddr0 as GlobOff + idx as GlobOff * 4)?;
         let size = if size == 0 || size == 0xFFFF_FFFF {
             0
         }
@@ -373,7 +372,7 @@ impl Device {
             }
             size & (size - 1)
         };
-        self.write_config(0x10 + idx as goff * 4, val)?;
+        self.write_config(0x10 + idx as GlobOff * 4, val)?;
 
         Ok(Bar {
             ty: BarType::from((val & 0x1) as u8),

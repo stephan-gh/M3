@@ -22,8 +22,8 @@ use m3::cap::Selector;
 use m3::client::Disk;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
-use m3::goff;
 use m3::kif::INVALID_SEL;
+use m3::mem::GlobOff;
 
 use thread::Event;
 
@@ -155,7 +155,7 @@ impl Backend for DiskBackend {
             let mut off = 0;
             while off < bytes {
                 let amount = (bytes - off).min(zeros.len());
-                mem.write_bytes(zeros.as_ptr(), amount, off as goff)?;
+                mem.write_bytes(zeros.as_ptr(), amount, off as GlobOff)?;
                 off += amount;
             }
             i += bytes as u32 / self.blocksize as u32;

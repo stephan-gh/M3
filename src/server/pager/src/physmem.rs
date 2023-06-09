@@ -18,27 +18,27 @@ use m3::cell::StaticRefCell;
 use m3::cfg;
 use m3::com::MemGate;
 use m3::errors::Error;
-use m3::goff;
-use m3::mem;
+use m3::mem::{self, GlobOff};
 
 static ZEROS: mem::AlignedBuf<{ cfg::PAGE_SIZE }> = mem::AlignedBuf::new_zeroed();
 static BUF: StaticRefCell<mem::AlignedBuf<{ cfg::PAGE_SIZE }>> =
     StaticRefCell::new(mem::AlignedBuf::new_zeroed());
 
-pub fn copy_block(src: &MemGate, dst: &MemGate, src_off: goff, size: goff) {
+pub fn copy_block(src: &MemGate, dst: &MemGate, src_off: GlobOff, size: GlobOff) {
     let mut buf = BUF.borrow_mut();
-    let pages = size / cfg::PAGE_SIZE as goff;
+    let pages = size / cfg::PAGE_SIZE as GlobOff;
     for i in 0..pages {
-        src.read(&mut buf[..], src_off + i * cfg::PAGE_SIZE as goff)
+        src.read(&mut buf[..], src_off + i * cfg::PAGE_SIZE as GlobOff)
             .unwrap();
-        dst.write(&buf[..], i * cfg::PAGE_SIZE as goff).unwrap();
+        dst.write(&buf[..], i * cfg::PAGE_SIZE as GlobOff).unwrap();
     }
 }
 
-fn clear_block(mem: &MemGate, size: goff) {
-    let pages = size / cfg::PAGE_SIZE as goff;
+fn clear_block(mem: &MemGate, size: GlobOff) {
+    let pages = size / cfg::PAGE_SIZE as GlobOff;
     for i in 0..pages {
-        mem.write(&ZEROS[..], i * cfg::PAGE_SIZE as goff).unwrap();
+        mem.write(&ZEROS[..], i * cfg::PAGE_SIZE as GlobOff)
+            .unwrap();
     }
 }
 
@@ -93,7 +93,7 @@ impl PhysMem {
         self.owner_mem = None;
     }
 
-    pub fn clear(&self, size: goff) {
+    pub fn clear(&self, size: GlobOff) {
         clear_block(&self.mgate, size);
     }
 }

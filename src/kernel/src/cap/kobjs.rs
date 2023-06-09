@@ -13,15 +13,15 @@
  * General Public License version 2 for more details.
  */
 
+use base::build_vmsg;
 use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
 use base::io::LogFlags;
 use base::kif::{self, service, tilemux::QuotaId};
 use base::log;
-use base::mem::{size_of, GlobAddr, MsgBuf, PhysAddr, VirtAddr};
+use base::mem::{size_of, GlobAddr, GlobOff, MsgBuf, PhysAddr, VirtAddr};
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{ActId, EpId, Label, TileId};
-use base::{build_vmsg, goff};
 
 use core::fmt;
 use core::ptr;
@@ -341,7 +341,7 @@ impl MGateObject {
         self.mem.global().tile()
     }
 
-    pub fn offset(&self) -> goff {
+    pub fn offset(&self) -> GlobOff {
         self.mem.global().offset()
     }
 
@@ -349,7 +349,7 @@ impl MGateObject {
         self.mem.global()
     }
 
-    pub fn size(&self) -> goff {
+    pub fn size(&self) -> GlobOff {
         self.mem.size()
     }
 

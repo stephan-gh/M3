@@ -17,8 +17,8 @@ use core::fmt;
 use core::ops;
 
 use crate::cfg;
-use crate::goff;
 use crate::impl_prim_int;
+use crate::mem::GlobOff;
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::EpId;
 
@@ -51,8 +51,8 @@ impl PhysAddr {
     }
 
     /// Returns this address as a global offset
-    pub const fn as_goff(&self) -> goff {
-        self.0 as goff
+    pub const fn as_goff(&self) -> GlobOff {
+        self.0 as GlobOff
     }
 
     /// Returns the endpoint of this physical address

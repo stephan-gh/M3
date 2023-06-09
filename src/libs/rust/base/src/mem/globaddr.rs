@@ -20,7 +20,6 @@ use core::fmt;
 use core::ops;
 
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::io::LogFlags;
 use crate::kif::{PageFlags, Perm};
 use crate::mem::{PhysAddr, PhysAddrRaw};
@@ -29,6 +28,9 @@ use crate::tcu::{EpId, TileId, PMEM_PROT_EPS, TCU};
 
 /// The underlying type for [`GlobAddr`]
 pub type GlobAddrRaw = u64;
+
+/// The offset in a [`GlobAddr`]
+pub type GlobOff = u64;
 
 /// Represents a global address
 ///
@@ -50,7 +52,7 @@ impl GlobAddr {
     }
 
     /// Creates a new global address from the given tile id and offset
-    pub fn new_with(tile: TileId, off: goff) -> GlobAddr {
+    pub fn new_with(tile: TileId, off: GlobOff) -> GlobAddr {
         Self::new(((TILE_OFFSET + tile.raw() as GlobAddrRaw) << TILE_SHIFT) | off)
     }
 
@@ -64,7 +66,7 @@ impl GlobAddr {
         let off = phys.offset();
 
         let res = TCU::unpack_mem_ep(epid)
-            .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off as goff))
+            .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off as GlobOff))
             .ok_or_else(|| Error::new(Code::InvArgs));
         log!(LogFlags::LibXlate, "Translated {} to {}", phys, 0);
         res
@@ -86,8 +88,8 @@ impl GlobAddr {
     }
 
     /// Returns the offset
-    pub fn offset(self) -> goff {
-        (self.val & ((1 << TILE_SHIFT) - 1)) as goff
+    pub fn offset(self) -> GlobOff {
+        (self.val & ((1 << TILE_SHIFT) - 1)) as GlobOff
     }
 
     /// Translates this global address to a physical address based on the PMP EPs.
@@ -107,7 +109,7 @@ impl GlobAddr {
     /// address, but instead of reading the PMP EPs, it calls `get_ep` for every EP id.
     pub fn to_phys_with<F>(self, access: PageFlags, get_ep: F) -> Result<PhysAddr, Error>
     where
-        F: Fn(EpId) -> Option<(TileId, goff, goff, Perm)>,
+        F: Fn(EpId) -> Option<(TileId, GlobOff, GlobOff, Perm)>,
     {
         if !self.has_tile() {
             return Ok(PhysAddr::new_raw(self.raw() as PhysAddrRaw));
@@ -166,10 +168,10 @@ impl fmt::Debug for GlobAddr {
     }
 }
 
-impl ops::Add<goff> for GlobAddr {
+impl ops::Add<GlobOff> for GlobAddr {
     type Output = GlobAddr;
 
-    fn add(self, rhs: goff) -> Self::Output {
+    fn add(self, rhs: GlobOff) -> Self::Output {
         GlobAddr::new(self.val + rhs)
     }
 }

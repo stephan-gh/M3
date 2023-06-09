@@ -22,13 +22,13 @@ use core::cmp;
 use core::fmt;
 use core::ptr::NonNull;
 
-use base::io::LogFlags;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::col::{BoxList, Treap};
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
-use m3::goff;
+use m3::io::LogFlags;
+use m3::mem::GlobOff;
 
 use thread::Event;
 
@@ -190,7 +190,7 @@ impl FileBuffer {
                         sel,
                         head.data.sel(),
                         ((bno - start) as u64) * self.block_size as u64,
-                        (len * self.block_size) as goff,
+                        (len * self.block_size) as GlobOff,
                         perm,
                     )?;
 
@@ -280,7 +280,7 @@ impl FileBuffer {
             sel,
             new_head.data.sel(),
             0,
-            (load_size * self.block_size) as goff,
+            (load_size * self.block_size) as GlobOff,
             perm,
         )?;
 

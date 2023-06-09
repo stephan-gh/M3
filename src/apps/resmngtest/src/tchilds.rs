@@ -16,9 +16,10 @@
 use m3::col::ToString;
 use m3::errors::Code;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
+use m3::mem::GlobOff;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, Tile};
-use m3::{goff, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
+use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
 
 use resmng::childs::Child;
 use resmng::resources::Resources;
@@ -89,7 +90,7 @@ fn services(t: &mut dyn WvTester, child: &mut dyn Child, res: &mut Resources) {
 }
 
 fn memories(t: &mut dyn WvTester, child: &mut dyn Child, _res: &mut Resources) {
-    const QUOTA: goff = 32 * 1024 * 1024;
+    const QUOTA: GlobOff = 32 * 1024 * 1024;
     wv_assert_eq!(t, child.res().memories().len(), 0);
     wv_assert_eq!(t, child.mem().quota(), QUOTA);
 

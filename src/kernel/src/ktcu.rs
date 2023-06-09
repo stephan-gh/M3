@@ -17,11 +17,10 @@ use base::cell::{StaticCell, StaticRefCell};
 use base::cfg;
 use base::env;
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{self, GlobAddr, PhysAddr, PhysAddrRaw, VirtAddr};
+use base::mem::{self, GlobAddr, GlobOff, PhysAddr, PhysAddrRaw, VirtAddr};
 use base::tcu::{
     ActId, EpId, ExtCmdOpCode, ExtReg, Header, Label, Message, Reg, TileId, AVAIL_EPS, EP_REGS,
     MMIO_ADDR, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
@@ -123,7 +122,7 @@ pub fn config_mem(
     tgtep: (TileId, EpId),
     act: ActId,
     tile: TileId,
-    addr: goff,
+    addr: GlobOff,
     size: usize,
     perm: kif::Perm,
 ) {
@@ -220,22 +219,22 @@ pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg: &Message) -> Result<(), Error> 
     TCU::reply(ep, reply, msg_off)
 }
 
-pub fn read_obj<T: Default>(tile: TileId, addr: goff) -> T {
+pub fn read_obj<T: Default>(tile: TileId, addr: GlobOff) -> T {
     try_read_obj(tile, addr).unwrap()
 }
 
-pub fn try_read_obj<T: Default>(tile: TileId, addr: goff) -> Result<T, Error> {
+pub fn try_read_obj<T: Default>(tile: TileId, addr: GlobOff) -> Result<T, Error> {
     let mut obj: T = T::default();
     let obj_addr = &mut obj as *mut T as *mut u8;
     try_read_mem(tile, addr, obj_addr, mem::size_of::<T>())?;
     Ok(obj)
 }
 
-pub fn read_slice<T>(tile: TileId, addr: goff, data: &mut [T]) {
+pub fn read_slice<T>(tile: TileId, addr: GlobOff, data: &mut [T]) {
     try_read_slice(tile, addr, data).unwrap();
 }
 
-pub fn try_read_slice<T>(tile: TileId, addr: goff, data: &mut [T]) -> Result<(), Error> {
+pub fn try_read_slice<T>(tile: TileId, addr: GlobOff, data: &mut [T]) -> Result<(), Error> {
     try_read_mem(
         tile,
         addr,
@@ -244,7 +243,12 @@ pub fn try_read_slice<T>(tile: TileId, addr: goff, data: &mut [T]) -> Result<(),
     )
 }
 
-pub fn try_read_mem(src_tile: TileId, addr: goff, data: *mut u8, size: usize) -> Result<(), Error> {
+pub fn try_read_mem(
+    src_tile: TileId,
+    addr: GlobOff,
+    data: *mut u8,
+    size: usize,
+) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs, tgtep| {
         config_mem(regs, tgtep, KERNEL_ID, src_tile, addr, size, kif::Perm::R);
     });
@@ -258,23 +262,23 @@ pub fn try_read_mem(src_tile: TileId, addr: goff, data: *mut u8, size: usize) ->
     TCU::read(KTMP_EP, data, size, 0)
 }
 
-pub fn write_slice<T>(tile: TileId, addr: goff, sl: &[T]) {
+pub fn write_slice<T>(tile: TileId, addr: GlobOff, sl: &[T]) {
     let sl_addr = sl.as_ptr() as *const u8;
     write_mem(tile, addr, sl_addr, sl.len() * mem::size_of::<T>());
 }
 
-pub fn try_write_slice<T>(tile: TileId, addr: goff, sl: &[T]) -> Result<(), Error> {
+pub fn try_write_slice<T>(tile: TileId, addr: GlobOff, sl: &[T]) -> Result<(), Error> {
     let sl_addr = sl.as_ptr() as *const u8;
     try_write_mem(tile, addr, sl_addr, sl.len() * mem::size_of::<T>())
 }
 
-pub fn write_mem(tile: TileId, addr: goff, data: *const u8, size: usize) {
+pub fn write_mem(tile: TileId, addr: GlobOff, data: *const u8, size: usize) {
     try_write_mem(tile, addr, data, size).unwrap();
 }
 
 pub fn try_write_mem(
     dst_tile: TileId,
-    addr: goff,
+    addr: GlobOff,
     data: *const u8,
     size: usize,
 ) -> Result<(), Error> {
@@ -291,7 +295,7 @@ pub fn try_write_mem(
     TCU::write(KTMP_EP, data, size, 0)
 }
 
-pub fn clear(dst_tile: TileId, mut dst_addr: goff, size: usize) -> Result<(), Error> {
+pub fn clear(dst_tile: TileId, mut dst_addr: GlobOff, size: usize) -> Result<(), Error> {
     use base::libc;
 
     let mut buf = BUF.borrow_mut();
@@ -304,7 +308,7 @@ pub fn clear(dst_tile: TileId, mut dst_addr: goff, size: usize) -> Result<(), Er
     while rem > 0 {
         let amount = core::cmp::min(rem, buf.len());
         try_write_slice(dst_tile, dst_addr, &buf[0..amount])?;
-        dst_addr += amount as goff;
+        dst_addr += amount as GlobOff;
         rem -= amount;
     }
     Ok(())
@@ -312,9 +316,9 @@ pub fn clear(dst_tile: TileId, mut dst_addr: goff, size: usize) -> Result<(), Er
 
 pub fn copy(
     dst_tile: TileId,
-    mut dst_addr: goff,
+    mut dst_addr: GlobOff,
     src_tile: TileId,
-    mut src_addr: goff,
+    mut src_addr: GlobOff,
     size: usize,
 ) -> Result<(), Error> {
     let mut buf = BUF.borrow_mut();
@@ -323,8 +327,8 @@ pub fn copy(
         let amount = core::cmp::min(rem, buf.len());
         try_read_slice(src_tile, src_addr, &mut buf[0..amount])?;
         try_write_slice(dst_tile, dst_addr, &buf[0..amount])?;
-        src_addr += amount as goff;
-        dst_addr += amount as goff;
+        src_addr += amount as GlobOff;
+        dst_addr += amount as GlobOff;
         rem -= amount;
     }
     Ok(())

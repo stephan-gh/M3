@@ -22,10 +22,10 @@ use m3::com::MemGate;
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::format;
-use m3::goff;
 use m3::io::{LogFlags, Read};
 use m3::kif::{self, Perm};
 use m3::log;
+use m3::mem::GlobOff;
 use m3::println;
 use m3::server::{
     CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, ServerSession,
@@ -131,7 +131,7 @@ pub fn main() -> Result<(), Error> {
             .borrow_mut()
             .write(&local[..amount], off)
             .expect("write failed");
-        off += amount as goff;
+        off += amount as GlobOff;
     }
 
     let mut hdl = RequestHandler::new().expect("Unable to create request handler");

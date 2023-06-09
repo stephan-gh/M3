@@ -17,9 +17,8 @@ use base::build_vmsg;
 use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, Error, VerboseError};
-use base::goff;
 use base::kif::{self, syscalls};
-use base::mem::{GlobAddr, MsgBuf};
+use base::mem::{GlobAddr, GlobOff, MsgBuf};
 use base::quota::Quota;
 use base::rc::Rc;
 use base::tcu;
@@ -252,8 +251,8 @@ pub fn tile_mem(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
         sysc_err!(Code::InvArgs, "Tile has no internal memory");
     }
 
-    let glob = GlobAddr::new_with(tile.tile(), cfg::MEM_OFFSET as goff);
-    let mem = Allocation::new(glob, platform::tile_desc(tile.tile()).mem_size() as goff);
+    let glob = GlobAddr::new_with(tile.tile(), cfg::MEM_OFFSET as GlobOff);
+    let mem = Allocation::new(glob, platform::tile_desc(tile.tile()).mem_size() as GlobOff);
     let cap = Capability::new(
         r.dst,
         KObject::MGate(MGateObject::new(mem, kif::Perm::RWX, true)),

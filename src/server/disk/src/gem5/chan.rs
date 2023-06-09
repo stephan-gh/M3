@@ -16,11 +16,10 @@
 use m3::col::Vec;
 use m3::com::{opcodes, MemGate};
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::log;
-use m3::mem;
+use m3::mem::{self, GlobOff};
 use m3::rc::Rc;
 use m3::tiles::OwnActivity;
 use m3::time::TimeDuration;
@@ -163,7 +162,7 @@ impl Channel {
             lba,
         );
 
-        let dev_buf = buf.derive(buf_off as goff, bytes + mem::size_of::<PRD>(), Perm::RW)?;
+        let dev_buf = buf.derive(buf_off as GlobOff, bytes + mem::size_of::<PRD>(), Perm::RW)?;
         self.set_dma_buffer(&dev_buf)?;
 
         dev.read_write(self, dev_op, buf, buf_off, lba, dev.sector_size(), count)
@@ -188,7 +187,7 @@ impl Channel {
     pub fn wait(&self) {
         for _ in 0..4 {
             self.pci_dev
-                .read_config::<u8>((self.port_base + ATAReg::CmdStatus as u16) as goff)
+                .read_config::<u8>((self.port_base + ATAReg::CmdStatus as u16) as GlobOff)
                 .unwrap();
         }
     }
@@ -238,12 +237,13 @@ impl Channel {
     }
 
     pub fn read_pio<T>(&self, reg: ATAReg) -> Result<T, Error> {
-        self.pci_dev.read_reg((self.port_base + reg as u16) as goff)
+        self.pci_dev
+            .read_reg((self.port_base + reg as u16) as GlobOff)
     }
 
     pub fn write_pio<T>(&self, reg: ATAReg, val: T) -> Result<(), Error> {
         self.pci_dev
-            .write_reg((self.port_base + reg as u16) as goff, val)
+            .write_reg((self.port_base + reg as u16) as GlobOff, val)
     }
 
     pub fn read_pio_words(&self, reg: ATAReg, buf: &mut [u16]) -> Result<(), Error> {
@@ -261,12 +261,13 @@ impl Channel {
     }
 
     pub fn read_bmr<T>(&self, reg: BMIReg) -> Result<T, Error> {
-        self.pci_dev.read_reg((self.bmr_base + reg as u16) as goff)
+        self.pci_dev
+            .read_reg((self.bmr_base + reg as u16) as GlobOff)
     }
 
     pub fn write_bmr<T>(&self, reg: BMIReg, val: T) -> Result<(), Error> {
         self.pci_dev
-            .write_reg((self.bmr_base + reg as u16) as goff, val)
+            .write_reg((self.bmr_base + reg as u16) as GlobOff, val)
     }
 
     fn check_bus(&self) -> Result<(), Error> {

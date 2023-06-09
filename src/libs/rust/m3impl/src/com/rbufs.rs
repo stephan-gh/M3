@@ -20,9 +20,8 @@ use crate::cell::LazyStaticRefCell;
 use crate::cfg;
 use crate::com::MemGate;
 use crate::errors::Error;
-use crate::goff;
 use crate::kif::Perm;
-use crate::mem::{MemMap, VirtAddr};
+use crate::mem::{GlobOff, MemMap, VirtAddr};
 use crate::tiles::Activity;
 use crate::util::math;
 
@@ -51,7 +50,7 @@ impl RecvBuf {
     }
 
     /// Returns the offset to specify on [`RecvGate`](crate::com::RecvGate) activation
-    pub fn off(&self) -> goff {
+    pub fn off(&self) -> GlobOff {
         match self.mgate {
             Some(_) => 0,
             None => self.addr.as_goff(),

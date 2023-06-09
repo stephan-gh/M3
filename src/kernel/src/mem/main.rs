@@ -15,10 +15,9 @@
 
 use base::cell::{RefMut, StaticRefCell};
 use base::col::Vec;
-use base::goff;
 use base::io::LogFlags;
 use base::log;
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, GlobOff};
 use core::fmt;
 
 use crate::mem::{MemMod, MemType};
@@ -30,11 +29,11 @@ pub struct MainMemory {
 #[derive(Copy, Clone)]
 pub struct Allocation {
     gaddr: GlobAddr,
-    size: goff,
+    size: GlobOff,
 }
 
 impl Allocation {
-    pub fn new(gaddr: GlobAddr, size: goff) -> Self {
+    pub fn new(gaddr: GlobAddr, size: GlobOff) -> Self {
         Allocation { gaddr, size }
     }
 
@@ -42,7 +41,7 @@ impl Allocation {
         self.gaddr
     }
 
-    pub fn size(&self) -> goff {
+    pub fn size(&self) -> GlobOff {
         self.size
     }
 }
@@ -69,8 +68,8 @@ impl MainMemory {
     pub fn allocate(
         &mut self,
         mtype: MemType,
-        size: goff,
-        align: goff,
+        size: GlobOff,
+        align: GlobOff,
     ) -> Result<Allocation, base::errors::Error> {
         use base::errors::{Code, Error};
 
@@ -106,7 +105,7 @@ impl MainMemory {
         }
     }
 
-    pub fn largest_contiguous(&self, mtype: MemType) -> Option<goff> {
+    pub fn largest_contiguous(&self, mtype: MemType) -> Option<GlobOff> {
         let mut max = None;
         for m in &self.mods {
             if m.mem_type() == mtype {
@@ -119,11 +118,11 @@ impl MainMemory {
         max
     }
 
-    pub fn capacity(&self) -> goff {
+    pub fn capacity(&self) -> GlobOff {
         self.mods.iter().fold(0, |total, m| total + m.capacity())
     }
 
-    pub fn available(&self) -> goff {
+    pub fn available(&self) -> GlobOff {
         self.mods.iter().fold(0, |total, m| {
             if m.mem_type() != MemType::OCCUPIED {
                 total + m.available()

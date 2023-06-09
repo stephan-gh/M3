@@ -21,8 +21,7 @@ use m3::cfg;
 use m3::client::MapFlags;
 use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
-use m3::goff;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
 use m3::util::math;
@@ -153,7 +152,9 @@ fn remote_access(t: &mut dyn WvTester) {
         let sem2 = Semaphore::bind(sem2_sel);
         // write value to own address space
         let obj_addr = virt.as_mut_ptr::<u64>();
-        unsafe { *obj_addr = 0xDEAD_BEEF };
+        unsafe {
+            *obj_addr = 0xDEAD_BEEF
+        };
         //  notify parent that we're ready
         wv_assert_ok!(sem1.up());
         // wait for parent
@@ -167,12 +168,12 @@ fn remote_access(t: &mut dyn WvTester) {
     // read object from his address space
     let obj_mem = wv_assert_ok!(act.activity_mut().get_mem(
         math::round_dn(virt, VirtAddr::from(cfg::PAGE_SIZE)),
-        cfg::PAGE_SIZE as goff,
+        cfg::PAGE_SIZE as GlobOff,
         Perm::R
     ));
-    let obj: u64 =
-        wv_assert_ok!(obj_mem
-            .read_obj((virt - math::round_dn(virt, VirtAddr::from(cfg::PAGE_SIZE))).as_goff()));
+    let obj: u64 = wv_assert_ok!(
+        obj_mem.read_obj((virt - math::round_dn(virt, VirtAddr::from(cfg::PAGE_SIZE))).as_goff())
+    );
     wv_assert_eq!(t, obj, 0xDEAD_BEEF);
 
     // notify child that we're done

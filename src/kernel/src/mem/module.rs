@@ -14,8 +14,7 @@
  */
 
 use base::errors::Error;
-use base::goff;
-use base::mem::{GlobAddr, MemMap};
+use base::mem::{GlobAddr, GlobOff, MemMap};
 use base::tcu::TileId;
 use core::fmt;
 
@@ -30,13 +29,13 @@ pub enum MemType {
 
 pub struct MemMod {
     gaddr: GlobAddr,
-    size: goff,
-    map: MemMap<goff>,
+    size: GlobOff,
+    map: MemMap<GlobOff>,
     ty: MemType,
 }
 
 impl MemMod {
-    pub fn new(ty: MemType, tile: TileId, offset: goff, size: goff) -> Self {
+    pub fn new(ty: MemType, tile: TileId, offset: GlobOff, size: GlobOff) -> Self {
         MemMod {
             gaddr: GlobAddr::new_with(tile, offset),
             size,
@@ -53,23 +52,23 @@ impl MemMod {
         self.gaddr
     }
 
-    pub fn largest_contiguous(&self) -> Option<goff> {
+    pub fn largest_contiguous(&self) -> Option<GlobOff> {
         self.map.largest_contiguous()
     }
 
-    pub fn capacity(&self) -> goff {
+    pub fn capacity(&self) -> GlobOff {
         self.size
     }
 
-    pub fn available(&self) -> goff {
+    pub fn available(&self) -> GlobOff {
         self.map.size().0
     }
 
-    pub fn allocate(&mut self, size: goff, align: goff) -> Result<GlobAddr, Error> {
+    pub fn allocate(&mut self, size: GlobOff, align: GlobOff) -> Result<GlobAddr, Error> {
         self.map.allocate(size, align).map(|addr| self.gaddr + addr)
     }
 
-    pub fn free(&mut self, addr: GlobAddr, size: goff) -> bool {
+    pub fn free(&mut self, addr: GlobAddr, size: GlobOff) -> bool {
         if addr.tile() == self.gaddr.tile() {
             self.map.free(addr.offset() - self.gaddr.offset(), size);
             true

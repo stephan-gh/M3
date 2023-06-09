@@ -28,8 +28,7 @@ use crate::cell::{LazyStaticRefCell, Ref, StaticRefCell};
 use crate::cfg;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
-use crate::goff;
-use crate::mem::{GlobAddr, MsgBuf, VirtAddr};
+use crate::mem::{GlobAddr, GlobOff, MsgBuf, VirtAddr};
 use crate::quota::Quota;
 use crate::serialize::{Deserialize, M3Deserializer, M3Serializer, SliceSink};
 use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
@@ -102,7 +101,7 @@ pub fn create_mgate(
     dst: Selector,
     act: Selector,
     addr: VirtAddr,
-    size: goff,
+    size: GlobOff,
     perms: Perm,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
@@ -204,7 +203,7 @@ pub fn create_map(
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::CreateMap, syscalls::CreateMap {
-        dst: virt.as_goff() / cfg::PAGE_SIZE as goff,
+        dst: virt.as_goff() / cfg::PAGE_SIZE as GlobOff,
         act,
         mgate,
         first,
@@ -275,8 +274,8 @@ pub fn derive_mem(
     act: Selector,
     dst: Selector,
     src: Selector,
-    offset: goff,
-    size: goff,
+    offset: GlobOff,
+    size: GlobOff,
     perms: Perm,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
@@ -355,7 +354,7 @@ pub fn get_sess(srv: Selector, act: Selector, dst: Selector, sid: u64) -> Result
 }
 
 /// Returns the global address and size of the MemGate at `mgate`
-pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, goff), Error> {
+pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, GlobOff), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(
         buf,
@@ -654,7 +653,7 @@ pub fn activate(
     ep: Selector,
     gate: Selector,
     rbuf_mem: Selector,
-    rbuf_off: goff,
+    rbuf_off: GlobOff,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::Activate, syscalls::Activate {

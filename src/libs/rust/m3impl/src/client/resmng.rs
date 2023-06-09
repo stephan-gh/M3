@@ -22,9 +22,8 @@ use crate::col::String;
 use crate::col::ToString;
 use crate::com::{opcodes, GateIStream, RecvGate, SendGate};
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::kif;
-use crate::mem::MsgBuf;
+use crate::mem::{GlobOff, MsgBuf};
 use crate::quota::Quota;
 use crate::tcu::{ActId, TileId};
 use crate::tiles::Activity;
@@ -61,7 +60,7 @@ pub struct OpenSessionReq {
 #[serde(crate = "base::serde")]
 pub struct AllocMemReq {
     pub dst: Selector,
-    pub size: goff,
+    pub size: GlobOff,
     pub perms: kif::Perm,
 }
 
@@ -224,7 +223,7 @@ impl ResMng {
     }
 
     /// Allocates `size` bytes of physical memory with given permissions.
-    pub fn alloc_mem(&self, dst: Selector, size: goff, perms: kif::Perm) -> Result<(), Error> {
+    pub fn alloc_mem(&self, dst: Selector, size: GlobOff, perms: kif::Perm) -> Result<(), Error> {
         Self::send_receive(&self.sgate, opcodes::ResMng::AllocMem, AllocMemReq {
             dst,
             size,

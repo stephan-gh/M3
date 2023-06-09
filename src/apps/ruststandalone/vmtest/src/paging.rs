@@ -17,9 +17,8 @@ use base::cell::LazyStaticRefCell;
 use base::cfg;
 use base::env;
 use base::errors::Error;
-use base::goff;
 use base::kif::{PageFlags, TileDesc};
-use base::mem::{GlobAddr, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
+use base::mem::{GlobAddr, GlobOff, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use base::tcu;
 use base::util::math;
 
@@ -74,7 +73,7 @@ pub fn init() {
         cur: PhysAddr::new(0, (mem_size / 2) as PhysAddrRaw),
         max: PhysAddr::new(0, mem_size as PhysAddrRaw),
     };
-    let root = base + alloc.allocate_pt().unwrap().offset() as goff;
+    let root = base + alloc.allocate_pt().unwrap().offset() as GlobOff;
     let aspace = AddrSpace::new(0, root, alloc);
     aspace.init();
     ASPACE.set(aspace);
@@ -136,7 +135,7 @@ pub fn map_anon(virt: VirtAddr, size: usize, perm: PageFlags) -> Result<(), Erro
         let frame = ASPACE.borrow_mut().allocator_mut().allocate_pt()?;
         ASPACE.borrow_mut().map_pages(
             virt + i * cfg::PAGE_SIZE,
-            base + (frame.offset() as goff),
+            base + (frame.offset() as GlobOff),
             1,
             perm,
         )?;

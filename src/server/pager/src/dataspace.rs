@@ -19,11 +19,10 @@ use m3::cfg;
 use m3::client::{ClientSession, MapFlags, M3FS};
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::rc::Rc;
 use m3::util::math;
 use resmng::childs;
@@ -44,11 +43,11 @@ fn alloc_id() -> u64 {
 
 struct FileMapping {
     sess: ClientSession,
-    offset: goff,
+    offset: GlobOff,
 }
 
 impl FileMapping {
-    fn new(sel: Selector, offset: goff) -> Self {
+    fn new(sel: Selector, offset: GlobOff) -> Self {
         FileMapping {
             sess: ClientSession::new_bind(sel),
             offset,
@@ -69,7 +68,7 @@ pub struct DataSpace {
     id: u64,
     child: childs::Id,
     virt: VirtAddr,
-    size: goff,
+    size: GlobOff,
     perms: kif::Perm,
     flags: MapFlags,
     regions: RegionList,
@@ -83,10 +82,10 @@ impl DataSpace {
         owner: Selector,
         child: childs::Id,
         virt: VirtAddr,
-        size: goff,
+        size: GlobOff,
         perms: kif::Perm,
         flags: MapFlags,
-        off: goff,
+        off: GlobOff,
         sel: Selector,
     ) -> Self {
         DataSpace {
@@ -106,7 +105,7 @@ impl DataSpace {
         owner: Selector,
         child: childs::Id,
         virt: VirtAddr,
-        size: goff,
+        size: GlobOff,
         perms: kif::Perm,
         flags: MapFlags,
     ) -> Self {
@@ -145,7 +144,7 @@ impl DataSpace {
         self.virt
     }
 
-    pub fn size(&self) -> goff {
+    pub fn size(&self) -> GlobOff {
         self.size
     }
 
@@ -174,7 +173,7 @@ impl DataSpace {
         childs: &mut childs::ChildManager,
         virt: VirtAddr,
     ) -> Result<(), Error> {
-        let pf_off = math::round_dn((virt - self.virt).as_goff(), cfg::PAGE_SIZE as goff);
+        let pf_off = math::round_dn((virt - self.virt).as_goff(), cfg::PAGE_SIZE as GlobOff);
         let reg = self.regions.pagefault(pf_off);
 
         // if it isn't backed with memory yet, allocate memory for it
@@ -185,7 +184,7 @@ impl DataSpace {
                 let (off, len, sel) = M3FS::get_mem(&f.sess, f.offset + pf_off)?;
 
                 // first, resize the region to not be too large
-                reg.limit_to(pf_off, MAX_EXT_PAGES as goff);
+                reg.limit_to(pf_off, MAX_EXT_PAGES as GlobOff);
 
                 // now, align the region with the memory capability that we got
                 let cap_begin = f.offset + pf_off - off;
@@ -202,7 +201,10 @@ impl DataSpace {
 
                 // ensure that we don't exceed the memcap size
                 if reg.mem_off() + reg.size() > len {
-                    reg.set_size(math::round_up(len - reg.mem_off(), cfg::PAGE_SIZE as goff));
+                    reg.set_size(math::round_up(
+                        len - reg.mem_off(),
+                        cfg::PAGE_SIZE as GlobOff,
+                    ));
                 }
 
                 // if it's writable and should not be shared, create a copy
@@ -235,7 +237,7 @@ impl DataSpace {
             else {
                 let max = if !self.flags.contains(MapFlags::NOLPAGE)
                     && math::is_aligned(virt, VirtAddr::from(cfg::LPAGE_SIZE))
-                    && reg.size() >= cfg::LPAGE_SIZE as goff
+                    && reg.size() >= cfg::LPAGE_SIZE as GlobOff
                 {
                     cfg::LPAGE_SIZE / cfg::PAGE_SIZE
                 }
@@ -244,7 +246,7 @@ impl DataSpace {
                 };
 
                 // don't allocate too much at once
-                reg.limit_to(pf_off, max as goff);
+                reg.limit_to(pf_off, max as GlobOff);
 
                 log!(
                     LogFlags::PgMem,

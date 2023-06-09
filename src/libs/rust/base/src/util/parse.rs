@@ -16,19 +16,19 @@
 //! Contains utility functions for parsing data types from text
 
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::kif;
+use crate::mem::GlobOff;
 use crate::time::TimeDuration;
 
 /// Parses an address from the given string
 ///
 /// If the string starts with "0x", the remainder is interpreted hexadecimal, otherwise decimal.
-pub fn addr(s: &str) -> Result<goff, Error> {
+pub fn addr(s: &str) -> Result<GlobOff, Error> {
     if let Some(hex) = s.strip_prefix("0x") {
-        goff::from_str_radix(hex, 16)
+        GlobOff::from_str_radix(hex, 16)
     }
     else {
-        s.parse::<goff>()
+        s.parse::<GlobOff>()
     }
     .map_err(|_| Error::new(Code::InvArgs))
 }

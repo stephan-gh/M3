@@ -16,9 +16,8 @@
 use m3::client::MapFlags;
 use m3::client::Pager;
 use m3::errors::Error;
-use m3::goff;
 use m3::kif::Perm;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::tiles::Mapper;
 use m3::vfs::{BufReader, File, FileRef};
 
@@ -52,7 +51,7 @@ impl<'a> Mapper for ChildMapper<'a> {
         if self.has_virtmem {
             let sess = file.get_ref().session().unwrap();
             self.aspace
-                .map_ds_with(virt, len as goff, foff as goff, perm, flags, sess)
+                .map_ds_with(virt, len as GlobOff, foff as GlobOff, perm, flags, sess)
                 .map(|_| false)
         }
         else {
@@ -70,7 +69,7 @@ impl<'a> Mapper for ChildMapper<'a> {
     ) -> Result<bool, Error> {
         if self.has_virtmem {
             self.aspace
-                .map_anon_with(virt, len as goff, perm, flags)
+                .map_anon_with(virt, len as GlobOff, perm, flags)
                 .map(|_| false)
         }
         else {

@@ -17,9 +17,8 @@ use base::build_vmsg;
 use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, VerboseError};
-use base::goff;
 use base::kif::{self, syscalls};
-use base::mem::{MsgBuf, PhysAddr, PhysAddrRaw};
+use base::mem::{GlobOff, MsgBuf, PhysAddr, PhysAddrRaw};
 use base::rc::Rc;
 use base::tcu;
 
@@ -204,10 +203,12 @@ pub fn get_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        try_kmem_quota!(actcap
-            .obj_caps()
-            .borrow_mut()
-            .obtain(r.dst, csess.unwrap(), true));
+        try_kmem_quota!(
+            actcap
+                .obj_caps()
+                .borrow_mut()
+                .obtain(r.dst, csess.unwrap(), true)
+        );
     }
     else {
         sysc_err!(Code::InvArgs, "Unknown session id {}", r.sid);
@@ -315,7 +316,8 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                 }
                 else if platform::tile_desc(dst_tile).has_virtmem() {
                     let rbuf = get_kobj!(act, r.rbuf_mem, MGate);
-                    if r.rbuf_off >= rbuf.size() || r.rbuf_off + rg.size() as goff > rbuf.size() {
+                    if r.rbuf_off >= rbuf.size() || r.rbuf_off + rg.size() as GlobOff > rbuf.size()
+                    {
                         sysc_err!(Code::InvArgs, "Invalid receive buffer memory");
                     }
                     if platform::tile_desc(rbuf.tile_id()).tile_type() != kif::TileType::Mem {

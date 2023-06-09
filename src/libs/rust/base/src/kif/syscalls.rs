@@ -23,9 +23,8 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::errors::Code;
-use crate::goff;
 use crate::kif::{tilemux::QuotaId, CapRngDesc, CapSel, Perm};
-use crate::mem::{GlobAddr, VirtAddr};
+use crate::mem::{GlobAddr, GlobOff, VirtAddr};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::{ActId, EpId, Label};
 
@@ -104,7 +103,7 @@ pub struct CreateMGate {
     pub dst: CapSel,
     pub act: CapSel,
     pub addr: VirtAddr,
-    pub size: goff,
+    pub size: GlobOff,
     pub perms: Perm,
 }
 
@@ -167,7 +166,7 @@ pub struct Activate {
     pub ep: CapSel,
     pub gate: CapSel,
     pub rbuf_mem: CapSel,
-    pub rbuf_off: goff,
+    pub rbuf_off: GlobOff,
 }
 
 /// The operations for the `act_ctrl` system call
@@ -200,8 +199,8 @@ pub struct DeriveMem {
     pub act: CapSel,
     pub dst: CapSel,
     pub src: CapSel,
-    pub offset: goff,
-    pub size: goff,
+    pub offset: GlobOff,
+    pub size: GlobOff,
     pub perms: Perm,
 }
 
@@ -381,7 +380,7 @@ pub struct ActivityWaitReply {
 #[repr(C)]
 pub struct MGateRegionReply {
     pub global: GlobAddr,
-    pub size: goff,
+    pub size: GlobOff,
 }
 
 /// The kernel receive gate buffer reply message

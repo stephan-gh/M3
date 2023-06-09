@@ -28,11 +28,10 @@ use crate::com::recv_result;
 use crate::com::GateIStream;
 use crate::com::{opcodes, MemGate, RecvGate, SendGate, EP};
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::io::{LogFlags, Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use crate::log;
-use crate::mem::VirtAddr;
+use crate::mem::{GlobOff, VirtAddr};
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::tcu::EpId;
@@ -614,7 +613,7 @@ impl Read for GenericFile {
         let amount = self.next_in(buf.len())?;
         if amount > 0 {
             self.mgate
-                .read(&mut buf[0..amount], (self.off + self.pos) as goff)?;
+                .read(&mut buf[0..amount], (self.off + self.pos) as GlobOff)?;
             self.pos += amount;
         }
         self.writing = false;
@@ -655,7 +654,7 @@ impl Write for GenericFile {
         let amount = self.next_out(buf.len())?;
         if amount > 0 {
             self.mgate
-                .write(&buf[0..amount], (self.off + self.pos) as goff)?;
+                .write(&buf[0..amount], (self.off + self.pos) as GlobOff)?;
             self.pos += amount;
         }
         self.writing = true;

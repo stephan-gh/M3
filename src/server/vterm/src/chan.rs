@@ -21,13 +21,14 @@ use m3::errors::{Code, Error};
 use m3::io::{LogFlags, Serial, Write};
 use m3::kif;
 use m3::log;
+use m3::mem::GlobOff;
 use m3::rc::Rc;
 use m3::reply_vmsg;
 use m3::server::SessId;
 use m3::tcu::Message;
 use m3::tiles::Activity;
 use m3::vfs::{FileEvent, FileInfo, FileMode, TMode};
-use m3::{build_vmsg, goff, send_vmsg};
+use m3::{build_vmsg, send_vmsg};
 
 use crate::input;
 
@@ -52,8 +53,8 @@ pub struct Channel {
     len: usize,
 }
 
-fn mem_off(id: SessId) -> goff {
-    id as goff * BUF_SIZE as goff
+fn mem_off(id: SessId) -> GlobOff {
+    id as GlobOff * BUF_SIZE as GlobOff
 }
 
 impl Channel {

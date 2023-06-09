@@ -22,10 +22,9 @@ use m3::client::M3FS;
 use m3::com::{MemGate, RecvGate, SendGate};
 use m3::cpu::{CPUOps, CPU};
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::kif::syscalls::{ActivityOp, SemOp};
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_ACT, SEL_KMEM, SEL_TILE};
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::server::{CapExchange, Handler, Server, ServerSession, SessId, SessionContainer};
 use m3::syscalls;
 use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
@@ -124,25 +123,25 @@ fn create_mgate(t: &mut dyn WvTester) {
     // invalid dest selector
     wv_assert_err!(
         t,
-        syscalls::create_mgate(SEL_ACT, SEL_ACT, virt, PAGE_SIZE as goff, Perm::R),
+        syscalls::create_mgate(SEL_ACT, SEL_ACT, virt, PAGE_SIZE as GlobOff, Perm::R),
         Code::InvArgs
     );
     // invalid activity selector
     wv_assert_err!(
         t,
-        syscalls::create_mgate(sel, SEL_KMEM, virt, PAGE_SIZE as goff, Perm::R),
+        syscalls::create_mgate(sel, SEL_KMEM, virt, PAGE_SIZE as GlobOff, Perm::R),
         Code::InvArgs
     );
     // unaligned virtual address
     wv_assert_err!(
         t,
-        syscalls::create_mgate(sel, SEL_ACT, unaligned_virt, PAGE_SIZE as goff, Perm::R),
+        syscalls::create_mgate(sel, SEL_ACT, unaligned_virt, PAGE_SIZE as GlobOff, Perm::R),
         Code::InvArgs
     );
     // unaligned size
     wv_assert_err!(
         t,
-        syscalls::create_mgate(sel, SEL_ACT, virt, PAGE_SIZE as goff - 1, Perm::R),
+        syscalls::create_mgate(sel, SEL_ACT, virt, PAGE_SIZE as GlobOff - 1, Perm::R),
         Code::InvArgs
     );
     // size is 0
@@ -156,7 +155,7 @@ fn create_mgate(t: &mut dyn WvTester) {
         // it has to be mapped
         wv_assert_err!(
             t,
-            syscalls::create_mgate(sel, SEL_ACT, virt, PAGE_SIZE as goff, Perm::R),
+            syscalls::create_mgate(sel, SEL_ACT, virt, PAGE_SIZE as GlobOff, Perm::R),
             Code::InvArgs
         );
         // and respect the permissions
@@ -164,7 +163,7 @@ fn create_mgate(t: &mut dyn WvTester) {
         let addr = math::round_dn(addr, VirtAddr::from(PAGE_SIZE));
         wv_assert_err!(
             t,
-            syscalls::create_mgate(sel, SEL_ACT, addr, PAGE_SIZE as goff, Perm::X),
+            syscalls::create_mgate(sel, SEL_ACT, addr, PAGE_SIZE as GlobOff, Perm::X),
             Code::NoPerm
         );
 
@@ -183,7 +182,7 @@ fn create_mgate(t: &mut dyn WvTester) {
         // it has to be within bounds
         wv_assert_err!(
             t,
-            syscalls::create_mgate(sel, SEL_ACT, virt, PAGE_SIZE as goff * 5, Perm::W),
+            syscalls::create_mgate(sel, SEL_ACT, virt, PAGE_SIZE as GlobOff * 5, Perm::W),
             Code::InvArgs
         );
         wv_assert_err!(
@@ -192,7 +191,7 @@ fn create_mgate(t: &mut dyn WvTester) {
                 sel,
                 SEL_ACT,
                 virt + PAGE_SIZE,
-                PAGE_SIZE as goff * 4,
+                PAGE_SIZE as GlobOff * 4,
                 Perm::W
             ),
             Code::InvArgs
@@ -202,7 +201,13 @@ fn create_mgate(t: &mut dyn WvTester) {
     // the TCU region is off limits
     wv_assert_err!(
         t,
-        syscalls::create_mgate(sel, SEL_ACT, m3::tcu::MMIO_ADDR, PAGE_SIZE as goff, Perm::R),
+        syscalls::create_mgate(
+            sel,
+            SEL_ACT,
+            m3::tcu::MMIO_ADDR,
+            PAGE_SIZE as GlobOff,
+            Perm::R
+        ),
         Code::InvArgs
     );
 }

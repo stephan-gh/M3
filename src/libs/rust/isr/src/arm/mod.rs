@@ -201,7 +201,9 @@ impl crate::ISRArch for ARMISR {
     }
 
     fn enable_irqs() {
-        unsafe { asm!("msr cpsr, 0x53") };
+        unsafe {
+            asm!("msr cpsr, 0x53")
+        };
     }
 
     fn fetch_irq() -> IRQSource {

@@ -17,11 +17,10 @@ use base::cell::LazyStaticRefCell;
 use base::cfg;
 use base::col::Vec;
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
 use base::kif::{self, Perm};
 use base::log;
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, GlobOff};
 use base::rc::{Rc, SRc};
 use base::tcu;
 use base::util::math;
@@ -168,14 +167,18 @@ impl ActivityMng {
         let mux_mem = if tile_desc.has_memory() {
             // load tilemux into the tile's internal memory
             Allocation::new(
-                GlobAddr::new_with(tile_id, cfg::MEM_OFFSET as goff),
-                tile_desc.mem_size() as goff,
+                GlobAddr::new_with(tile_id, cfg::MEM_OFFSET as GlobOff),
+                tile_desc.mem_size() as GlobOff,
             )
         }
         else {
             // allocate some memory for the tilemux
-            let mux_mem_size = cfg::FIXED_TILEMUX_MEM as goff;
-            mem::borrow_mut().allocate(mem::MemType::ROOT, mux_mem_size, cfg::PAGE_SIZE as goff)?
+            let mux_mem_size = cfg::FIXED_TILEMUX_MEM as GlobOff;
+            mem::borrow_mut().allocate(
+                mem::MemType::ROOT,
+                mux_mem_size,
+                cfg::PAGE_SIZE as GlobOff,
+            )?
         };
 
         // load and start tilemux
@@ -201,7 +204,7 @@ impl ActivityMng {
 
         // boot info
         {
-            let alloc = Allocation::new(platform::info_addr(), platform::info_size() as goff);
+            let alloc = Allocation::new(platform::info_addr(), platform::info_size() as GlobOff);
             let cap = Capability::new(
                 sel,
                 KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
@@ -228,7 +231,7 @@ impl ActivityMng {
         // boot modules
         for m in platform::mods() {
             let size = math::round_up(m.size as usize, cfg::PAGE_SIZE);
-            let alloc = Allocation::new(GlobAddr::new(m.addr), size as goff);
+            let alloc = Allocation::new(GlobAddr::new(m.addr), size as GlobOff);
             let cap = Capability::new(
                 sel,
                 KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),

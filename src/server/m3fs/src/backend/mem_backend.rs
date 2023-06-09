@@ -21,8 +21,9 @@ use crate::data::{BlockNo, BlockRange, Extent};
 use m3::cap::Selector;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
-use m3::goff;
+use m3::mem::GlobOff;
 use m3::syscalls::derive_mem;
+
 use thread::Event;
 
 pub struct MemBackend {
@@ -104,7 +105,7 @@ impl Backend for MemBackend {
             sel,
             self.mem.sel(),
             size,
-            bytes as goff,
+            bytes as GlobOff,
             perms,
         )?;
         Ok(bytes)

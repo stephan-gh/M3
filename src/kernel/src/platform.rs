@@ -17,9 +17,8 @@ use base::cell::LazyReadOnlyCell;
 use base::cfg;
 use base::col::Vec;
 use base::env;
-use base::goff;
 use base::kif::{self, boot, Perm, TileDesc, TileISA, TileType};
-use base::mem::{size_of, GlobAddr};
+use base::mem::{size_of, GlobAddr, GlobOff};
 use base::tcu::{ActId, EpId, TileId, TCU, UNLIM_CREDITS};
 use base::vec;
 
@@ -133,17 +132,17 @@ pub fn init() {
     let addr = GlobAddr::new(env::boot().kenv);
     let mut offset = addr.offset();
     let info: boot::Info = ktcu::read_obj(addr.tile(), offset);
-    offset += size_of::<boot::Info>() as goff;
+    offset += size_of::<boot::Info>() as GlobOff;
 
     // read boot modules
     let mut mods = vec![boot::Mod::default(); info.mod_count as usize];
     ktcu::read_slice(addr.tile(), offset, &mut mods);
-    offset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
+    offset += info.mod_count as GlobOff * size_of::<boot::Mod>() as GlobOff;
 
     // read tile descriptors
     let mut tile_descs = vec![TileDesc::default(); info.tile_count as usize];
     ktcu::read_slice(addr.tile(), offset, &mut tile_descs);
-    offset += info.tile_count as goff * size_of::<TileDesc>() as goff;
+    offset += info.tile_count as GlobOff * size_of::<TileDesc>() as GlobOff;
 
     // read memory regions
     let mut mems = vec![boot::Mem::default(); info.mem_count as usize];
@@ -173,7 +172,7 @@ pub fn init() {
             // the first memory module hosts the boot modules and tile-specific memory areas
             if kmem_idx == 0 {
                 let avail = mems[kmem_idx].size();
-                if avail <= args::get().kmem as goff {
+                if avail <= args::get().kmem as GlobOff {
                     panic!("Not enough DRAM for kernel memory ({})", args::get().kmem);
                 }
 
@@ -190,10 +189,10 @@ pub fn init() {
                 ));
 
                 // kernel memory
-                let mut used = tile.desc.mem_size() as goff - avail;
+                let mut used = tile.desc.mem_size() as GlobOff - avail;
                 assert!(mods_end <= used);
-                let kmem = MemMod::new(MemType::KERNEL, tile.id, used, args::get().kmem as goff);
-                used += args::get().kmem as goff;
+                let kmem = MemMod::new(MemType::KERNEL, tile.id, used, args::get().kmem as GlobOff);
+                used += args::get().kmem as GlobOff;
                 // configure EP to give us access to this range of physical memory
                 ktcu::config_local_ep(1, |regs, tgtep| {
                     ktcu::config_mem(
@@ -213,21 +212,21 @@ pub fn init() {
                     MemType::ROOT,
                     tile.id,
                     used,
-                    cfg::FIXED_ROOT_MEM as goff,
+                    cfg::FIXED_ROOT_MEM as GlobOff,
                 ));
-                used += cfg::FIXED_ROOT_MEM as goff;
+                used += cfg::FIXED_ROOT_MEM as GlobOff;
 
                 // user memory
                 let user_size = core::cmp::min(MAX_PHYS_ADDR_SIZE, avail);
                 mem.add(MemMod::new(MemType::USER, tile.id, used, user_size));
                 umems.push(boot::Mem::new(
                     GlobAddr::new_with(tile.id, used),
-                    user_size - args::get().kmem as goff,
+                    user_size - args::get().kmem as GlobOff,
                     false,
                 ));
             }
             else {
-                let user_size = core::cmp::min(MAX_PHYS_ADDR_SIZE, tile.desc.mem_size() as goff);
+                let user_size = core::cmp::min(MAX_PHYS_ADDR_SIZE, tile.desc.mem_size() as GlobOff);
                 mem.add(MemMod::new(MemType::USER, tile.id, 0, user_size));
                 umems.push(boot::Mem::new(
                     GlobAddr::new_with(tile.id, 0),
@@ -256,12 +255,12 @@ pub fn init() {
     uinfo.tile_count = (utiles.len() - 1) as u64;
     uinfo.mem_count = umems.len() as u64;
     ktcu::write_slice(addr.tile(), uoffset, &[uinfo]);
-    uoffset += size_of::<boot::Info>() as goff;
-    uoffset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
+    uoffset += size_of::<boot::Info>() as GlobOff;
+    uoffset += info.mod_count as GlobOff * size_of::<boot::Mod>() as GlobOff;
 
     // write-back user tiles
     ktcu::write_slice(addr.tile(), uoffset, &utiles[1..]);
-    uoffset += uinfo.tile_count as goff * size_of::<boot::Tile>() as goff;
+    uoffset += uinfo.tile_count as GlobOff * size_of::<boot::Tile>() as GlobOff;
 
     // write-back user memory regions
     ktcu::write_slice(addr.tile(), uoffset, &umems);

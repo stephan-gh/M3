@@ -20,23 +20,22 @@ use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::log;
-use m3::mem::{GlobAddr, MemMap};
+use m3::mem::{GlobAddr, GlobOff, MemMap};
 use m3::rc::Rc;
 use m3::util::math;
 
 pub struct MemMod {
     gate: MemGate,
     addr: GlobAddr,
-    size: goff,
+    size: GlobOff,
     reserved: bool,
 }
 
 impl MemMod {
-    pub fn new(gate: MemGate, addr: GlobAddr, size: goff, reserved: bool) -> Self {
+    pub fn new(gate: MemGate, addr: GlobAddr, size: GlobOff, reserved: bool) -> Self {
         MemMod {
             gate,
             addr,
@@ -53,7 +52,7 @@ impl MemMod {
         self.addr
     }
 
-    pub fn capacity(&self) -> goff {
+    pub fn capacity(&self) -> GlobOff {
         self.size
     }
 }
@@ -74,9 +73,9 @@ impl fmt::Debug for MemMod {
 #[derive(Default)]
 pub struct MemoryManager {
     mods: Vec<Rc<MemMod>>,
-    available: goff,
+    available: GlobOff,
     cur_mod: usize,
-    cur_off: goff,
+    cur_off: GlobOff,
 }
 
 impl MemoryManager {
@@ -91,7 +90,7 @@ impl MemoryManager {
         self.mods.push(m);
     }
 
-    pub fn capacity(&self) -> goff {
+    pub fn capacity(&self) -> GlobOff {
         self.mods.iter().fold(0, |total, m| {
             if !m.reserved {
                 total + m.capacity()
@@ -102,11 +101,11 @@ impl MemoryManager {
         })
     }
 
-    pub fn available(&self) -> goff {
+    pub fn available(&self) -> GlobOff {
         self.available
     }
 
-    pub fn find_mem(&self, addr: GlobAddr, size: goff, perm: Perm) -> Result<MemSlice, Error> {
+    pub fn find_mem(&self, addr: GlobAddr, size: GlobOff, perm: Perm) -> Result<MemSlice, Error> {
         for m in &self.mods {
             if addr.tile() == m.addr.tile()
                 && addr.offset() >= m.addr.offset()
@@ -123,8 +122,8 @@ impl MemoryManager {
         Err(Error::new(Code::InvArgs))
     }
 
-    pub fn alloc_mem(&mut self, mut size: goff) -> Result<MemSlice, Error> {
-        size = math::round_up(size, cfg::PAGE_SIZE as goff);
+    pub fn alloc_mem(&mut self, mut size: GlobOff) -> Result<MemSlice, Error> {
+        size = math::round_up(size, cfg::PAGE_SIZE as GlobOff);
         while self.cur_mod < self.mods.len() {
             if let Some(sl) = self.get_slice(size, true) {
                 self.cur_off += sl.size;
@@ -135,9 +134,9 @@ impl MemoryManager {
         Err(Error::new(Code::NoSpace))
     }
 
-    pub fn alloc_pool(&mut self, mut size: goff) -> Result<MemPool, Error> {
+    pub fn alloc_pool(&mut self, mut size: GlobOff) -> Result<MemPool, Error> {
         let mut res = MemPool::default();
-        size = math::round_up(size, cfg::PAGE_SIZE as goff);
+        size = math::round_up(size, cfg::PAGE_SIZE as GlobOff);
         while size > 0 && self.cur_mod < self.mods.len() {
             if let Some(sl) = self.get_slice(size, false) {
                 size -= sl.size;
@@ -155,7 +154,7 @@ impl MemoryManager {
         }
     }
 
-    fn get_slice(&mut self, size: goff, all: bool) -> Option<MemSlice> {
+    fn get_slice(&mut self, size: GlobOff, all: bool) -> Option<MemSlice> {
         let m = &self.mods[self.cur_mod];
         let avail = m.capacity() - self.cur_off;
         if m.reserved || self.cur_off == m.capacity() || (all && avail < size) {
@@ -174,14 +173,14 @@ impl MemoryManager {
 
 pub struct MemSlice {
     mem: Rc<MemMod>,
-    offset: goff,
-    size: goff,
-    map: MemMap<goff>,
+    offset: GlobOff,
+    size: GlobOff,
+    map: MemMap<GlobOff>,
     perm: Perm,
 }
 
 impl MemSlice {
-    pub fn new(mem: Rc<MemMod>, offset: goff, size: goff, perm: Perm) -> Self {
+    pub fn new(mem: Rc<MemMod>, offset: GlobOff, size: GlobOff, perm: Perm) -> Self {
         MemSlice {
             mem,
             offset,
@@ -201,15 +200,15 @@ impl MemSlice {
             .derive(self.offset, self.size as usize, self.perm)
     }
 
-    pub fn derive_with(&self, off: goff, size: usize) -> Result<MemGate, Error> {
+    pub fn derive_with(&self, off: GlobOff, size: usize) -> Result<MemGate, Error> {
         self.mem.gate.derive(self.offset + off, size, self.perm)
     }
 
-    pub fn allocate(&mut self, size: goff, align: goff) -> Result<goff, Error> {
+    pub fn allocate(&mut self, size: GlobOff, align: GlobOff) -> Result<GlobOff, Error> {
         self.map.allocate(size, align)
     }
 
-    pub fn free(&mut self, addr: goff, size: goff) {
+    pub fn free(&mut self, addr: GlobOff, size: GlobOff) {
         self.map.free(addr, size);
     }
 
@@ -221,11 +220,11 @@ impl MemSlice {
         self.mem.gate.sel()
     }
 
-    pub fn capacity(&self) -> goff {
+    pub fn capacity(&self) -> GlobOff {
         self.size
     }
 
-    pub fn available(&self) -> goff {
+    pub fn available(&self) -> GlobOff {
         self.map.size().0
     }
 }
@@ -258,12 +257,12 @@ impl fmt::Debug for MemSlice {
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Allocation {
     slice_id: usize,
-    addr: goff,
-    size: goff,
+    addr: GlobOff,
+    size: GlobOff,
 }
 
 impl Allocation {
-    pub fn new(slice_id: usize, addr: goff, size: goff) -> Self {
+    pub fn new(slice_id: usize, addr: GlobOff, size: GlobOff) -> Self {
         Allocation {
             slice_id,
             addr,
@@ -275,11 +274,11 @@ impl Allocation {
         self.slice_id
     }
 
-    pub fn addr(&self) -> goff {
+    pub fn addr(&self) -> GlobOff {
         self.addr
     }
 
-    pub fn size(&self) -> goff {
+    pub fn size(&self) -> GlobOff {
         self.size
     }
 }
@@ -304,11 +303,11 @@ impl MemPool {
         &self.slices
     }
 
-    pub fn capacity(&self) -> goff {
+    pub fn capacity(&self) -> GlobOff {
         self.slices.iter().fold(0, |total, m| total + m.capacity())
     }
 
-    pub fn available(&self) -> goff {
+    pub fn available(&self) -> GlobOff {
         self.slices.iter().fold(0, |total, m| total + m.available())
     }
 
@@ -320,7 +319,7 @@ impl MemPool {
         self.slices.push(s)
     }
 
-    pub fn allocate_slice(&mut self, size: goff) -> Result<MemSlice, Error> {
+    pub fn allocate_slice(&mut self, size: GlobOff) -> Result<MemSlice, Error> {
         let alloc = self.allocate(size)?;
         let slice = &self.slices[alloc.slice_id];
         Ok(MemSlice::new(
@@ -331,12 +330,12 @@ impl MemPool {
         ))
     }
 
-    pub fn allocate(&mut self, size: goff) -> Result<Allocation, Error> {
-        let align = if size >= cfg::LPAGE_SIZE as goff {
-            cfg::LPAGE_SIZE as goff
+    pub fn allocate(&mut self, size: GlobOff) -> Result<Allocation, Error> {
+        let align = if size >= cfg::LPAGE_SIZE as GlobOff {
+            cfg::LPAGE_SIZE as GlobOff
         }
         else {
-            cfg::PAGE_SIZE as goff
+            cfg::PAGE_SIZE as GlobOff
         };
 
         for (id, s) in self.slices.iter_mut().enumerate() {

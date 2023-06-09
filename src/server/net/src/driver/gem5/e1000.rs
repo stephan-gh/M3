@@ -18,10 +18,10 @@
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{Perm, TileISA};
 use m3::log;
+use m3::mem::GlobOff;
 use m3::net::{log_net, NetLogEvent, MAC};
 use m3::time::TimeDuration;
 
@@ -87,7 +87,7 @@ impl E1000 {
                 &ZEROS,
                 (core::mem::size_of::<Buffers>() - i)
                     .min(core::mem::size_of_val(&ZEROS))
-                    .min(i) as goff,
+                    .min(i) as GlobOff,
             );
             i += core::mem::size_of_val(&ZEROS);
         }
@@ -153,7 +153,7 @@ impl E1000 {
             }];
             self.write_bufs(
                 &desc,
-                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
+                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as GlobOff,
             );
 
             // read it back; TODO why is that necessary?
@@ -167,7 +167,7 @@ impl E1000 {
             }];
             self.read_bufs(
                 &mut desc,
-                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
+                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as GlobOff,
             );
         }
 
@@ -330,7 +330,7 @@ impl E1000 {
 
             self.write_bufs(
                 &desc,
-                (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as goff,
+                (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as GlobOff,
             );
             cur_tx_desc = inc_rb(cur_tx_desc, TX_BUF_COUNT as u32);
 
@@ -339,7 +339,7 @@ impl E1000 {
 
         // send packet
         let offset = TX_BUF_OFF + cur_tx_buf as usize * TX_BUF_SIZE;
-        self.write_bufs(packet, offset as goff);
+        self.write_bufs(packet, offset as GlobOff);
 
         log_net(NetLogEvent::SentPacket, 0, packet.len());
         log!(
@@ -373,7 +373,7 @@ impl E1000 {
 
         self.write_bufs(
             &desc,
-            (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as goff,
+            (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as GlobOff,
         );
 
         self.write_reg(REG::TDT, self.cur_tx_desc);
@@ -442,7 +442,7 @@ impl E1000 {
         let mut desc = [RxDesc::default()];
         self.read_bufs(
             &mut desc,
-            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as goff,
+            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as GlobOff,
         );
 
         if (desc[0].status & RXDS::DD.bits()) == 0 {
@@ -494,7 +494,7 @@ impl E1000 {
         let tail: u32 = inc_rb(tail, RX_BUF_COUNT as u32);
         self.read_bufs(
             &mut desc,
-            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as goff,
+            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as GlobOff,
         );
         self.needs_poll = (desc[0].status & RXDS::DD.bits()) != 0;
 
@@ -519,24 +519,24 @@ impl E1000 {
             .expect("failed to write NIC register");
     }
 
-    fn read_bufs<T>(&self, data: &mut [T], offset: goff) {
+    fn read_bufs<T>(&self, data: &mut [T], offset: GlobOff) {
         log!(
             LogFlags::NetNICDbg,
             "e1000: reading BUF[{:#x} .. {:#x}]",
             offset,
-            offset + data.len() as goff - 1
+            offset + data.len() as GlobOff - 1
         );
         self.bufs
             .read(data, offset)
             .expect("read from buffers failed");
     }
 
-    fn write_bufs<T>(&self, data: &[T], offset: goff) {
+    fn write_bufs<T>(&self, data: &[T], offset: GlobOff) {
         log!(
             LogFlags::NetNICDbg,
             "e1000: writing BUF[{:#x} .. {:#x}]",
             offset,
-            offset + data.len() as goff - 1
+            offset + data.len() as GlobOff - 1
         );
         self.bufs
             .write(data, offset)

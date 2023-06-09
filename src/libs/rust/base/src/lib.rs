@@ -80,9 +80,5 @@ pub use minicov;
 
 pub use serde;
 
-/// An offset in a [`GlobAddr`](mem::GlobAddr)
-#[allow(non_camel_case_types)]
-pub type goff = u64;
-
 #[cfg(feature = "linux")]
 pub use arch::linux;

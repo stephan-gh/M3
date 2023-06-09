@@ -37,9 +37,8 @@ use crate::cell::StaticCell;
 use crate::cfg;
 use crate::env;
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::kif::{PageFlags, Perm};
-use crate::mem::{self, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
+use crate::mem::{self, GlobOff, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tmif;
 use crate::util::math;
@@ -502,7 +501,7 @@ impl TCU {
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
     #[inline(always)]
-    pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
+    pub fn read(ep: EpId, data: *mut u8, size: usize, off: GlobOff) -> Result<(), Error> {
         let res = Self::perform_transfer(ep, VirtAddr::from(data), size, off, CmdOpCode::Read);
         // ensure that the CPU is not reading the read data before the TCU is finished
         // note that x86 needs SeqCst here, because the Acquire/Release fence is implemented empty
@@ -512,7 +511,7 @@ impl TCU {
 
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     #[inline(always)]
-    pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
+    pub fn write(ep: EpId, data: *const u8, size: usize, off: GlobOff) -> Result<(), Error> {
         // ensure that the TCU is not reading the data before the CPU has written everything
         atomic::fence(atomic::Ordering::SeqCst);
         Self::perform_transfer(ep, VirtAddr::from(data), size, off, CmdOpCode::Write)
@@ -523,7 +522,7 @@ impl TCU {
         ep: EpId,
         mut data: VirtAddr,
         mut size: usize,
-        mut off: goff,
+        mut off: GlobOff,
         cmd: CmdOpCode,
     ) -> Result<(), Error> {
         while size > 0 {
@@ -554,7 +553,7 @@ impl TCU {
 
             size -= amount;
             data += amount;
-            off += amount as goff;
+            off += amount as GlobOff;
         }
         Ok(())
     }
@@ -575,12 +574,7 @@ impl TCU {
         );
         Self::get_error().ok()?;
         let msg = Self::read_unpriv_reg(UnprivReg::Arg1);
-        if msg != !0 {
-            Some(msg as usize)
-        }
-        else {
-            None
-        }
+        if msg != !0 { Some(msg as usize) } else { None }
     }
 
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
@@ -622,7 +616,7 @@ impl TCU {
     ///
     /// Returns `Some((<tile>, <address>, <size>, <perm>))` if the given EP is a memory EP, or `None`
     /// otherwise.
-    pub fn unpack_mem_ep(ep: EpId) -> Option<(TileId, goff, goff, Perm)> {
+    pub fn unpack_mem_ep(ep: EpId) -> Option<(TileId, GlobOff, GlobOff, Perm)> {
         let r0 = Self::read_ep_reg(ep, 0);
         let r1 = Self::read_ep_reg(ep, 1);
         let r2 = Self::read_ep_reg(ep, 2);
@@ -633,7 +627,7 @@ impl TCU {
     ///
     /// Returns `Some((<tile>, <address>, <size>, <perm>))` if the given registers represent a memory
     /// EP, or `None` otherwise.
-    pub fn unpack_mem_regs(regs: &[Reg]) -> Option<(TileId, goff, goff, Perm)> {
+    pub fn unpack_mem_regs(regs: &[Reg]) -> Option<(TileId, GlobOff, GlobOff, Perm)> {
         if (regs[0] & 0x7) != EpType::Memory.into() {
             return None;
         }
@@ -1031,7 +1025,9 @@ impl TCU {
 
     fn write_reg(idx: usize, val: Reg) {
         // safety: as above
-        unsafe { CPU::write8b((MMIO_ADDR.as_mut_ptr::<Reg>()).add(idx), val) };
+        unsafe {
+            CPU::write8b((MMIO_ADDR.as_mut_ptr::<Reg>()).add(idx), val)
+        };
     }
 
     fn build_cmd(ep: EpId, cmd: CmdOpCode, arg: Reg) -> Reg {
@@ -1138,7 +1134,7 @@ impl TCU {
         regs: &mut [Reg],
         act: ActId,
         tile: TileId,
-        addr: goff,
+        addr: GlobOff,
         size: usize,
         perm: Perm,
     ) {

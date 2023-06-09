@@ -18,8 +18,8 @@
 use crate::client::ClientSession;
 use crate::com::{opcodes, MemGate, RecvGate, SendGate};
 use crate::errors::Error;
-use crate::goff;
 use crate::kif::{CapRngDesc, CapType};
+use crate::mem::GlobOff;
 use crate::util::math;
 
 use core::{cmp, fmt};
@@ -118,7 +118,7 @@ impl Disk {
         cap: DiskBlockNo,
         blocks: DiskBlockRange,
         blocksize: usize,
-        off: Option<goff>,
+        off: Option<GlobOff>,
     ) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate,
@@ -138,7 +138,7 @@ impl Disk {
         cap: DiskBlockNo,
         blocks: DiskBlockRange,
         blocksize: usize,
-        off: Option<goff>,
+        off: Option<GlobOff>,
     ) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate,

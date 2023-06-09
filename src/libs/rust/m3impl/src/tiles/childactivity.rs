@@ -29,10 +29,8 @@ use crate::client::{Pager, ResMng};
 use crate::col::{String, ToString, Vec};
 use crate::env::{self, Env};
 use crate::errors::Error;
-use crate::goff;
-use crate::kif;
-use crate::kif::{CapRngDesc, CapType};
-use crate::mem::{self, VirtAddr};
+use crate::kif::{self, CapRngDesc, CapType};
+use crate::mem::{self, GlobOff, VirtAddr};
 use crate::rc::Rc;
 use crate::serialize::{M3Serializer, VecSink};
 use crate::syscalls;
@@ -405,7 +403,7 @@ impl ChildActivity {
         closure: Option<VirtAddr>,
         entry: VirtAddr,
     ) -> Result<(), Error> {
-        let mem = self.get_mem(cfg::ENV_START, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
+        let mem = self.get_mem(cfg::ENV_START, cfg::ENV_SIZE as GlobOff, kif::Perm::RW)?;
 
         // build child environment
         let mut cenv = crate::env::Env::default();

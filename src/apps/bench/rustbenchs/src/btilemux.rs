@@ -20,9 +20,8 @@ use core::fmt;
 use m3::cfg;
 use m3::client::MapFlags;
 use m3::com::MemGate;
-use m3::goff;
 use m3::kif::Perm;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::test::WvTester;
 use m3::tiles::Activity;
 use m3::time::{CycleDuration, CycleInstant, Duration, Profiler, Results, Runner};
@@ -78,7 +77,7 @@ fn translates(_t: &mut dyn WvTester) {
             for p in 0..PAGES {
                 let page_buf = unsafe { buf.add(p * cfg::PAGE_SIZE) };
                 self.mgate
-                    .read_bytes(page_buf, 1, (p * cfg::PAGE_SIZE) as goff)
+                    .read_bytes(page_buf, 1, (p * cfg::PAGE_SIZE) as GlobOff)
                     .unwrap();
             }
         }

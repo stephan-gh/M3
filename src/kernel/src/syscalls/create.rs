@@ -17,9 +17,8 @@ use base::build_vmsg;
 use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, VerboseError};
-use base::goff;
 use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm};
-use base::mem::{GlobAddr, MsgBuf, VirtAddr, VirtAddrRaw};
+use base::mem::{GlobAddr, GlobOff, MsgBuf, VirtAddr, VirtAddrRaw};
 use base::rc::Rc;
 use base::tcu;
 
@@ -49,7 +48,9 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     if !act.obj_caps().borrow().unused(r.dst) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", r.dst);
     }
-    if (r.addr.as_goff() & cfg::PAGE_MASK as goff) != 0 || (r.size & cfg::PAGE_MASK as goff) != 0 {
+    if (r.addr.as_goff() & cfg::PAGE_MASK as GlobOff) != 0
+        || (r.size & cfg::PAGE_MASK as GlobOff) != 0
+    {
         sysc_err!(
             Code::InvArgs,
             "Virt address and size need to be page-aligned"
@@ -58,7 +59,7 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 
     let tgt_act = get_kobj!(act, r.act, Activity).upgrade().unwrap();
 
-    let sel = (r.addr.as_goff() / cfg::PAGE_SIZE as goff) as CapSel;
+    let sel = (r.addr.as_goff() / cfg::PAGE_SIZE as GlobOff) as CapSel;
     let glob = if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
         let map_caps = tgt_act.map_caps().borrow();
         let map_cap = map_caps
@@ -72,7 +73,7 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
             sysc_err!(Code::NoPerm, "Invalid permissions");
         }
 
-        let pages = (r.size / cfg::PAGE_SIZE as goff) as CapSel;
+        let pages = (r.size / cfg::PAGE_SIZE as GlobOff) as CapSel;
         let off = sel - map_cap.sel();
         if pages == 0 || off + pages > map_cap.len() {
             sysc_err!(Code::InvArgs, "Invalid length");
@@ -95,10 +96,11 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 
     if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
         let map_caps = tgt_act.map_caps().borrow_mut();
-        try_kmem_quota!(act
-            .obj_caps()
-            .borrow_mut()
-            .insert_as_child_from(cap, map_caps, sel));
+        try_kmem_quota!(
+            act.obj_caps()
+                .borrow_mut()
+                .insert_as_child_from(cap, map_caps, sel)
+        );
     }
     else {
         try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, r.act));
@@ -376,8 +378,8 @@ pub fn create_map_async(
     }
 
     let mgate = get_kobj!(act, r.mgate, MGate);
-    if (mgate.addr().raw() & cfg::PAGE_MASK as goff) != 0
-        || (mgate.size() & cfg::PAGE_MASK as goff) != 0
+    if (mgate.addr().raw() & cfg::PAGE_MASK as GlobOff) != 0
+        || (mgate.size() & cfg::PAGE_MASK as GlobOff) != 0
     {
         sysc_err!(
             Code::InvArgs,

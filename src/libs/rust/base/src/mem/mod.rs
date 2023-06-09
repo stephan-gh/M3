@@ -25,7 +25,7 @@ mod physaddr;
 mod virtaddr;
 
 pub use self::buffer::{AlignedBuf, MsgBuf, MsgBufRef};
-pub use self::globaddr::{GlobAddr, GlobAddrRaw};
+pub use self::globaddr::{GlobAddr, GlobAddrRaw, GlobOff};
 pub use self::map::MemMap;
 pub use self::physaddr::{PhysAddr, PhysAddrRaw};
 pub use self::virtaddr::{VirtAddr, VirtAddrRaw};

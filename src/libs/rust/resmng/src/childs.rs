@@ -23,11 +23,10 @@ use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::format;
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
-use m3::mem::MsgBuf;
+use m3::mem::{GlobOff, MsgBuf};
 use m3::println;
 use m3::quota::{Id as QuotaId, Quota};
 use m3::rc::Rc;
@@ -54,12 +53,12 @@ pub type Id = u32;
 pub struct ChildMem {
     id: Id,
     pool: Rc<RefCell<MemPool>>,
-    total: goff,
-    quota: Cell<goff>,
+    total: GlobOff,
+    quota: Cell<GlobOff>,
 }
 
 impl ChildMem {
-    pub fn new(id: Id, pool: Rc<RefCell<MemPool>>, quota: goff) -> Rc<Self> {
+    pub fn new(id: Id, pool: Rc<RefCell<MemPool>>, quota: GlobOff) -> Rc<Self> {
         Rc::new(Self {
             id,
             pool,
@@ -72,20 +71,20 @@ impl ChildMem {
         &self.pool
     }
 
-    pub fn quota(&self) -> goff {
+    pub fn quota(&self) -> GlobOff {
         self.quota.get()
     }
 
-    pub(crate) fn have_quota(&self, size: goff) -> bool {
+    pub(crate) fn have_quota(&self, size: GlobOff) -> bool {
         self.quota.get() >= size
     }
 
-    pub(crate) fn alloc_mem(&self, size: goff) {
+    pub(crate) fn alloc_mem(&self, size: GlobOff) {
         assert!(self.have_quota(size));
         self.quota.replace(self.quota.get() - size);
     }
 
-    pub(crate) fn free_mem(&self, size: goff) {
+    pub(crate) fn free_mem(&self, size: GlobOff) {
         self.quota.replace(self.quota.get() + size);
     }
 }
@@ -313,7 +312,7 @@ pub trait Child {
         sess.close_async(res, id)
     }
 
-    fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<(MemGate, Allocation), Error> {
+    fn alloc_local(&mut self, size: GlobOff, perm: Perm) -> Result<(MemGate, Allocation), Error> {
         log!(
             LogFlags::ResMngMem,
             "{}: allocate_local(size={:#x}, perm={:?})",
@@ -333,7 +332,7 @@ pub trait Child {
         Ok((mgate, alloc))
     }
 
-    fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {
+    fn alloc_mem(&mut self, dst_sel: Selector, size: GlobOff, perm: Perm) -> Result<(), Error> {
         log!(
             LogFlags::ResMngMem,
             "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
@@ -560,7 +559,7 @@ pub trait Child {
                 cfg::FIXED_TILEMUX_MEM,
                 None,
                 None,
-                |size| match self.alloc_local(size as goff, Perm::RWX) {
+                |size| match self.alloc_local(size as GlobOff, Perm::RWX) {
                     Ok((mem, alloc)) => Ok((mem, Some(alloc))),
                     Err(e) => {
                         log!(

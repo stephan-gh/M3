@@ -26,9 +26,8 @@ use crate::col::Vec;
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
 use crate::errors::Error;
-use crate::goff;
 use crate::kif::INVALID_SEL;
-use crate::mem::{self, MaybeUninit, VirtAddr};
+use crate::mem::{self, GlobOff, MaybeUninit, VirtAddr};
 use crate::syscalls;
 use crate::tcu;
 use crate::tiles::Activity;
@@ -138,7 +137,7 @@ impl MemGate {
         Activity::own()
             .resmng()
             .unwrap()
-            .alloc_mem(sel, args.size as goff, args.perm)?;
+            .alloc_mem(sel, args.size as GlobOff, args.perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             resmng: true,
@@ -153,7 +152,7 @@ impl MemGate {
     pub fn new_foreign(
         act: Selector,
         virt: VirtAddr,
-        size: goff,
+        size: GlobOff,
         perm: Perm,
     ) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sel();
@@ -203,7 +202,7 @@ impl MemGate {
     }
 
     /// Returns the memory region (global address and size) this MemGate references.
-    pub fn region(&self) -> Result<(GlobAddr, goff), Error> {
+    pub fn region(&self) -> Result<(GlobAddr, GlobOff), Error> {
         syscalls::mgate_region(self.sel())
     }
 
@@ -213,7 +212,7 @@ impl MemGate {
     ///
     /// Note that kernel makes sure that only owned permissions can be passed on to the derived
     /// `MemGate`.
-    pub fn derive(&self, offset: goff, size: usize, perm: Perm) -> Result<Self, Error> {
+    pub fn derive(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sel();
         self.derive_for(Activity::own().sel(), sel, offset, size, perm)
     }
@@ -224,11 +223,11 @@ impl MemGate {
         &self,
         act: Selector,
         sel: Selector,
-        offset: goff,
+        offset: GlobOff,
         size: usize,
         perm: Perm,
     ) -> Result<Self, Error> {
-        syscalls::derive_mem(act, sel, self.sel(), offset, size as goff, perm)?;
+        syscalls::derive_mem(act, sel, self.sel(), offset, size as GlobOff, perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             resmng: false,
@@ -239,18 +238,20 @@ impl MemGate {
     /// data into a vector. The number of bytes to read is defined by the number of items and the
     /// size of `T`.
     #[allow(clippy::uninit_vec)]
-    pub fn read_into_vec<T>(&self, items: usize, off: goff) -> Result<Vec<T>, Error> {
+    pub fn read_into_vec<T>(&self, items: usize, off: GlobOff) -> Result<Vec<T>, Error> {
         let mut vec = Vec::<T>::with_capacity(items);
         // we deliberately use uninitialize memory here, because it's performance critical
         // safety: this is okay, because the TCU does not read from `vec`
-        unsafe { vec.set_len(items) };
+        unsafe {
+            vec.set_len(items)
+        };
         self.read(&mut vec, off)?;
         Ok(vec)
     }
 
     /// Uses the TCU read command to read from the memory region at offset `off` and stores the read
     /// data into the slice `data`. The number of bytes to read is defined by `data`.
-    pub fn read<T>(&self, data: &mut [T], off: goff) -> Result<(), Error> {
+    pub fn read<T>(&self, data: &mut [T], off: GlobOff) -> Result<(), Error> {
         self.read_bytes(
             data.as_mut_ptr() as *mut u8,
             data.len() * mem::size_of::<T>(),
@@ -260,7 +261,7 @@ impl MemGate {
 
     /// Reads `mem::size_of::<T>()` bytes via the TCU read command from the memory region at offset
     /// `off` and returns the data as an object of `T`.
-    pub fn read_obj<T>(&self, off: goff) -> Result<T, Error> {
+    pub fn read_obj<T>(&self, off: GlobOff) -> Result<T, Error> {
         #[allow(clippy::uninit_assumed_init)]
         // safety: will be initialized in read_bytes
         let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
@@ -270,13 +271,13 @@ impl MemGate {
 
     /// Reads `size` bytes via the TCU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
-    pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
+    pub fn read_bytes(&self, data: *mut u8, size: usize, off: GlobOff) -> Result<(), Error> {
         let ep = self.activate()?;
         tcu::TCU::read(ep, data, size, off)
     }
 
     /// Writes `data` with the TCU write command to the memory region at offset `off`.
-    pub fn write<T>(&self, data: &[T], off: goff) -> Result<(), Error> {
+    pub fn write<T>(&self, data: &[T], off: GlobOff) -> Result<(), Error> {
         self.write_bytes(
             data.as_ptr() as *const u8,
             data.len() * mem::size_of::<T>(),
@@ -285,13 +286,13 @@ impl MemGate {
     }
 
     /// Writes `obj` via the TCU write command to the memory region at offset `off`.
-    pub fn write_obj<T>(&self, obj: &T, off: goff) -> Result<(), Error> {
+    pub fn write_obj<T>(&self, obj: &T, off: GlobOff) -> Result<(), Error> {
         self.write_bytes(obj as *const T as *const u8, mem::size_of::<T>(), off)
     }
 
     /// Writes the `size` bytes at `data` via the TCU write command to the memory region at offset
     /// `off`.
-    pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
+    pub fn write_bytes(&self, data: *const u8, size: usize, off: GlobOff) -> Result<(), Error> {
         let ep = self.activate()?;
         tcu::TCU::write(ep, data, size, off)
     }

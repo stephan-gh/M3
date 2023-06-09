@@ -26,10 +26,9 @@ use crate::client::{Pager, ResMng};
 use crate::col::Vec;
 use crate::com::MemGate;
 use crate::errors::Error;
-use crate::goff;
 use crate::kif;
 use crate::kif::{CapRngDesc, TileDesc};
-use crate::mem::VirtAddr;
+use crate::mem::{GlobOff, VirtAddr};
 use crate::rc::Rc;
 use crate::syscalls;
 use crate::tcu::{ActId, EpId, TileId};
@@ -126,7 +125,12 @@ impl Activity {
     ///
     /// The given region in virtual memory must be physically contiguous and page aligned. See
     /// [`MemGate`] for a more detailed explanation of how that works.
-    pub fn get_mem(&self, virt: VirtAddr, size: goff, perms: kif::Perm) -> Result<MemGate, Error> {
+    pub fn get_mem(
+        &self,
+        virt: VirtAddr,
+        size: GlobOff,
+        perms: kif::Perm,
+    ) -> Result<MemGate, Error> {
         MemGate::new_foreign(self.sel(), virt, size, perms)
     }
 }

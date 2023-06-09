@@ -24,10 +24,9 @@ use m3::client::{HashInput, HashOutput, MapFlags, Pager};
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::tiles::Mapper;
@@ -100,7 +99,7 @@ impl Read for BootFile {
         }
         else {
             let amount = cmp::min(buf.len(), self.size - self.pos);
-            self.mgate.read(&mut buf[0..amount], self.pos as goff)?;
+            self.mgate.read(&mut buf[0..amount], self.pos as GlobOff)?;
             self.pos += amount;
             Ok(amount)
         }
@@ -215,7 +214,7 @@ impl Mapper for BootMapper {
         _flags: MapFlags,
     ) -> Result<bool, Error> {
         if self.has_virtmem {
-            let alloc = self.mem_pool.borrow_mut().allocate(len as goff)?;
+            let alloc = self.mem_pool.borrow_mut().allocate(len as GlobOff)?;
             let msel = self.mem_pool.borrow().mem_cap(alloc.slice_id());
 
             syscalls::create_map(

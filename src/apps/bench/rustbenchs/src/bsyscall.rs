@@ -19,9 +19,8 @@
 use m3::cell::StaticCell;
 use m3::cfg;
 use m3::com::{MemGate, Perm, RecvGate};
-use m3::goff;
 use m3::kif;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::test::WvTester;
@@ -93,7 +92,7 @@ fn create_mgate(_t: &mut dyn WvTester) {
                 SEL.get(),
                 Activity::own().sel(),
                 self.0,
-                cfg::PAGE_SIZE as goff,
+                cfg::PAGE_SIZE as GlobOff,
                 Perm::R
             ));
         }
@@ -221,7 +220,7 @@ fn create_map(_t: &mut dyn WvTester) {
                 Activity::own().sel(),
                 kif::CapRngDesc::new(
                     kif::CapType::Mapping,
-                    DEST.as_goff() / cfg::PAGE_SIZE as goff,
+                    DEST.as_goff() / cfg::PAGE_SIZE as GlobOff,
                     2
                 ),
                 true

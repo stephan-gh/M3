@@ -20,11 +20,10 @@ use m3::com::MemGate;
 use m3::elf;
 use m3::env;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{Perm, TileDesc, INVALID_SEL};
 use m3::log;
-use m3::mem::size_of;
+use m3::mem::{size_of, GlobOff};
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, TileId};
@@ -108,8 +107,8 @@ impl TileState {
         let mut pos = 0;
         while pos < size {
             let amount = (size - pos).min(buf.len());
-            src.read(&mut buf[0..amount], (src_off + pos) as goff)?;
-            dst.write(&buf[0..amount], (dst_off + pos) as goff)?;
+            src.read(&mut buf[0..amount], (src_off + pos) as GlobOff)?;
+            dst.write(&buf[0..amount], (dst_off + pos) as GlobOff)?;
             pos += amount;
         }
         Ok(())
@@ -167,7 +166,7 @@ impl TileState {
         let mut off = hdr.ph_off;
         for _ in 0..hdr.ph_num {
             // load program header
-            let phdr: elf::ProgramHeader = mux_elf.read_obj(off as goff)?;
+            let phdr: elf::ProgramHeader = mux_elf.read_obj(off as GlobOff)?;
             off += hdr.ph_entry_size as usize;
 
             // we're only interested in non-empty load segments
@@ -190,7 +189,8 @@ impl TileState {
             let mut segpos = phdr.file_size as usize;
             while segpos < phdr.mem_size as usize {
                 let amount = (phdr.mem_size as usize - segpos).min(buf.len());
-                mux.mem.write(&zeros[0..amount], (phys + segpos) as goff)?;
+                mux.mem
+                    .write(&zeros[0..amount], (phys + segpos) as GlobOff)?;
                 segpos += amount;
             }
         }
@@ -236,7 +236,7 @@ impl TileState {
             &env::vars_raw(),
             &mux.mem,
             &mut off,
-            cfg::MEM_OFFSET as goff,
+            cfg::MEM_OFFSET as GlobOff,
         )?;
 
         // init environment

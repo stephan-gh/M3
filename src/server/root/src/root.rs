@@ -25,11 +25,10 @@ use m3::col::{ToString, Vec};
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
-use m3::mem::{GlobAddr, VirtAddr};
+use m3::mem::{GlobAddr, GlobOff, VirtAddr};
 use m3::syscalls;
 use m3::tcu;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
@@ -58,7 +57,7 @@ impl RootChildStarter {
         }
     }
 
-    fn fetch_mod(&mut self, name: &str, pmp: bool) -> Option<(MemGate, GlobAddr, goff)> {
+    fn fetch_mod(&mut self, name: &str, pmp: bool) -> Option<(MemGate, GlobAddr, GlobOff)> {
         let RootChildStarter {
             bmods,
             loaded_bmods,
@@ -81,8 +80,11 @@ impl RootChildStarter {
             })
     }
 
-    fn modules_range(&mut self, domain: &config::Domain) -> Result<(GlobAddr, goff), VerboseError> {
-        let mut start = goff::MAX;
+    fn modules_range(
+        &mut self,
+        domain: &config::Domain,
+    ) -> Result<(GlobAddr, GlobOff), VerboseError> {
+        let mut start = GlobOff::MAX;
         let mut end = 0;
 
         for app in domain.apps() {
@@ -231,7 +233,7 @@ fn create_rgate(
     buf_size: usize,
     msg_size: usize,
     rbuf_mem: Option<Selector>,
-    rbuf_off: goff,
+    rbuf_off: GlobOff,
     rbuf_addr: VirtAddr,
 ) -> Result<RecvGate, Error> {
     let rgate = RecvGate::new_with(
@@ -285,7 +287,7 @@ pub fn main() -> Result<(), Error> {
     let (rbuf_off, rbuf_mem) = if Activity::own().tile_desc().has_virtmem() {
         let buf_mem = res
             .memory_mut()
-            .alloc_mem((buf_size + sendqueue::RBUF_SIZE) as goff)
+            .alloc_mem((buf_size + sendqueue::RBUF_SIZE) as GlobOff)
             .expect("Unable to allocate memory for receive buffers");
         let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
         syscalls::create_map(
@@ -311,7 +313,7 @@ pub fn main() -> Result<(), Error> {
         sendqueue::RBUF_SIZE,
         sendqueue::RBUF_MSG_SIZE,
         rbuf_mem,
-        rbuf_off + buf_size as goff,
+        rbuf_off + buf_size as GlobOff,
         rbuf_addr + buf_size,
     )
     .expect("Unable to create sendqueue RecvGate");

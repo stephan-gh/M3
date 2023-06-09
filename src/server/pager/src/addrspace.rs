@@ -19,11 +19,10 @@ use m3::client::MapFlags;
 use m3::col::Vec;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, PageFlags, Perm};
 use m3::log;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::reply_vmsg;
 use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
 use m3::tiles::Activity;
@@ -272,8 +271,8 @@ impl AddrSpace {
     pub(crate) fn map_ds_with(
         &mut self,
         virt: VirtAddr,
-        len: goff,
-        off: goff,
+        len: GlobOff,
+        off: GlobOff,
         perm: Perm,
         flags: MapFlags,
         sess: Selector,
@@ -312,7 +311,7 @@ impl AddrSpace {
         }
 
         let virt: VirtAddr = is.pop()?;
-        let len: goff = is.pop()?;
+        let len: GlobOff = is.pop()?;
         let perm = Perm::from_bits_truncate(is.pop::<u32>()?);
         let flags = MapFlags::from_bits_truncate(is.pop::<u32>()?);
 
@@ -324,7 +323,7 @@ impl AddrSpace {
     pub(crate) fn map_anon_with(
         &mut self,
         virt: VirtAddr,
-        len: goff,
+        len: GlobOff,
         perm: Perm,
         flags: MapFlags,
     ) -> Result<(), Error> {
@@ -366,7 +365,7 @@ impl AddrSpace {
 
         let args = xchg.in_args();
         let virt: VirtAddr = args.pop()?;
-        let len: goff = args.pop()?;
+        let len: GlobOff = args.pop()?;
         let perm = Perm::from_bits_truncate(args.pop()?);
 
         log!(
@@ -422,11 +421,12 @@ impl AddrSpace {
         is.reply_error(Code::Success)
     }
 
-    fn check_map_args(&self, virt: VirtAddr, len: goff, perm: Perm) -> Result<(), Error> {
+    fn check_map_args(&self, virt: VirtAddr, len: GlobOff, perm: Perm) -> Result<(), Error> {
         if virt >= MAX_VIRT_ADDR {
             return Err(Error::new(Code::InvArgs));
         }
-        if !(virt & VirtAddr::from(cfg::PAGE_BITS)).is_null() || (len & cfg::PAGE_BITS as goff) != 0
+        if !(virt & VirtAddr::from(cfg::PAGE_BITS)).is_null()
+            || (len & cfg::PAGE_BITS as GlobOff) != 0
         {
             return Err(Error::new(Code::InvArgs));
         }
@@ -453,7 +453,7 @@ impl AddrSpace {
         None
     }
 
-    fn overlaps(&self, virt: VirtAddr, size: goff) -> bool {
+    fn overlaps(&self, virt: VirtAddr, size: GlobOff) -> bool {
         for ds in &self.ds {
             if math::overlaps(ds.virt(), ds.virt() + ds.size(), virt, virt + size) {
                 return true;

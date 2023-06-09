@@ -19,11 +19,10 @@ use base::cfg;
 use base::col::{BitArray, Vec};
 use base::env;
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{GlobAddr, MsgBuf, VirtAddr};
+use base::mem::{GlobAddr, GlobOff, MsgBuf, VirtAddr};
 use base::quota;
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{self, ActId, EpId, TileId};
@@ -634,7 +633,7 @@ impl TileMux {
         build_vmsg!(buf, kif::tilemux::Sidecalls::Translate, msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::Translate>(tilemux, Some(act), buf, &msg)
-            .map(|reply| GlobAddr::new(reply.val1 & !(PAGE_MASK as goff)))
+            .map(|reply| GlobAddr::new(reply.val1 & !(PAGE_MASK as GlobOff)))
     }
 
     pub fn notify_invalidate(&mut self, act: ActId, ep: EpId) -> Result<(), Error> {

@@ -35,7 +35,8 @@ pub const LPAGE_MASK: usize = LPAGE_SIZE - 1;
 
 pub const RBUF_STD_ADDR: VirtAddr = VirtAddr::new(0xD000_0000);
 pub const RBUF_STD_SIZE: usize = PAGE_SIZE;
-pub const RBUF_ADDR: VirtAddr = VirtAddr::new(RBUF_STD_ADDR.as_raw() + RBUF_STD_SIZE as VirtAddrRaw);
+pub const RBUF_ADDR: VirtAddr =
+    VirtAddr::new(RBUF_STD_ADDR.as_raw() + RBUF_STD_SIZE as VirtAddrRaw);
 pub const RBUF_SIZE: usize = 0x1000_0000 - RBUF_STD_SIZE;
 pub const RBUF_SIZE_SPM: usize = 0xE000;
 pub const MAX_RB_SIZE: usize = 32;
@@ -61,7 +62,8 @@ pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
 pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + FIXED_TILEMUX_MEM + 2 * 1024 * 1024;
 pub const FIXED_TILEMUX_MEM: usize = 5 * 1024 * 1024;
 
-pub const TILEMUX_RBUF_SPACE: VirtAddr = VirtAddr::new(ENV_START.as_raw() + ENV_SIZE as VirtAddrRaw);
+pub const TILEMUX_RBUF_SPACE: VirtAddr =
+    VirtAddr::new(ENV_START.as_raw() + ENV_SIZE as VirtAddrRaw);
 pub const TILEMUX_RBUF_SIZE: usize = 1 * PAGE_SIZE;
 
 pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;

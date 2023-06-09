@@ -17,9 +17,8 @@ use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::env;
 use base::errors::Error;
-use base::goff;
 use base::kif::{PageFlags, TileDesc};
-use base::mem::{GlobAddr, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
+use base::mem::{GlobAddr, GlobOff, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use base::tcu;
 use base::util::math;
 
@@ -81,7 +80,7 @@ pub fn init() {
         cur: PhysAddr::new(0, (mem_size / 2) as PhysAddrRaw),
         max: PhysAddr::new(0, mem_size as PhysAddrRaw),
     };
-    let root = base + alloc.allocate_pt().unwrap().offset() as goff;
+    let root = base + alloc.allocate_pt().unwrap().offset() as GlobOff;
     let mut aspace = AddrSpace::new(tiles::KERNEL_ID as u64, root, alloc);
     aspace.init();
 
@@ -144,8 +143,8 @@ pub fn map_new_mem(virt: VirtAddr, pages: usize, align: usize) -> GlobAddr {
     let alloc = mem::borrow_mut()
         .allocate(
             mem::MemType::KERNEL,
-            (pages * cfg::PAGE_SIZE) as goff,
-            align as goff,
+            (pages * cfg::PAGE_SIZE) as GlobOff,
+            align as GlobOff,
         )
         .unwrap();
 
@@ -170,7 +169,7 @@ fn map_to_phys(
     size: usize,
     perm: PageFlags,
 ) {
-    let glob = base + (virt.as_goff() - cfg::MEM_OFFSET as goff);
+    let glob = base + (virt.as_goff() - cfg::MEM_OFFSET as GlobOff);
     aspace
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
         .unwrap();

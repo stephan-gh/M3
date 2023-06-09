@@ -23,10 +23,9 @@ use crate::client::MapFlags;
 use crate::com::MemGate;
 use crate::elf;
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::io::{read_object, Read};
 use crate::kif;
-use crate::mem::VirtAddr;
+use crate::mem::{GlobOff, VirtAddr};
 use crate::tiles::{Activity, Mapper};
 use crate::util::math;
 use crate::vec;
@@ -149,7 +148,7 @@ fn load_segment(
     if needs_init {
         let mem = act.get_mem(
             VirtAddr::from(phdr.virt_addr),
-            math::round_up(size, cfg::PAGE_SIZE) as goff,
+            math::round_up(size, cfg::PAGE_SIZE) as GlobOff,
             kif::Perm::RW,
         )?;
         init_mem(
@@ -186,7 +185,7 @@ fn init_mem(
             mem.write_bytes(buf.as_mut_ptr(), amount, segoff)?;
 
             count -= amount;
-            segoff += amount as goff;
+            segoff += amount as GlobOff;
         }
     }
 
@@ -204,7 +203,7 @@ fn clear_mem(buf: &mut [u8], mem: &MemGate, mut off: usize, mut len: usize) -> R
 
     while len > 0 {
         let amount = cmp::min(len, buf.len());
-        mem.write_bytes(buf.as_mut_ptr(), amount, off as goff)?;
+        mem.write_bytes(buf.as_mut_ptr(), amount, off as GlobOff)?;
         len -= amount;
         off += amount;
     }

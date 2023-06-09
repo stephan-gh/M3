@@ -18,12 +18,11 @@ use base::cell::{LazyStaticUnsafeCell, StaticCell, StaticRefCell, StaticUnsafeCe
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::{Code, Error};
-use base::goff;
 use base::impl_boxitem;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{size_of, GlobAddr, MsgBuf, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
+use base::mem::{size_of, GlobAddr, GlobOff, MsgBuf, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use base::rc::Rc;
 use base::tcu;
 use base::time::{TimeDuration, TimeInstant};
@@ -252,7 +251,7 @@ pub fn init() {
             quota: Quota::new(0, None, PTS.borrow().len()),
         };
         let frame = allocator.allocate_pt().unwrap();
-        (Some(frame), Some(base + frame.offset() as goff))
+        (Some(frame), Some(base + frame.offset() as GlobOff))
     }
     else {
         (None, None)
@@ -324,7 +323,7 @@ pub fn add(
             quota: pt_quota.clone(),
         }
         .allocate_pt()?;
-        (Some(frame), Some(base + frame.offset() as goff))
+        (Some(frame), Some(base + frame.offset() as GlobOff))
     }
     else {
         (None, None)
@@ -584,7 +583,9 @@ pub fn remove(id: Id, status: Code, notify: bool, sched: bool) {
         // safety: the activity reference `v` is still valid here
         let old = match unsafe { &v.as_ref().state } {
             // safety: we don't access `v` afterwards
-            ActState::Running => unsafe { CUR.set(None).unwrap() },
+            ActState::Running => unsafe {
+                CUR.set(None).unwrap()
+            },
             ActState::Ready => RDY.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
             ActState::Blocked => BLK.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
         };
@@ -1057,7 +1058,7 @@ impl Activity {
             self.frames.push(frame);
             self.map(
                 addr + i * cfg::PAGE_SIZE,
-                base + frame.offset() as goff,
+                base + frame.offset() as GlobOff,
                 1,
                 perm,
             )
@@ -1076,7 +1077,7 @@ impl Activity {
         let end = math::round_up(end as usize, cfg::PAGE_SIZE);
         let pages = (end - start) / cfg::PAGE_SIZE;
         // the segments are identity mapped and we know that the physical memory is at `base`.
-        let glob = base + PhysAddr::new_raw(start as PhysAddrRaw).offset() as goff;
+        let glob = base + PhysAddr::new_raw(start as PhysAddrRaw).offset() as GlobOff;
         self.map(VirtAddr::from(start), glob, pages, perm).unwrap();
     }
 }

@@ -133,7 +133,9 @@ fn extend_heap() {
             let small_pages = ((virt_next_lpage - virt) >> cfg::PAGE_BITS).as_local();
 
             runtime::paging::map_new_mem(virt, small_pages, cfg::PAGE_SIZE);
-            unsafe { __m3_heap_append(small_pages) };
+            unsafe {
+                __m3_heap_append(small_pages)
+            };
 
             // now map the rest with large pages
             let large_pages = ((pages - small_pages) * cfg::PAGE_SIZE) / cfg::LPAGE_SIZE;
@@ -143,14 +145,18 @@ fn extend_heap() {
                 large_pages * pages_per_lpage,
                 cfg::LPAGE_SIZE,
             );
-            unsafe { __m3_heap_append(large_pages * pages_per_lpage) };
+            unsafe {
+                __m3_heap_append(large_pages * pages_per_lpage)
+            };
         }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn env_run() {
-    unsafe { __m3_init_libc(0, ptr::null(), ptr::null(), false) };
+    unsafe {
+        __m3_init_libc(0, ptr::null(), ptr::null(), false)
+    };
     create_heap();
     crate::slab::init();
     io::init(

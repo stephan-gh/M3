@@ -21,11 +21,10 @@ use m3::cell::StaticRefCell;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::log;
-use m3::mem;
+use m3::mem::{self, GlobOff};
 use m3::tiles::OwnActivity;
 use m3::time::TimeDuration;
 
@@ -342,10 +341,13 @@ impl Device {
             match op {
                 DevOp::READ => {
                     chan.read_pio_words(ATAReg::Data, &mut buffer[0..sec_size / 2])?;
-                    buf.write(&buffer[0..sec_size / 2], (off + i * sec_size) as goff)?;
+                    buf.write(&buffer[0..sec_size / 2], (off + i * sec_size) as GlobOff)?;
                 },
                 _ => {
-                    buf.read(&mut buffer[0..sec_size / 2], (off + i * sec_size) as goff)?;
+                    buf.read(
+                        &mut buffer[0..sec_size / 2],
+                        (off + i * sec_size) as GlobOff,
+                    )?;
                     chan.write_pio_words(ATAReg::Data, &buffer[0..sec_size / 2])?;
                 },
             }
@@ -370,7 +372,7 @@ impl Device {
             last: 1 << 15,
         };
         // write it behind the buffer
-        buf.write(&[prdt], (off + sec_size * sec_count) as goff)?;
+        buf.write(&[prdt], (off + sec_size * sec_count) as GlobOff)?;
 
         // stop running transfers
         chan.write_bmr::<u8>(BMIReg::Command, 0)?;

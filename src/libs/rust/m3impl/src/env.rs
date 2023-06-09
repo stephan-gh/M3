@@ -27,9 +27,8 @@ use crate::client::{Pager, ResMng};
 use crate::col::Vec;
 use crate::com::{MemGate, SendGate};
 use crate::errors::Error;
-use crate::goff;
 use crate::kif::{self, TileDesc};
-use crate::mem::{self, VirtAddr};
+use crate::mem::{self, GlobOff, VirtAddr};
 use crate::serialize::M3Deserializer;
 use crate::tcu;
 use crate::tiles::OwnActivity;
@@ -49,7 +48,7 @@ pub fn write_args<S>(
     args: &[S],
     mem: &MemGate,
     addr: &mut VirtAddr,
-    env_off: goff,
+    env_off: GlobOff,
 ) -> Result<VirtAddr, Error>
 where
     S: AsRef<str>,

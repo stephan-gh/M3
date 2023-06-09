@@ -16,8 +16,8 @@
 use core::fmt;
 use core::ops;
 
-use crate::goff;
 use crate::impl_prim_int;
+use crate::mem::GlobOff;
 use crate::mem::{PhysAddr, PhysAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 
@@ -60,8 +60,8 @@ impl VirtAddr {
     }
 
     /// Returns this address as a global offset
-    pub const fn as_goff(&self) -> goff {
-        self.0 as goff
+    pub const fn as_goff(&self) -> GlobOff {
+        self.0 as GlobOff
     }
 
     /// Returns this address as a [`PhysAddr`] and therefore assumes an identity mapping
@@ -118,10 +118,10 @@ impl ops::Add<usize> for VirtAddr {
     }
 }
 
-impl ops::Add<goff> for VirtAddr {
+impl ops::Add<GlobOff> for VirtAddr {
     type Output = Self;
 
-    fn add(self, rhs: goff) -> Self::Output {
+    fn add(self, rhs: GlobOff) -> Self::Output {
         Self(self.0 + (rhs as VirtAddrRaw))
     }
 }

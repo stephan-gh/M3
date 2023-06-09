@@ -21,11 +21,10 @@ use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{boot, CapRngDesc, CapType, Perm, TileDesc, FIRST_FREE_SEL};
 use m3::log;
-use m3::mem::size_of;
+use m3::mem::{size_of, GlobOff};
 use m3::rc::Rc;
 use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu::TileId;
@@ -48,7 +47,7 @@ use crate::resources::{memory, mods, services, tiles, Resources};
 //
 const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
-const DEF_RESMNG_MEM: goff = 32 * 1024 * 1024;
+const DEF_RESMNG_MEM: GlobOff = 32 * 1024 * 1024;
 const DEF_TIME_SLICE: TimeDuration = TimeDuration::from_millis(1);
 const OUR_EPS: u32 = 16;
 
@@ -106,19 +105,19 @@ impl Subsystem {
     pub fn new() -> Result<(Self, Resources), Error> {
         let mut res = Resources::default();
         let mgate = MemGate::new_bind(SUBSYS_SELS);
-        let mut off: goff = 0;
+        let mut off: GlobOff = 0;
 
         let info: boot::Info = mgate.read_obj(0)?;
-        off += size_of::<boot::Info>() as goff;
+        off += size_of::<boot::Info>() as GlobOff;
 
         let mods = mgate.read_into_vec::<boot::Mod>(info.mod_count as usize, off)?;
-        off += size_of::<boot::Mod>() as goff * info.mod_count;
+        off += size_of::<boot::Mod>() as GlobOff * info.mod_count;
 
         let tiles = mgate.read_into_vec::<boot::Tile>(info.tile_count as usize, off)?;
-        off += size_of::<boot::Tile>() as goff * info.tile_count;
+        off += size_of::<boot::Tile>() as GlobOff * info.tile_count;
 
         let mems = mgate.read_into_vec::<boot::Mem>(info.mem_count as usize, off)?;
-        off += size_of::<boot::Mem>() as goff * info.mem_count;
+        off += size_of::<boot::Mem>() as GlobOff * info.mem_count;
 
         let servs = mgate.read_into_vec::<boot::Service>(info.serv_count as usize, off)?;
 
@@ -206,7 +205,7 @@ impl Subsystem {
     }
 
     fn parse_config(mods: &[boot::Mod]) -> Result<(String, config::AppConfig), Error> {
-        let mut cfg_mem: Option<(usize, goff)> = None;
+        let mut cfg_mem: Option<(usize, GlobOff)> = None;
 
         // find boot config
         for (id, m) in mods.iter().enumerate() {
@@ -353,7 +352,7 @@ impl Subsystem {
 
             // memory pool for the domain
             let dom_mem = dom.apps().iter().fold(0, |sum, a| {
-                sum + a.user_mem().unwrap_or(def_umem as usize) as goff
+                sum + a.user_mem().unwrap_or(def_umem as usize) as GlobOff
             });
             let mem_pool = Rc::new(RefCell::new(res.memory_mut().alloc_pool(dom_mem).map_err(
                 |e| {
@@ -375,7 +374,7 @@ impl Subsystem {
                     dom.initrd(),
                     dom.dtb(),
                     |size| {
-                        let mux_mem_slice = match res.memory_mut().alloc_mem(size as goff) {
+                        let mux_mem_slice = match res.memory_mut().alloc_mem(size as GlobOff) {
                             Ok(mem) => mem,
                             Err(e) => {
                                 log!(
@@ -567,7 +566,7 @@ impl Subsystem {
                 // determine user memory for child
                 let child_mem = if let Some(umem) = cfg.user_mem() {
                     mem_id += 1;
-                    childs::ChildMem::new(mem_id - 1, domain_umem.pool().clone(), umem as goff)
+                    childs::ChildMem::new(mem_id - 1, domain_umem.pool().clone(), umem as GlobOff)
                 }
                 else {
                     domain_umem.clone()
@@ -641,7 +640,7 @@ impl Subsystem {
         let cfg_range = cfg.cfg_range();
         let cfg_str = &self.cfg_str()[cfg_range.0..cfg_range.1];
         sub.add_config(cfg_str, |size| {
-            let cfg_slice = res.memory_mut().alloc_mem(size as goff)?;
+            let cfg_slice = res.memory_mut().alloc_mem(size as GlobOff)?;
             // alloc_mem gives us full pages; cut it down to the string size
             let mgate = cfg_slice.derive_with(0, size)?;
             Ok(mgate)
@@ -746,11 +745,11 @@ impl SubsystemBuilder {
         act: &mut ChildActivity,
     ) -> Result<(), VerboseError> {
         let mut sel = SUBSYS_SELS;
-        let mut off: goff = 0;
+        let mut off: GlobOff = 0;
 
         let mut mem = res
             .memory_mut()
-            .alloc_mem(self.desc_size() as goff)
+            .alloc_mem(self.desc_size() as GlobOff)
             .map_err(|e| {
                 VerboseError::new(
                     e.code(),
@@ -768,7 +767,7 @@ impl SubsystemBuilder {
         };
         mem.write_obj(&info, off)?;
         act.delegate_to(CapRngDesc::new(CapType::Object, mem.sel(), 1), sel)?;
-        off += size_of::<boot::Info>() as goff;
+        off += size_of::<boot::Info>() as GlobOff;
         sel += 1;
 
         // serial rgate
@@ -785,7 +784,7 @@ impl SubsystemBuilder {
 
             act.delegate_to(CapRngDesc::new(CapType::Object, mgate.sel(), 1), sel)?;
 
-            off += size_of::<boot::Mod>() as goff;
+            off += size_of::<boot::Mod>() as GlobOff;
             sel += 1;
         }
 
@@ -796,7 +795,7 @@ impl SubsystemBuilder {
 
             act.delegate_to(CapRngDesc::new(CapType::Object, tile.sel(), 1), sel)?;
 
-            off += size_of::<boot::Tile>() as goff;
+            off += size_of::<boot::Tile>() as GlobOff;
             sel += 1;
         }
 
@@ -808,7 +807,7 @@ impl SubsystemBuilder {
 
             act.delegate_to(CapRngDesc::new(CapType::Object, mgate.sel(), 1), sel)?;
 
-            off += size_of::<boot::Mem>() as goff;
+            off += size_of::<boot::Mem>() as GlobOff;
             sel += 1;
         }
 
@@ -844,7 +843,7 @@ impl SubsystemBuilder {
                 sel + 1,
             )?;
 
-            off += size_of::<boot::Service>() as goff;
+            off += size_of::<boot::Service>() as GlobOff;
             sel += 2;
 
             self.serv_objs.push(subserv);
@@ -960,7 +959,7 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>, tiles: u
                 if !a.domains().is_empty() {
                     cmem += DEF_RESMNG_MEM as usize;
                 }
-                mem.alloc_mem(cmem as goff);
+                mem.alloc_mem(cmem as GlobOff);
             }
             else {
                 def_childs += 1;
@@ -972,18 +971,18 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>, tiles: u
         // The resmng needs some memory for itself (which it will allocate from us later and
         // therefore should stay in the pool). Additionally, for every tile the resmng manages, it
         // potentially needs memory for the multiplexer.
-        let remaining = DEF_RESMNG_MEM + (tiles * cfg::FIXED_TILEMUX_MEM) as goff;
+        let remaining = DEF_RESMNG_MEM + (tiles * cfg::FIXED_TILEMUX_MEM) as GlobOff;
         assert!(mem.quota() > remaining);
         // the rest of the quota is split equally among the children
         let per_child = math::round_dn(
             (mem.quota() - remaining) / def_childs,
-            cfg::PAGE_SIZE as goff,
+            cfg::PAGE_SIZE as GlobOff,
         );
         mem.alloc_mem(per_child * def_childs);
     }
 }
 
-fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
+fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, GlobOff), VerboseError> {
     let mut total_umem = res.memory().capacity();
     let mut total_kmem = Activity::own().kmem().quota()?.total();
 
@@ -991,7 +990,7 @@ fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), 
     let mut total_mparties = total_kparties;
     for d in cfg.domains() {
         // for every domain we need a multiplexer
-        total_umem -= d.mux_mem().unwrap_or(cfg::FIXED_TILEMUX_MEM) as goff;
+        total_umem -= d.mux_mem().unwrap_or(cfg::FIXED_TILEMUX_MEM) as GlobOff;
 
         for a in d.apps() {
             if let Some(kmem) = a.kernel_mem() {
@@ -1009,7 +1008,7 @@ fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), 
             }
 
             if let Some(amem) = a.user_mem() {
-                if total_umem < amem as goff {
+                if total_umem < amem as GlobOff {
                     return Err(VerboseError::new(
                         Code::OutOfMem,
                         format!(
@@ -1018,14 +1017,14 @@ fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), 
                         ),
                     ));
                 }
-                total_umem -= amem as goff;
+                total_umem -= amem as GlobOff;
                 total_mparties -= 1;
             }
         }
     }
 
     let def_kmem = total_kmem / total_kparties;
-    let def_umem = math::round_dn(total_umem / total_mparties as goff, PAGE_SIZE as goff);
+    let def_umem = math::round_dn(total_umem / total_mparties as GlobOff, PAGE_SIZE as GlobOff);
     Ok((def_kmem, def_umem))
 }
 

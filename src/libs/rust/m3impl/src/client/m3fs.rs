@@ -26,8 +26,8 @@ use crate::client::ClientSession;
 use crate::col::Vec;
 use crate::com::{opcodes, recv_result, RecvGate, SendGate, EP};
 use crate::errors::Error;
-use crate::goff;
 use crate::kif;
+use crate::mem::GlobOff;
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::tiles::{Activity, ChildActivity};
@@ -84,7 +84,10 @@ impl M3FS {
         &self.sess
     }
 
-    pub fn get_mem(sess: &ClientSession, off: goff) -> Result<(goff, goff, Selector), Error> {
+    pub fn get_mem(
+        sess: &ClientSession,
+        off: GlobOff,
+    ) -> Result<(GlobOff, GlobOff, Selector), Error> {
         let mut offset = 0;
         let mut len = 0;
         let crd = sess.obtain(

@@ -17,11 +17,10 @@ use base::cfg::{ENV_START, MEM_OFFSET, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE
 use base::elf;
 use base::env;
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
 use base::kif::{self, PageFlags};
 use base::log;
-use base::mem::{size_of, GlobAddr, PhysAddr, VirtAddr};
+use base::mem::{size_of, GlobAddr, GlobOff, PhysAddr, VirtAddr};
 use base::tcu;
 use base::util::math;
 
@@ -99,11 +98,11 @@ pub fn load_mux_async(tile: tcu::TileId, mem: &mem::Allocation) -> Result<(), Er
     );
 
     // load multiplexer into memory
-    let mut loader = MetalELFLoader::new(mem.global(), MEM_OFFSET as goff);
+    let mut loader = MetalELFLoader::new(mem.global(), MEM_OFFSET as GlobOff);
     load_mod_async(&mut loader, app)?;
 
     // write env vars
-    let env_mem_off = mem.global().offset() + ENV_START.as_goff() - MEM_OFFSET as goff;
+    let env_mem_off = mem.global().offset() + ENV_START.as_goff() - MEM_OFFSET as GlobOff;
     let mut env_off = size_of::<env::BaseEnv>();
     let envp_addr = write_arguments(
         &env::vars_raw(),
@@ -183,8 +182,8 @@ fn get_mod(name: &str) -> Option<&kif::boot::Mod> {
     None
 }
 
-fn read_from_mod<T: Default>(bm: &kif::boot::Mod, off: goff) -> Result<T, Error> {
-    if off + size_of::<T>() as goff > bm.size {
+fn read_from_mod<T: Default>(bm: &kif::boot::Mod, off: GlobOff) -> Result<T, Error> {
+    if off + size_of::<T>() as GlobOff > bm.size {
         return Err(Error::new(Code::InvalidElf));
     }
 
@@ -212,7 +211,7 @@ where
     let mut off = hdr.ph_off;
     for _ in 0..hdr.ph_num {
         // load program header
-        let phdr: elf::ProgramHeader = read_from_mod(bm, off as goff)?;
+        let phdr: elf::ProgramHeader = read_from_mod(bm, off as GlobOff)?;
         off += hdr.ph_entry_size as usize;
 
         // we're only interested in non-empty load segments
@@ -239,7 +238,7 @@ where
         else {
             assert!(phdr.mem_size == phdr.file_size);
             let size = (phdr.offset as usize & PAGE_MASK) + phdr.file_size as usize;
-            loader.load_segment_async(virt, mod_addr + offset as goff, size, flags, true)?;
+            loader.load_segment_async(virt, mod_addr + offset as GlobOff, size, flags, true)?;
             end = virt + size;
         }
     }
@@ -254,11 +253,11 @@ where
 
 struct MetalELFLoader {
     dst: GlobAddr,
-    offset: goff,
+    offset: GlobOff,
 }
 
 impl MetalELFLoader {
-    fn new(dst: GlobAddr, offset: goff) -> Self {
+    fn new(dst: GlobAddr, offset: GlobOff) -> Self {
         Self { dst, offset }
     }
 }
@@ -314,7 +313,7 @@ impl ELFLoader for ActivityELFLoader<'_> {
             let dst_sel = (virt >> PAGE_BITS).as_raw() as kif::CapSel;
             let pages = math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
 
-            let phys_align = GlobAddr::new_with(phys.tile(), phys.offset() & !PAGE_MASK as goff);
+            let phys_align = GlobAddr::new_with(phys.tile(), phys.offset() & !PAGE_MASK as GlobOff);
             let map_obj = MapObject::new(phys_align, flags);
             if map {
                 map_obj.map_async(
@@ -344,8 +343,11 @@ impl ELFLoader for ActivityELFLoader<'_> {
         flags: PageFlags,
     ) -> Result<(), Error> {
         let phys = if self.0.tile_desc().has_virtmem() {
-            let mem =
-                mem::borrow_mut().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
+            let mem = mem::borrow_mut().allocate(
+                mem::MemType::ROOT,
+                size as GlobOff,
+                PAGE_SIZE as GlobOff,
+            )?;
             self.load_segment_async(virt, mem.global(), size, flags, true)?;
 
             ktcu::glob_to_phys_remote(self.0.tile_id(), mem.global(), flags)?
@@ -361,8 +363,8 @@ impl ELFLoader for ActivityELFLoader<'_> {
         if self.0.tile_desc().has_virtmem() {
             let phys = mem::borrow_mut().allocate(
                 mem::MemType::ROOT,
-                MOD_HEAP_SIZE as goff,
-                PAGE_SIZE as goff,
+                MOD_HEAP_SIZE as GlobOff,
+                PAGE_SIZE as GlobOff,
             )?;
             self.load_segment_async(virt, phys.global(), MOD_HEAP_SIZE, PageFlags::RW, true)
         }
@@ -374,8 +376,11 @@ impl ELFLoader for ActivityELFLoader<'_> {
     fn map_stack_async(&mut self) -> Result<(), Error> {
         if self.0.tile_desc().has_virtmem() {
             let (virt, size) = self.0.tile_desc().stack_space();
-            let phys =
-                mem::borrow_mut().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
+            let phys = mem::borrow_mut().allocate(
+                mem::MemType::ROOT,
+                size as GlobOff,
+                PAGE_SIZE as GlobOff,
+            )?;
             self.load_segment_async(virt, phys.global(), size, PageFlags::RW, true)
         }
         else {
@@ -387,7 +392,7 @@ impl ELFLoader for ActivityELFLoader<'_> {
 fn write_arguments<S>(
     args: &[S],
     tile: tcu::TileId,
-    env_mem_off: goff,
+    env_mem_off: GlobOff,
     env_off: &mut usize,
 ) -> VirtAddr
 where
@@ -398,7 +403,7 @@ where
     // write actual arguments to memory
     ktcu::write_mem(
         tile,
-        env_mem_off + *env_off as goff,
+        env_mem_off + *env_off as GlobOff,
         arg_buf.as_ptr() as *const u8,
         arg_buf.len(),
     );

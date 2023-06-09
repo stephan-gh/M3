@@ -17,11 +17,10 @@ use base::cell::{RefCell, RefMut, StaticCell};
 use base::cfg;
 use base::col::Treap;
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
 use base::kif::{CapRngDesc, CapSel, SEL_ACT, SEL_KMEM, SEL_TILE};
 use base::log;
-use base::mem::{size_of, VirtAddr};
+use base::mem::{size_of, GlobOff, VirtAddr};
 use base::rc::Rc;
 use base::tcu::ActId;
 use core::cmp;
@@ -554,7 +553,7 @@ impl Capability {
 
             KObject::Map(ref m) => {
                 if m.mapped() {
-                    let virt = VirtAddr::new((self.sel() as goff) << cfg::PAGE_BITS);
+                    let virt = VirtAddr::new((self.sel() as GlobOff) << cfg::PAGE_BITS);
                     m.unmap_async(act, virt, self.len() as usize);
                 }
             },

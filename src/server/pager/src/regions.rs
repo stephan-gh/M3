@@ -23,11 +23,10 @@ use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use m3::log;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::rc::Rc;
 use m3::syscalls;
 use resmng::childs;
@@ -46,10 +45,10 @@ pub struct Region {
     owner: Selector,
     child: childs::Id,
     mem: Option<Rc<RefCell<PhysMem>>>,
-    mem_off: goff,
+    mem_off: GlobOff,
     ds_off: VirtAddr,
-    off: goff,
-    size: goff,
+    off: GlobOff,
+    size: GlobOff,
     perm: Perm,
     flags: RegionFlags,
 }
@@ -59,8 +58,8 @@ impl Region {
         owner: Selector,
         child: childs::Id,
         ds_off: VirtAddr,
-        off: goff,
-        size: goff,
+        off: GlobOff,
+        size: GlobOff,
     ) -> Self {
         Region {
             owner,
@@ -93,27 +92,27 @@ impl Region {
         self.ds_off + VirtAddr::new(self.off)
     }
 
-    pub fn offset(&self) -> goff {
+    pub fn offset(&self) -> GlobOff {
         self.off
     }
 
-    pub fn set_offset(&mut self, off: goff) {
+    pub fn set_offset(&mut self, off: GlobOff) {
         self.off = off;
     }
 
-    pub fn mem_off(&self) -> goff {
+    pub fn mem_off(&self) -> GlobOff {
         self.mem_off
     }
 
-    pub fn set_mem_off(&mut self, off: goff) {
+    pub fn set_mem_off(&mut self, off: GlobOff) {
         self.mem_off = off;
     }
 
-    pub fn size(&self) -> goff {
+    pub fn size(&self) -> GlobOff {
         self.size
     }
 
-    pub fn set_size(&mut self, size: goff) {
+    pub fn set_size(&mut self, size: GlobOff) {
         self.size = size;
     }
 
@@ -229,13 +228,13 @@ impl Region {
         Ok(())
     }
 
-    pub fn limit_to(&mut self, pos: goff, pages: goff) {
-        if self.size > pages * cfg::PAGE_SIZE as goff {
+    pub fn limit_to(&mut self, pos: GlobOff, pages: GlobOff) {
+        if self.size > pages * cfg::PAGE_SIZE as GlobOff {
             let end = self.off + self.size;
-            if pos > (pages / 2) * cfg::PAGE_SIZE as goff {
-                self.off = cmp::max(self.off, pos - (pages / 2) * cfg::PAGE_SIZE as goff);
+            if pos > (pages / 2) * cfg::PAGE_SIZE as GlobOff {
+                self.off = cmp::max(self.off, pos - (pages / 2) * cfg::PAGE_SIZE as GlobOff);
             }
-            self.size = cmp::min(pages * cfg::PAGE_SIZE as goff, end - self.off);
+            self.size = cmp::min(pages * cfg::PAGE_SIZE as GlobOff, end - self.off);
         }
     }
 
@@ -260,7 +259,7 @@ impl Region {
                 self.virt(),
                 self.owner,
                 mem.borrow().gate().sel(),
-                (self.mem_off >> cfg::PAGE_BITS as goff) as Selector,
+                (self.mem_off >> cfg::PAGE_BITS as GlobOff) as Selector,
                 (self.size as usize >> cfg::PAGE_BITS) as Selector,
                 perm,
             )?;
@@ -283,8 +282,8 @@ impl Drop for Region {
                 self.owner,
                 CapRngDesc::new(
                     CapType::Mapping,
-                    (self.virt().as_goff() >> cfg::PAGE_BITS as goff) as Selector,
-                    (self.size() >> cfg::PAGE_BITS as goff) as Selector,
+                    (self.virt().as_goff() >> cfg::PAGE_BITS as GlobOff) as Selector,
+                    (self.size() >> cfg::PAGE_BITS as GlobOff) as Selector,
                 ),
                 true,
             )
@@ -309,14 +308,14 @@ pub struct RegionList {
     owner: Selector,
     child: childs::Id,
     ds_off: VirtAddr,
-    size: goff,
+    size: GlobOff,
     // put regions in Boxes to cheaply move them around
     #[allow(clippy::vec_box)]
     regs: Vec<Box<Region>>,
 }
 
 impl RegionList {
-    pub fn new(owner: Selector, child: childs::Id, ds_off: VirtAddr, size: goff) -> Self {
+    pub fn new(owner: Selector, child: childs::Id, ds_off: VirtAddr, size: GlobOff) -> Self {
         RegionList {
             owner,
             child,
@@ -376,7 +375,7 @@ impl RegionList {
         self.regs.push(r);
     }
 
-    pub fn pagefault(&mut self, off: goff) -> &mut Region {
+    pub fn pagefault(&mut self, off: GlobOff) -> &mut Region {
         let idx = self.do_pagefault(off);
         &mut self.regs[idx]
     }
@@ -387,7 +386,7 @@ impl RegionList {
         }
     }
 
-    fn do_pagefault(&mut self, off: goff) -> usize {
+    fn do_pagefault(&mut self, off: GlobOff) -> usize {
         // search for the region that contains `off` or is behind `off`
         let mut last = None;
         let mut idx = 0;

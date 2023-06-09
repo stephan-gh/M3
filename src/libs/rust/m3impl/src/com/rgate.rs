@@ -26,9 +26,8 @@ use crate::com::rbufs::{alloc_rbuf, free_rbuf};
 use crate::com::{gate::Gate, RecvBuf, SendGate};
 use crate::env;
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::kif::INVALID_SEL;
-use crate::mem::{MsgBuf, VirtAddr};
+use crate::mem::{GlobOff, MsgBuf, VirtAddr};
 use crate::syscalls;
 use crate::tcu;
 use crate::tiles::{Activity, OwnActivity};
@@ -315,7 +314,7 @@ impl RecvGate {
     pub fn activate_with(
         &self,
         mem: Option<Selector>,
-        off: goff,
+        off: GlobOff,
         addr: VirtAddr,
     ) -> Result<tcu::EpId, Error> {
         self.fetch_buffer_size()?;
