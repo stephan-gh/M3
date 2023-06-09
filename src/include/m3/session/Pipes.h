@@ -31,8 +31,7 @@ class Pipes : public ClientSession {
 public:
     class Pipe : public ClientSession {
     public:
-        explicit Pipe(capsel_t sel, MemGate &memory)
-            : ClientSession(sel, 0) {
+        explicit Pipe(capsel_t sel, MemGate &memory) : ClientSession(sel, 0) {
             KIF::ExchangeArgs args;
             ExchangeOStream os(args);
             os << opcodes::Pipe::SET_MEM;
