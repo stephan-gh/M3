@@ -22,32 +22,45 @@ use crate::impl_prim_int;
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::EpId;
 
+/// The underlying type for [`PhysAddr`]
 pub type PhysAddrRaw = u32;
 
+/// Represents a physical address
+///
+/// Physical addresses are used locally on a tile and need to first go through the TCU's physical
+/// memory protection (PMP) to obtain the final address in memory. For that reason, physical
+/// addresses consist of an endpoint id and an offset to refer to a specific offset in a memory
+/// region accessed via a specific PMP endpoint.
 #[derive(Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct PhysAddr(PhysAddrRaw);
 
 impl PhysAddr {
+    /// Creates a new physical address for given endpoint and offset
     pub const fn new(ep: EpId, off: PhysAddrRaw) -> Self {
         Self((ep as PhysAddrRaw) << 30 | (cfg::MEM_OFFSET as PhysAddrRaw) + off)
     }
 
+    /// Creates a new physical address from given raw address
     pub const fn new_raw(addr: PhysAddrRaw) -> Self {
         Self(addr)
     }
 
+    /// Returns the underlying raw address
     pub const fn as_raw(&self) -> PhysAddrRaw {
         self.0
     }
 
+    /// Returns this address as a global offset
     pub const fn as_goff(&self) -> goff {
         self.0 as goff
     }
 
+    /// Returns the endpoint of this physical address
     pub const fn ep(&self) -> EpId {
         ((self.0 - cfg::MEM_OFFSET as PhysAddrRaw) >> 30) as EpId
     }
 
+    /// Returns the offset of this physical address
     pub const fn offset(&self) -> PhysAddrRaw {
         (self.0 - cfg::MEM_OFFSET as PhysAddrRaw) & 0x3FFF_FFFF
     }

@@ -21,44 +21,60 @@ use crate::impl_prim_int;
 use crate::mem::{PhysAddr, PhysAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 
+/// The underlying type for [`VirtAddr`]
 pub type VirtAddrRaw = u64;
 
+/// Represents a virtual address
+///
+/// Like on most systems, virtual addresses are translated via page tables to a physical address
+/// ([`PhysAddr`]). [`VirtAddr`] implements [`num_traits::PrimInt`] and therefore supports the usual
+/// arithmetic and bitwise operators. Additionally, conversions between pointers, `usize`, `goff`
+/// and [`VirtAddr`] are supported.
 #[derive(Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct VirtAddr(VirtAddrRaw);
 
 impl VirtAddr {
+    /// Creates a null pointer
     pub const fn null() -> Self {
         Self(0)
     }
 
+    /// Creates a virtual address from given raw address
     pub const fn new(addr: VirtAddrRaw) -> Self {
         Self(addr)
     }
 
+    /// Returns the underlying raw address
     pub const fn as_raw(&self) -> VirtAddrRaw {
         self.0
     }
 
+    /// Returns this address as an immutable pointer to `T`
     pub const fn as_ptr<T>(&self) -> *const T {
         self.0 as *const T
     }
 
+    /// Returns this address as an mutable pointer to `T`
     pub const fn as_mut_ptr<T>(&self) -> *mut T {
         self.0 as *mut T
     }
 
+    /// Returns this address as a global offset
     pub const fn as_goff(&self) -> goff {
         self.0 as goff
     }
 
+    /// Returns this address as a [`PhysAddr`] and therefore assumes an identity mapping
     pub const fn as_phys(&self) -> PhysAddr {
         PhysAddr::new_raw(self.0 as PhysAddrRaw)
     }
 
+    /// Returns this address as a locally valid virtual address (`usize`)
     pub const fn as_local(&self) -> usize {
         self.0 as usize
     }
 
+    /// Returns true if this is a null pointer
     pub const fn is_null(&self) -> bool {
         self.0 == 0
     }

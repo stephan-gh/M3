@@ -27,9 +27,14 @@ use crate::mem::{PhysAddr, PhysAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::{EpId, TileId, PMEM_PROT_EPS, TCU};
 
+/// The underlying type for [`GlobAddr`]
 pub type GlobAddrRaw = u64;
 
-/// Represents a global address, which is a combination of a tile id and an offset within the tile.
+/// Represents a global address
+///
+/// A global address is a combination of a tile id and an offset within the tile. On memory tiles,
+/// the offset is simply the offset within the memory inside the tile. On compute tiles, the offset
+/// is a [`PhysAddr`] that will be translated through PMP to a global address on a memory tile.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct GlobAddr {
     val: GlobAddrRaw,
