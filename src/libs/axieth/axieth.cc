@@ -65,7 +65,7 @@
 #define PHY_REG21_2_RX_DLY            0x0020 // bit 5
 
 static uintptr_t virt_base;
-static goff_t phys_base;
+static uint32_t phys_base;
 static XAxiDma AxiDma;
 static XAxiEthernet AxiEthernetInstance;
 static u8 LocalMacAddr[6] = {0x00, 0x0A, 0x35, 0x03, 0x02, 0x03};
@@ -326,7 +326,7 @@ static int init_mac(XAxiEthernet_Config *MacCfgPtr) {
     return 0;
 }
 
-EXTERN_C ssize_t axieth_init(uintptr_t virt, goff_t phys, size_t size) {
+EXTERN_C ssize_t axieth_init(uintptr_t virt, uint32_t phys, size_t size) {
     int Status;
     XAxiEthernet_Config *MacCfgPtr;
     XAxiDma_Config *Config;

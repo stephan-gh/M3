@@ -20,16 +20,15 @@ use core::slice;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::kif::{PageFlags, Perm};
-use m3::mem::VirtAddr;
+use m3::mem::{PhysAddrRaw, VirtAddr};
 use m3::tiles::Activity;
 use m3::vec;
 
 use smoltcp::time::Instant;
 
 extern "C" {
-    pub fn axieth_init(virt: usize, phys: goff, size: usize) -> isize;
+    pub fn axieth_init(virt: usize, phys: PhysAddrRaw, size: usize) -> isize;
     pub fn axieth_deinit();
     pub fn axieth_send(packet: *const u8, len: usize) -> i32;
     pub fn axieth_recv(buffer: *mut u8, len: usize) -> usize;
@@ -55,7 +54,7 @@ impl AXIEthDevice {
             .map_mem(BUF_VIRT_ADDR, &bufs, ALL_BUF_SIZE, Perm::RW)?;
         let phys = bufs.region()?.0.to_phys(PageFlags::RW)?;
 
-        let res = unsafe { axieth_init(BUF_VIRT_ADDR.as_local(), phys, RX_BUF_SIZE) };
+        let res = unsafe { axieth_init(BUF_VIRT_ADDR.as_local(), phys.as_raw(), RX_BUF_SIZE) };
         if res < 0 {
             Err(Error::new(Code::NotFound))
         }
