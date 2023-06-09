@@ -18,6 +18,7 @@ use core::ops;
 
 use crate::goff;
 use crate::impl_prim_int;
+use crate::mem::{PhysAddr, PhysAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 
 pub type VirtAddrRaw = u64;
@@ -48,6 +49,10 @@ impl VirtAddr {
 
     pub const fn as_goff(&self) -> goff {
         self.0 as goff
+    }
+
+    pub const fn as_phys(&self) -> PhysAddr {
+        PhysAddr::new_raw(self.0 as PhysAddrRaw)
     }
 
     pub const fn as_local(&self) -> usize {

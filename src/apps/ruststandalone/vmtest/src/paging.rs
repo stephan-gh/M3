@@ -18,12 +18,12 @@ use base::cfg;
 use base::env;
 use base::errors::Error;
 use base::goff;
-use base::kif::{PageFlags, TileDesc, PTE};
-use base::mem::{GlobAddr, VirtAddr};
+use base::kif::{PageFlags, TileDesc};
+use base::mem::{GlobAddr, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use base::tcu;
 use base::util::math;
 
-use paging::{self, AddrSpace, Allocator, ArchPaging, Paging, Phys};
+use paging::{self, AddrSpace, Allocator, ArchPaging, Paging};
 
 extern "C" {
     static _text_start: u8;
@@ -36,26 +36,27 @@ extern "C" {
 
 struct PTAllocator {
     pts_mapped: bool,
-    off: Phys,
+    cur: PhysAddr,
+    max: PhysAddr,
 }
 
 impl Allocator for PTAllocator {
-    fn allocate_pt(&mut self) -> Result<Phys, Error> {
-        let res = self.off;
-        self.off += cfg::PAGE_SIZE as Phys;
-        Ok(res)
+    fn allocate_pt(&mut self) -> Result<PhysAddr, Error> {
+        assert!(self.cur + cfg::PAGE_SIZE as PhysAddrRaw <= self.max);
+        self.cur += cfg::PAGE_SIZE as PhysAddrRaw;
+        Ok(self.cur - PhysAddr::new_raw(cfg::PAGE_SIZE as PhysAddrRaw))
     }
 
-    fn translate_pt(&self, phys: Phys) -> VirtAddr {
+    fn translate_pt(&self, phys: PhysAddr) -> VirtAddr {
         if !self.pts_mapped {
-            VirtAddr::new(phys)
+            VirtAddr::new(phys.as_raw() as VirtAddrRaw)
         }
         else {
-            cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
+            cfg::TILE_MEM_BASE + phys.offset() as VirtAddrRaw
         }
     }
 
-    fn free_pt(&mut self, _phys: Phys) {
+    fn free_pt(&mut self, _phys: PhysAddr) {
         unimplemented!();
     }
 }
@@ -68,12 +69,13 @@ pub fn init() {
     let (mem_tile, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
 
     let base = GlobAddr::new_with(mem_tile, mem_base);
-    let root = base + mem_size / 2 + mem_size / 4;
-    let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2 + mem_size / 4;
-    let aspace = AddrSpace::new(0, root, PTAllocator {
+    let mut alloc = PTAllocator {
         pts_mapped: false,
-        off: pts_phys + cfg::PAGE_SIZE as Phys,
-    });
+        cur: PhysAddr::new(0, (mem_size / 2) as PhysAddrRaw),
+        max: PhysAddr::new(0, mem_size as PhysAddrRaw),
+    };
+    let root = base + alloc.allocate_pt().unwrap().offset() as goff;
+    let aspace = AddrSpace::new(0, root, alloc);
     aspace.init();
     ASPACE.set(aspace);
 
@@ -107,9 +109,9 @@ pub fn init() {
     // map PLIC
     #[cfg(target_arch = "riscv64")]
     {
-        map_ident(VirtAddr::from(0x0C00_0000), 0x1000, PageFlags::RW);
-        map_ident(VirtAddr::from(0x0C00_2000), 0x1000, PageFlags::RW);
-        map_ident(VirtAddr::from(0x0C20_1000), 0x1000, PageFlags::RW);
+        map_ident(VirtAddr::from(0x0C00_0000), cfg::PAGE_SIZE, PageFlags::RW);
+        map_ident(VirtAddr::from(0x0C00_2000), cfg::PAGE_SIZE, PageFlags::RW);
+        map_ident(VirtAddr::from(0x0C20_1000), cfg::PAGE_SIZE, PageFlags::RW);
     }
 
     // switch to that address space
@@ -121,7 +123,7 @@ pub fn init() {
 }
 
 #[allow(unused)]
-pub fn translate(virt: VirtAddr, perm: PageFlags) -> PTE {
+pub fn translate(virt: VirtAddr, perm: PageFlags) -> (PhysAddr, PageFlags) {
     ASPACE.borrow().translate(virt, perm.bits())
 }
 
@@ -134,7 +136,7 @@ pub fn map_anon(virt: VirtAddr, size: usize, perm: PageFlags) -> Result<(), Erro
         let frame = ASPACE.borrow_mut().allocator_mut().allocate_pt()?;
         ASPACE.borrow_mut().map_pages(
             virt + i * cfg::PAGE_SIZE,
-            base + (frame - cfg::MEM_OFFSET as Phys),
+            base + (frame.offset() as goff),
             1,
             perm,
         )?;

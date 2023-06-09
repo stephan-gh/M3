@@ -15,7 +15,7 @@
 
 use base::cfg;
 use base::kif::PageFlags;
-use base::mem::VirtAddr;
+use base::mem::{PhysAddr, PhysAddrRaw, VirtAddr};
 use base::write_csr;
 
 use bitflags::bitflags;
@@ -25,7 +25,6 @@ use core::arch::asm;
 use crate::ArchMMUFlags;
 
 pub type MMUPTE = u64;
-pub type Phys = u64;
 
 pub const PTE_BITS: usize = 3;
 
@@ -70,8 +69,8 @@ pub struct X86Paging {}
 impl crate::ArchPaging for X86Paging {
     type MMUFlags = X86MMUFlags;
 
-    fn build_pte(phys: MMUPTE, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE {
-        let pte = phys | perm.bits();
+    fn build_pte(phys: PhysAddr, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE {
+        let pte = phys.as_raw() as MMUPTE | perm.bits();
         if leaf {
             if level > 0 {
                 pte | Self::MMUFlags::L.bits()
@@ -85,8 +84,8 @@ impl crate::ArchPaging for X86Paging {
         }
     }
 
-    fn pte_to_phys(pte: MMUPTE) -> Phys {
-        pte & !Self::MMUFlags::FLAGS.bits()
+    fn pte_to_phys(pte: MMUPTE) -> PhysAddr {
+        PhysAddr::new_raw((pte & !Self::MMUFlags::FLAGS.bits()) as PhysAddrRaw)
     }
 
     fn needs_invalidate(new_flags: Self::MMUFlags, old_flags: Self::MMUFlags) -> bool {
@@ -152,7 +151,7 @@ impl crate::ArchPaging for X86Paging {
         // nothing to do
     }
 
-    fn set_root_pt(_id: crate::ActId, root: Phys) {
-        write_csr!("cr3", root as usize);
+    fn set_root_pt(_id: crate::ActId, root: PhysAddr) {
+        write_csr!("cr3", root.as_raw() as usize);
     }
 }

@@ -16,7 +16,7 @@
 use base::cell::LazyStaticCell;
 use base::cfg;
 use base::kif::PageFlags;
-use base::mem::VirtAddr;
+use base::mem::{PhysAddr, PhysAddrRaw, VirtAddr};
 use base::{read_csr, set_csr_bits, write_csr};
 
 use bitflags::bitflags;
@@ -26,7 +26,6 @@ use core::arch::asm;
 use crate::ArchMMUFlags;
 
 pub type MMUPTE = u64;
-pub type Phys = u64;
 
 pub const PTE_BITS: usize = 3;
 
@@ -81,22 +80,22 @@ pub struct RISCVPaging {}
 impl crate::ArchPaging for RISCVPaging {
     type MMUFlags = RISCVMMUFlags;
 
-    fn build_pte(phys: Phys, perm: Self::MMUFlags, _level: usize, leaf: bool) -> MMUPTE {
+    fn build_pte(phys: PhysAddr, perm: Self::MMUFlags, _level: usize, leaf: bool) -> MMUPTE {
         if leaf {
             if perm.has_empty_perm() {
                 0
             }
             else {
-                (phys >> 2) | (Self::MMUFlags::V | perm).bits()
+                (phys.as_raw() >> 2) as MMUPTE | (Self::MMUFlags::V | perm).bits()
             }
         }
         else {
-            (phys >> 2) | Self::MMUFlags::V.bits()
+            (phys.as_raw() >> 2) as MMUPTE | Self::MMUFlags::V.bits()
         }
     }
 
-    fn pte_to_phys(pte: MMUPTE) -> Phys {
-        (pte & !Self::MMUFlags::FLAGS.bits()) << 2
+    fn pte_to_phys(pte: MMUPTE) -> PhysAddr {
+        PhysAddr::new_raw(((pte & !Self::MMUFlags::FLAGS.bits()) << 2) as PhysAddrRaw)
     }
 
     fn needs_invalidate(_new_flags: Self::MMUFlags, _old_flags: Self::MMUFlags) -> bool {
@@ -175,7 +174,7 @@ impl crate::ArchPaging for RISCVPaging {
         }
     }
 
-    fn set_root_pt(id: crate::ActId, root: Phys) {
+    fn set_root_pt(id: crate::ActId, root: PhysAddr) {
         static MAX_ASID: LazyStaticCell<crate::ActId> = LazyStaticCell::default();
         if !MAX_ASID.is_some() {
             // determine how many ASID bits are supported (see 4.1.12)
@@ -185,7 +184,7 @@ impl crate::ArchPaging for RISCVPaging {
             MAX_ASID.set(((actual_satp >> 44) & 0xFFFF) as crate::ActId);
         }
 
-        let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
+        let satp: u64 = MODE_SV39 << 60 | id << 44 | (root.as_raw() as u64 >> cfg::PAGE_BITS);
         write_csr!("satp", satp);
 
         // if there are not enough ASIDs, always flush the TLB

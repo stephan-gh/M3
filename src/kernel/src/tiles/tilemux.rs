@@ -113,7 +113,7 @@ impl TileMux {
         .unwrap();
 
         // configure receive EP
-        let mut rbuf = cfg::TILEMUX_RBUF_SPACE.as_raw();
+        let mut rbuf = cfg::TILEMUX_RBUF_SPACE.as_phys();
         ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_REP, |regs, tgtep| {
             ktcu::config_recv(
                 regs,

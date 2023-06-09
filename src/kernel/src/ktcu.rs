@@ -21,7 +21,7 @@ use base::goff;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{self, GlobAddr, VirtAddr};
+use base::mem::{self, GlobAddr, PhysAddr, PhysAddrRaw, VirtAddr};
 use base::tcu::{
     ActId, EpId, ExtCmdOpCode, ExtReg, Header, Label, Message, Reg, TileId, AVAIL_EPS, EP_REGS,
     MMIO_ADDR, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
@@ -71,14 +71,14 @@ pub fn config_recv(
     regs: &mut [Reg],
     tgtep: (TileId, EpId),
     act: ActId,
-    buf: goff,
+    buf: PhysAddr,
     buf_ord: u32,
     msg_ord: u32,
     reply_eps: Option<EpId>,
 ) {
     log!(
         log_flag(tgtep.0),
-        "{}:EP{} = Recv[act={}, buf={:#x}, buf_ord={}, msg_ord={}, reply_eps={:?}]",
+        "{}:EP{} = Recv[act={}, buf={}, buf_ord={}, msg_ord={}, reply_eps={:?}]",
         tgtep.0,
         tgtep.1,
         act,
@@ -148,16 +148,16 @@ pub fn config_mem(
     TCU::config_mem(regs, act, tile, addr, size, perm);
 }
 
-fn rbuf_addrs(virt: VirtAddr) -> (VirtAddr, goff) {
+fn rbuf_addrs(virt: VirtAddr) -> (VirtAddr, PhysAddr) {
     if platform::tile_desc(platform::kernel_tile()).has_virtmem() {
-        let pte = paging::translate(virt, kif::PageFlags::R);
+        let (phys, _perm) = paging::translate(virt, kif::PageFlags::R);
         (
             virt,
-            (pte & !(cfg::PAGE_MASK as goff)) | (virt.as_raw() & cfg::PAGE_MASK as goff),
+            phys | (virt.as_phys() & PhysAddr::new_raw(cfg::PAGE_MASK as PhysAddrRaw)),
         )
     }
     else {
-        (virt, virt.as_raw())
+        (virt, virt.as_phys())
     }
 }
 
@@ -356,7 +356,7 @@ pub fn glob_to_phys_remote(
     tile: TileId,
     glob: GlobAddr,
     flags: kif::PageFlags,
-) -> Result<goff, Error> {
+) -> Result<PhysAddr, Error> {
     glob.to_phys_with(flags, |ep| {
         let mut regs = [0; 3];
         if read_ep_remote(tile, ep, &mut regs).is_ok() {

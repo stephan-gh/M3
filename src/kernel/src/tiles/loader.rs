@@ -21,7 +21,7 @@ use base::goff;
 use base::io::LogFlags;
 use base::kif::{self, PageFlags};
 use base::log;
-use base::mem::{size_of, GlobAddr, VirtAddr};
+use base::mem::{size_of, GlobAddr, PhysAddr, VirtAddr};
 use base::tcu;
 use base::util::math;
 
@@ -80,7 +80,7 @@ pub fn init_activity_async(act: &Activity) -> Result<i32, Error> {
         ktcu::glob_to_phys_remote(act.tile_id(), env_addr, flags)?
     }
     else {
-        ENV_START.as_raw()
+        ENV_START.as_phys()
     };
 
     if act.is_root() {
@@ -103,12 +103,12 @@ pub fn load_mux_async(tile: tcu::TileId, mem: &mem::Allocation) -> Result<(), Er
     load_mod_async(&mut loader, app)?;
 
     // write env vars
-    let env_phys = mem.global().offset() + ENV_START.as_goff() - MEM_OFFSET as goff;
+    let env_mem_off = mem.global().offset() + ENV_START.as_goff() - MEM_OFFSET as goff;
     let mut env_off = size_of::<env::BaseEnv>();
     let envp_addr = write_arguments(
         &env::vars_raw(),
         mem.global().tile(),
-        env_phys,
+        env_mem_off,
         &mut env_off,
     );
 
@@ -122,12 +122,12 @@ pub fn load_mux_async(tile: tcu::TileId, mem: &mem::Allocation) -> Result<(), Er
         raw_tile_ids: env::boot().raw_tile_ids,
         ..Default::default()
     };
-    ktcu::write_slice(mem.global().tile(), env_phys, &[env]);
+    ktcu::write_slice(mem.global().tile(), env_mem_off, &[env]);
 
     Ok(())
 }
 
-fn load_root_async(mut loader: ActivityELFLoader<'_>, env_phys: goff) -> Result<(), Error> {
+fn load_root_async(mut loader: ActivityELFLoader<'_>, env_phys: PhysAddr) -> Result<(), Error> {
     let entry = {
         let app = get_mod("root").ok_or_else(|| Error::new(Code::NoSuchFile))?;
         log!(LogFlags::KernActs, "Loading boot module '{}'", app.name());
@@ -136,8 +136,13 @@ fn load_root_async(mut loader: ActivityELFLoader<'_>, env_phys: goff) -> Result<
 
     let act = loader.0;
     let mut env_off = size_of::<env::BaseEnv>();
-    let argv_addr = write_arguments(&["root"], act.tile_id(), env_phys, &mut env_off);
-    let envp_addr = write_arguments(&env::vars_raw(), act.tile_id(), env_phys, &mut env_off);
+    let argv_addr = write_arguments(&["root"], act.tile_id(), env_phys.as_goff(), &mut env_off);
+    let envp_addr = write_arguments(
+        &env::vars_raw(),
+        act.tile_id(),
+        env_phys.as_goff(),
+        &mut env_off,
+    );
 
     // write env to target tile
     let senv = env::BaseEnv {
@@ -161,7 +166,7 @@ fn load_root_async(mut loader: ActivityELFLoader<'_>, env_phys: goff) -> Result<
         first_std_ep: act.eps_start() as u64,
         ..Default::default()
     };
-    ktcu::write_slice(act.tile_id(), env_phys, &[senv]);
+    ktcu::write_slice(act.tile_id(), env_phys.as_goff(), &[senv]);
 
     Ok(())
 }
@@ -346,14 +351,10 @@ impl ELFLoader for ActivityELFLoader<'_> {
             ktcu::glob_to_phys_remote(self.0.tile_id(), mem.global(), flags)?
         }
         else {
-            virt.as_raw()
+            virt.as_phys()
         };
 
-        MetalELFLoader::new(GlobAddr::new_with(self.0.tile_id(), 0), 0).zero_segment_async(
-            VirtAddr::new(phys),
-            size,
-            flags,
-        )
+        ktcu::clear(self.0.tile_id(), phys.as_goff(), size)
     }
 
     fn map_heap_async(&mut self, virt: VirtAddr) -> Result<(), Error> {
@@ -386,7 +387,7 @@ impl ELFLoader for ActivityELFLoader<'_> {
 fn write_arguments<S>(
     args: &[S],
     tile: tcu::TileId,
-    env_phys: goff,
+    env_mem_off: goff,
     env_off: &mut usize,
 ) -> VirtAddr
 where
@@ -397,7 +398,7 @@ where
     // write actual arguments to memory
     ktcu::write_mem(
         tile,
-        env_phys + *env_off as goff,
+        env_mem_off + *env_off as goff,
         arg_buf.as_ptr() as *const u8,
         arg_buf.len(),
     );
@@ -406,7 +407,7 @@ where
     let arg_ptr_off = math::round_up(arg_end - ENV_START, VirtAddr::from(size_of::<u64>()));
     ktcu::write_mem(
         tile,
-        env_phys + arg_ptr_off.as_goff(),
+        env_mem_off + arg_ptr_off.as_goff(),
         arg_ptr.as_ptr() as *const _,
         arg_ptr.len() * size_of::<u64>(),
     );

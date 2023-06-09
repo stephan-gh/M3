@@ -25,7 +25,7 @@ use base::io::LogFlags;
 use base::kif::{PageFlags, PTE};
 use base::libc;
 use base::log;
-use base::mem::{size_of, GlobAddr, VirtAddr};
+use base::mem::{size_of, GlobAddr, PhysAddr, PhysAddrRaw, VirtAddr};
 use base::tcu::TCU;
 use base::util::math;
 use core::fmt;
@@ -50,10 +50,10 @@ pub trait ArchPaging {
     type MMUFlags: ArchMMUFlags;
 
     /// Builds a page table entry with given configuration
-    fn build_pte(phys: Phys, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE;
+    fn build_pte(phys: PhysAddr, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE;
 
     // Retrieves the physical address from given page table entry
-    fn pte_to_phys(pte: MMUPTE) -> Phys;
+    fn pte_to_phys(pte: MMUPTE) -> PhysAddr;
 
     /// Checks whether the given flag change requires a TLB invalidation
     fn needs_invalidate(new_flags: Self::MMUFlags, old_flags: Self::MMUFlags) -> bool;
@@ -75,7 +75,7 @@ pub trait ArchPaging {
     fn invalidate_tlb();
 
     /// Sets the root page table to given physical address and activity
-    fn set_root_pt(id: ActId, root: Phys);
+    fn set_root_pt(id: ActId, root: PhysAddr);
 }
 
 cfg_if::cfg_if! {
@@ -99,22 +99,22 @@ cfg_if::cfg_if! {
     }
 }
 
-pub use arch::{Phys, MMUPTE};
+pub use arch::MMUPTE;
 
 pub trait Allocator {
     /// Allocates a new page table and returns its physical address
-    fn allocate_pt(&mut self) -> Result<Phys, Error>;
+    fn allocate_pt(&mut self) -> Result<PhysAddr, Error>;
 
     /// Translates the given physical address of a page table to a virtual address
-    fn translate_pt(&self, phys: Phys) -> VirtAddr;
+    fn translate_pt(&self, phys: PhysAddr) -> VirtAddr;
 
     /// Frees the given page table
-    fn free_pt(&mut self, phys: Phys);
+    fn free_pt(&mut self, phys: PhysAddr);
 }
 
 pub struct AddrSpace<A: Allocator> {
     id: ActId,
-    root: Phys,
+    root: MMUPTE,
     alloc: A,
 }
 
@@ -154,7 +154,7 @@ impl<A: Allocator> AddrSpace<A> {
         Self::clear_pt(pt_virt);
     }
 
-    pub fn translate(&self, virt: VirtAddr, perm: PTE) -> PTE {
+    pub fn translate(&self, virt: VirtAddr, perm: PTE) -> (PhysAddr, PageFlags) {
         // otherwise, walk through all levels
         let perm = Paging::to_mmu_perms(PageFlags::from_bits_truncate(perm));
         let mut pte = self.root;
@@ -170,7 +170,7 @@ impl<A: Allocator> AddrSpace<A> {
             if pte_flags.is_leaf(lvl) || !pte_flags.access_allowed(perm) {
                 let res = Paging::pte_to_phys(pte);
                 let flags = MMUFlags::from_bits_truncate(pte);
-                return res | Paging::to_page_flags(lvl, flags).bits();
+                return (res, Paging::to_page_flags(lvl, flags));
             }
         }
         unreachable!();
@@ -183,16 +183,11 @@ impl<A: Allocator> AddrSpace<A> {
         mut pages: usize,
         perm: PageFlags,
     ) -> Result<(), Error> {
-        let mut phys = if global.has_tile() {
-            global.to_phys(perm)?
-        }
-        else {
-            global.raw()
-        };
+        let mut phys = global.to_phys(perm)?;
 
         log!(
             LogFlags::PgMap,
-            "Activity{}: mapping {}..{} to {:?}..{:?} (phys={:#x}) with {:?}",
+            "Activity{}: mapping {}..{} to {:?}..{:?} ({}) with {:?}",
             self.id,
             virt,
             virt + pages * cfg::PAGE_SIZE - 1,
@@ -210,7 +205,7 @@ impl<A: Allocator> AddrSpace<A> {
     fn map_pages_rec(
         &mut self,
         virt: &mut VirtAddr,
-        phys: &mut Phys,
+        phys: &mut PhysAddr,
         pages: &mut usize,
         perm: MMUFlags,
         pte: MMUPTE,
@@ -240,7 +235,7 @@ impl<A: Allocator> AddrSpace<A> {
                 // can we use a large page?
                 || (level == 1
                     && math::is_aligned((*virt).as_local(), cfg::LPAGE_SIZE)
-                    && math::is_aligned(*phys, cfg::LPAGE_SIZE as MMUPTE)
+                    && math::is_aligned((*phys).as_raw(), cfg::LPAGE_SIZE as PhysAddrRaw)
                     && *pages * cfg::PAGE_SIZE >= cfg::LPAGE_SIZE)
             };
 
@@ -286,7 +281,7 @@ impl<A: Allocator> AddrSpace<A> {
 
                 *pages -= psize / cfg::PAGE_SIZE;
                 *virt += psize;
-                *phys += psize as MMUPTE;
+                *phys += psize as PhysAddrRaw;
             }
             else {
                 // unmapping non-existing PTs is a noop
@@ -346,7 +341,7 @@ impl<A: Allocator> AddrSpace<A> {
             if pte != 0 {
                 let pte_phys = Paging::pte_to_phys(pte);
                 // does the PTE refer to a PT?
-                if pte_phys != 0 && !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
+                if pte_phys.as_raw() != 0 && !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
                     // there are no PTEs refering to PTs at level 0
                     if level > 1 {
                         self.free_pts_rec(pte, level - 1);
@@ -387,7 +382,7 @@ impl<A: Allocator> AddrSpace<A> {
 
 impl<A: Allocator> Drop for AddrSpace<A> {
     fn drop(&mut self) {
-        if Paging::pte_to_phys(self.root) != 0 {
+        if Paging::pte_to_phys(self.root).as_raw() != 0 {
             self.free_pts_rec(self.root, LEVEL_CNT - 1);
 
             // invalidate entire TLB to allow us to reuse the activity id
@@ -399,11 +394,7 @@ impl<A: Allocator> Drop for AddrSpace<A> {
 
 impl<A: Allocator> fmt::Debug for AddrSpace<A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        writeln!(
-            f,
-            "Address space @ 0x{:0>16x}:",
-            Paging::pte_to_phys(self.root)
-        )?;
+        writeln!(f, "Address space @ {}:", Paging::pte_to_phys(self.root))?;
         self.print_as_rec(f, self.root, VirtAddr::null(), LEVEL_CNT - 1)
     }
 }

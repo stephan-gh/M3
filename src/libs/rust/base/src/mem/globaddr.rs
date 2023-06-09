@@ -23,29 +23,30 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::LogFlags;
 use crate::kif::{PageFlags, Perm};
+use crate::mem::{PhysAddr, PhysAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::{EpId, TileId, PMEM_PROT_EPS, TCU};
 
-pub type Phys = u64;
+pub type GlobAddrRaw = u64;
 
 /// Represents a global address, which is a combination of a tile id and an offset within the tile.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct GlobAddr {
-    val: u64,
+    val: GlobAddrRaw,
 }
 
-const TILE_SHIFT: u64 = 49;
-const TILE_OFFSET: u64 = 0x4000;
+const TILE_SHIFT: GlobAddrRaw = 49;
+const TILE_OFFSET: GlobAddrRaw = 0x4000;
 
 impl GlobAddr {
     /// Creates a new global address from the given raw value
-    pub fn new(addr: u64) -> GlobAddr {
+    pub fn new(addr: GlobAddrRaw) -> GlobAddr {
         GlobAddr { val: addr }
     }
 
     /// Creates a new global address from the given tile id and offset
     pub fn new_with(tile: TileId, off: goff) -> GlobAddr {
-        Self::new(((TILE_OFFSET + tile.raw() as u64) << TILE_SHIFT) | off)
+        Self::new(((TILE_OFFSET + tile.raw() as GlobAddrRaw) << TILE_SHIFT) | off)
     }
 
     /// Creates a new global address from the given physical address
@@ -53,19 +54,19 @@ impl GlobAddr {
     /// The function assumes that the given physical address is accessible through a PMP EP and uses
     /// the current configuration of this PMP EP to translate the physical address into a global
     /// address.
-    pub fn new_from_phys(_phys: Phys) -> Result<GlobAddr, Error> {
-        let phys = _phys - crate::cfg::MEM_OFFSET as Phys;
-        let epid = ((phys >> 30) & 0x3) as EpId;
-        let off = phys & 0x3FFF_FFFF;
+    pub fn new_from_phys(phys: PhysAddr) -> Result<GlobAddr, Error> {
+        let epid = phys.ep();
+        let off = phys.offset();
+
         let res = TCU::unpack_mem_ep(epid)
-            .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off))
+            .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off as goff))
             .ok_or_else(|| Error::new(Code::InvArgs));
-        log!(LogFlags::LibXlate, "Translated {:#x} to {:?}", phys, res);
+        log!(LogFlags::LibXlate, "Translated {} to {:?}", phys, res);
         res
     }
 
     /// Returns the raw value
-    pub fn raw(self) -> u64 {
+    pub fn raw(self) -> GlobAddrRaw {
         self.val
     }
 
@@ -90,8 +91,8 @@ impl GlobAddr {
     /// (EP) that allows the caller to access this memory. Therefore, it walks over all PMP EPs to
     /// check which EP provides access to the address and translates it into the corresponding
     /// physical address.
-    pub fn to_phys(self, _access: PageFlags) -> Result<Phys, Error> {
-        self.to_phys_with(_access, crate::tcu::TCU::unpack_mem_ep)
+    pub fn to_phys(self, access: PageFlags) -> Result<PhysAddr, Error> {
+        self.to_phys_with(access, crate::tcu::TCU::unpack_mem_ep)
     }
 
     /// Translates this global address to a physical address based on the given function to retrieve
@@ -99,13 +100,17 @@ impl GlobAddr {
     ///
     /// Similarly to `to_phys`, `to_phys_with` translates from this global address to the physical
     /// address, but instead of reading the PMP EPs, it calls `get_ep` for every EP id.
-    pub fn to_phys_with<F>(self, _access: PageFlags, _get_ep: F) -> Result<Phys, Error>
+    pub fn to_phys_with<F>(self, access: PageFlags, get_ep: F) -> Result<PhysAddr, Error>
     where
-        F: Fn(EpId) -> Option<(TileId, u64, u64, Perm)>,
+        F: Fn(EpId) -> Option<(TileId, goff, goff, Perm)>,
     {
+        if !self.has_tile() {
+            return Ok(PhysAddr::new_raw(self.raw() as PhysAddrRaw));
+        }
+
         // find memory EP that contains the address
         for ep in 0..PMEM_PROT_EPS as EpId {
-            if let Some((tile, addr, size, perm)) = _get_ep(ep) {
+            if let Some((tile, addr, size, perm)) = get_ep(ep) {
                 log!(
                     LogFlags::LibXlate,
                     "Translating {:?}: considering EP{} with tile={}, addr={:#x}, size={:#x}",
@@ -121,16 +126,15 @@ impl GlobAddr {
                     let flags = PageFlags::from(perm);
 
                     // check access permissions
-                    if _access.contains(PageFlags::R) && !flags.contains(PageFlags::R) {
+                    if access.contains(PageFlags::R) && !flags.contains(PageFlags::R) {
                         return Err(Error::new(Code::NoPerm));
                     }
-                    if _access.contains(PageFlags::W) && !flags.contains(PageFlags::W) {
+                    if access.contains(PageFlags::W) && !flags.contains(PageFlags::W) {
                         return Err(Error::new(Code::NoPerm));
                     }
 
-                    let phys = crate::cfg::MEM_OFFSET as Phys
-                        + ((ep as Phys) << 30 | (self.offset() - addr));
-                    log!(LogFlags::LibXlate, "Translated {:?} to {:#x}", self, phys);
+                    let phys = PhysAddr::new(ep, (self.offset() - addr) as PhysAddrRaw);
+                    log!(LogFlags::LibXlate, "Translated {:?} to {}", self, phys);
                     return Ok(phys);
                 }
             }

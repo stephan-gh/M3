@@ -119,10 +119,10 @@ fn recv_pf_resp(cur: &mut activities::Activity) -> activities::ContResult {
 pub fn handle_xlate(virt: VirtAddr, perm: PageFlags) {
     // perform page table walk
     let act = activities::cur();
-    let pte = act.translate(virt, perm);
+    let (phys, flags) = act.translate(virt, perm);
 
     // page fault?
-    if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
+    if (!(flags & PageFlags::RW) & perm) != PageFlags::empty() {
         // TODO directly insert into TLB when the PF was resolved?
         if send_pf(act, virt, perm).is_err() {
             log!(LogFlags::Error, "Unable to handle page fault for {}", virt);
@@ -132,13 +132,11 @@ pub fn handle_xlate(virt: VirtAddr, perm: PageFlags) {
     // translation worked: let transfer continue
     else {
         // ensure that we only insert user-accessible pages into the TLB
-        if (pte & PageFlags::U.bits()) == 0 {
+        if !flags.contains(PageFlags::U) {
             log!(LogFlags::Error, "No permission to access {}", virt);
             activities::remove_cur(Code::Unspecified);
         }
         else {
-            let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
-            let phys = pte & !(cfg::PAGE_MASK as u64);
             tcu::TCU::insert_tlb(act.id() as u16, virt, phys, flags).unwrap();
         }
     }

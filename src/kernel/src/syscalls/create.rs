@@ -78,9 +78,9 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
             sysc_err!(Code::InvArgs, "Invalid length");
         }
 
-        let off =
+        let phys =
             crate::ktcu::glob_to_phys_remote(tgt_act.tile_id(), map_obj.global(), map_obj.flags())?;
-        GlobAddr::new_with(tgt_act.tile_id(), off)
+        GlobAddr::new_with(tgt_act.tile_id(), phys.as_goff())
     }
     else {
         if r.size == 0 || r.addr + r.size >= cfg::MEM_CAP_END.as_goff() {

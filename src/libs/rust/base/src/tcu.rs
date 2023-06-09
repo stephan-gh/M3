@@ -39,7 +39,7 @@ use crate::env;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif::{PageFlags, Perm};
-use crate::mem::{self, VirtAddr, VirtAddrRaw};
+use crate::mem::{self, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tmif;
 use crate::util::math;
@@ -622,7 +622,7 @@ impl TCU {
     ///
     /// Returns `Some((<tile>, <address>, <size>, <perm>))` if the given EP is a memory EP, or `None`
     /// otherwise.
-    pub fn unpack_mem_ep(ep: EpId) -> Option<(TileId, u64, u64, Perm)> {
+    pub fn unpack_mem_ep(ep: EpId) -> Option<(TileId, goff, goff, Perm)> {
         let r0 = Self::read_ep_reg(ep, 0);
         let r1 = Self::read_ep_reg(ep, 1);
         let r2 = Self::read_ep_reg(ep, 2);
@@ -633,7 +633,7 @@ impl TCU {
     ///
     /// Returns `Some((<tile>, <address>, <size>, <perm>))` if the given registers represent a memory
     /// EP, or `None` otherwise.
-    pub fn unpack_mem_regs(regs: &[Reg]) -> Option<(TileId, u64, u64, Perm)> {
+    pub fn unpack_mem_regs(regs: &[Reg]) -> Option<(TileId, goff, goff, Perm)> {
         if (regs[0] & 0x7) != EpType::Memory.into() {
             return None;
         }
@@ -884,7 +884,12 @@ impl TCU {
     }
 
     /// Inserts the given entry into the TCU's TLB
-    pub fn insert_tlb(asid: u16, virt: VirtAddr, phys: u64, flags: PageFlags) -> Result<(), Error> {
+    pub fn insert_tlb(
+        asid: u16,
+        virt: VirtAddr,
+        phys: PhysAddr,
+        flags: PageFlags,
+    ) -> Result<(), Error> {
         #[cfg(feature = "hw22")]
         let tlb_flags = flags.bits() as Reg;
         #[cfg(not(feature = "hw22"))]
@@ -904,10 +909,10 @@ impl TCU {
 
         let phys = if flags.contains(PageFlags::L) {
             // the current TCU's TLB does not support large pages
-            phys | (virt.as_local() & cfg::LPAGE_MASK & !cfg::PAGE_MASK) as u64
+            phys.as_raw() | (virt.as_local() & cfg::LPAGE_MASK & !cfg::PAGE_MASK) as PhysAddrRaw
         }
         else {
-            phys
+            phys.as_raw()
         };
 
         #[cfg(feature = "hw22")]
@@ -1094,7 +1099,7 @@ impl TCU {
     pub fn config_recv(
         regs: &mut [Reg],
         act: ActId,
-        buf: goff,
+        buf: PhysAddr,
         buf_ord: u32,
         msg_ord: u32,
         reply_eps: Option<EpId>,
@@ -1104,7 +1109,7 @@ impl TCU {
             | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
             | (((buf_ord - msg_ord) as Reg) << 35)
             | ((msg_ord as Reg) << 41);
-        regs[1] = buf as Reg;
+        regs[1] = buf.as_raw() as Reg;
         regs[2] = 0;
     }
 

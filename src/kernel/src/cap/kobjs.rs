@@ -18,7 +18,7 @@ use base::errors::{Code, Error};
 use base::io::LogFlags;
 use base::kif::{self, service, tilemux::QuotaId};
 use base::log;
-use base::mem::{size_of, GlobAddr, MsgBuf, VirtAddr};
+use base::mem::{size_of, GlobAddr, MsgBuf, PhysAddr, VirtAddr};
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{ActId, EpId, Label, TileId};
 use base::{build_vmsg, goff};
@@ -161,7 +161,7 @@ impl GateObject {
 pub struct RGateObject {
     gep: RefCell<GateEP>,
     loc: Cell<Option<(TileId, EpId)>>,
-    addr: Cell<goff>,
+    addr: Cell<PhysAddr>,
     order: u32,
     msg_order: u32,
     serial: bool,
@@ -172,7 +172,7 @@ impl RGateObject {
         SRc::new(Self {
             gep: RefCell::from(GateEP::new()),
             loc: Cell::from(None),
-            addr: Cell::from(0),
+            addr: Cell::from(PhysAddr::default()),
             order,
             msg_order,
             serial,
@@ -187,7 +187,7 @@ impl RGateObject {
         self.loc.get()
     }
 
-    pub fn addr(&self) -> goff {
+    pub fn addr(&self) -> PhysAddr {
         self.addr.get()
     }
 
@@ -208,10 +208,10 @@ impl RGateObject {
     }
 
     pub fn activated(&self) -> bool {
-        self.addr.get() != 0
+        self.addr.get() != PhysAddr::default()
     }
 
-    pub fn activate(&self, tile: TileId, ep: EpId, addr: goff) {
+    pub fn activate(&self, tile: TileId, ep: EpId, addr: PhysAddr) {
         self.loc.replace(Some((tile, ep)));
         self.addr.replace(addr);
         if self.serial {
@@ -220,7 +220,7 @@ impl RGateObject {
     }
 
     pub fn deactivate(&self) {
-        self.addr.set(0);
+        self.addr.set(PhysAddr::default());
         self.loc.set(None);
         if self.serial {
             crate::platform::init_serial(None);
@@ -245,7 +245,7 @@ impl fmt::Debug for RGateObject {
         self.print_loc(f)?;
         write!(
             f,
-            ", addr={:#x}, sz={:#x}, msz={:#x}]",
+            ", addr={}, sz={:#x}, msz={:#x}]",
             self.addr.get(),
             self.size(),
             self.msg_size()

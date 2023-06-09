@@ -18,11 +18,12 @@ use base::cell::{LazyStaticUnsafeCell, StaticCell, StaticRefCell, StaticUnsafeCe
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::{Code, Error};
+use base::goff;
 use base::impl_boxitem;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{size_of, GlobAddr, MsgBuf, VirtAddr, VirtAddrRaw};
+use base::mem::{size_of, GlobAddr, MsgBuf, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use base::rc::Rc;
 use base::tcu;
 use base::time::{TimeDuration, TimeInstant};
@@ -43,7 +44,7 @@ use crate::vma::PfState;
 
 use isr::{ISRArch, ISR};
 
-use paging::{Allocator, ArchPaging, Paging, Phys};
+use paging::{Allocator, ArchPaging, Paging};
 
 pub type Id = paging::ActId;
 
@@ -53,7 +54,7 @@ struct PTAllocator {
 }
 
 impl Allocator for PTAllocator {
-    fn allocate_pt(&mut self) -> Result<Phys, Error> {
+    fn allocate_pt(&mut self) -> Result<PhysAddr, Error> {
         assert!(self.act != kif::tilemux::IDLE_ID);
         if self.quota.left() == 0 {
             return Err(Error::new(Code::NoSpace));
@@ -64,7 +65,7 @@ impl Allocator for PTAllocator {
             self.quota.set_left(self.quota.left() - 1);
             log!(
                 LogFlags::MuxPTs,
-                "Alloc PT {:#x} (quota[{}]: {}, total: {})",
+                "Alloc PT {} (quota[{}]: {}, total: {})",
                 pt,
                 self.quota.id(),
                 self.quota.left(),
@@ -77,19 +78,19 @@ impl Allocator for PTAllocator {
         }
     }
 
-    fn translate_pt(&self, phys: Phys) -> VirtAddr {
+    fn translate_pt(&self, phys: PhysAddr) -> VirtAddr {
         if BOOTSTRAP.get() {
-            VirtAddr::new(phys as VirtAddrRaw)
+            VirtAddr::new(phys.as_raw() as VirtAddrRaw)
         }
         else {
-            cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
+            cfg::TILE_MEM_BASE + (phys.offset() as usize)
         }
     }
 
-    fn free_pt(&mut self, phys: Phys) {
+    fn free_pt(&mut self, phys: PhysAddr) {
         log!(
             LogFlags::MuxPTs,
-            "Free PT {:#x} (quota[{}]: {}, free: {})",
+            "Free PT {} (quota[{}]: {}, free: {})",
             phys,
             self.quota.id(),
             self.quota.left(),
@@ -136,7 +137,7 @@ pub struct Activity {
     prev: Option<NonNull<Activity>>,
     next: Option<NonNull<Activity>>,
     aspace: Option<paging::AddrSpace<PTAllocator>>,
-    frames: Vec<Phys>,
+    frames: Vec<PhysAddr>,
     #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
     fpu_state: arch::FPUState,
     user_state: arch::State,
@@ -208,7 +209,7 @@ static RDY: StaticRefCell<BoxList<Activity>> = StaticRefCell::new(BoxList::new()
 static BLK: StaticRefCell<BoxList<Activity>> = StaticRefCell::new(BoxList::new());
 
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
-static PTS: StaticRefCell<Vec<Phys>> = StaticRefCell::new(Vec::new());
+static PTS: StaticRefCell<Vec<PhysAddr>> = StaticRefCell::new(Vec::new());
 
 pub fn init() {
     extern "C" {
@@ -223,25 +224,26 @@ pub fn init() {
         // use the memory behind ourself for page tables
         let bss_end = math::round_up(unsafe { &_bss_end as *const _ as usize }, cfg::PAGE_SIZE);
         let first_pt = bss_end / cfg::PAGE_SIZE;
-        let first_pt = 1 + first_pt as Phys - (cfg::MEM_OFFSET / cfg::PAGE_SIZE) as Phys;
+        let first_pt =
+            1 + first_pt as PhysAddrRaw - (cfg::MEM_OFFSET / cfg::PAGE_SIZE) as PhysAddrRaw;
         // we don't need that many PTs here; 512 are enough for now
         let pt_count = cmp::min(
             512,
             // -1 to not use the rbuf itself for page tables
-            ((cfg::MEM_OFFSET + mem_size as usize - bss_end) / cfg::PAGE_SIZE - 1) as Phys,
+            ((cfg::MEM_OFFSET + mem_size as usize - bss_end) / cfg::PAGE_SIZE - 1) as PhysAddrRaw,
         );
         {
             let mut pts = PTS.borrow_mut();
             pts.reserve(pt_count as usize);
             log!(
                 LogFlags::MuxPTs,
-                "Using {:#x} .. {:#x} for page tables ({} in total)",
-                cfg::MEM_OFFSET + first_pt as usize * cfg::PAGE_SIZE,
-                cfg::MEM_OFFSET + (first_pt + pt_count) as usize * cfg::PAGE_SIZE - 1,
+                "Using {} .. {} for page tables ({} in total)",
+                PhysAddr::new(0, first_pt * cfg::PAGE_SIZE as PhysAddrRaw),
+                PhysAddr::new(0, (first_pt + pt_count) * cfg::PAGE_SIZE as PhysAddrRaw - 1),
                 pt_count,
             );
             for i in first_pt..first_pt + pt_count {
-                pts.push(cfg::MEM_OFFSET as Phys + i * cfg::PAGE_SIZE as Phys);
+                pts.push(PhysAddr::new(0, i * cfg::PAGE_SIZE as PhysAddrRaw));
             }
         }
 
@@ -250,10 +252,10 @@ pub fn init() {
             quota: Quota::new(0, None, PTS.borrow().len()),
         };
         let frame = allocator.allocate_pt().unwrap();
-        (frame, Some(base + (frame - cfg::MEM_OFFSET as Phys)))
+        (Some(frame), Some(base + frame.offset() as goff))
     }
     else {
-        (0, None)
+        (None, None)
     };
 
     quota::init(PTS.borrow().len());
@@ -283,7 +285,7 @@ pub fn init() {
 
     if pex_env().tile_desc.has_virtmem() {
         let mut our_ref = our();
-        our_ref.frames.push(frame);
+        our_ref.frames.push(frame.unwrap());
         our_ref.init();
         our_ref.switch_to();
         Paging::enable();
@@ -322,16 +324,16 @@ pub fn add(
             quota: pt_quota.clone(),
         }
         .allocate_pt()?;
-        (frame, Some(base + (frame - cfg::MEM_OFFSET as Phys)))
+        (Some(frame), Some(base + frame.offset() as goff))
     }
     else {
-        (0, None)
+        (None, None)
     };
 
     let mut act = Box::new(Activity::new(id, time_quota, pt_quota, eps_start, root_pt));
 
     if pex_env().tile_desc.has_virtmem() {
-        act.frames.push(frame);
+        act.frames.push(frame.unwrap());
         act.init();
     }
 
@@ -686,7 +688,7 @@ impl Activity {
             .map_pages(virt, global, pages, perm)
     }
 
-    pub fn translate(&self, virt: VirtAddr, perm: kif::PageFlags) -> kif::PTE {
+    pub fn translate(&self, virt: VirtAddr, perm: kif::PageFlags) -> (PhysAddr, kif::PageFlags) {
         self.aspace.as_ref().unwrap().translate(virt, perm.bits())
     }
 
@@ -1037,9 +1039,7 @@ impl Activity {
 
         // insert fixed entry for messages into TLB
         let virt = VirtAddr::from(MsgBuf::borrow_def().bytes().as_ptr());
-        let pte = self.translate(virt, kif::PageFlags::R);
-        let phys = pte & !(cfg::PAGE_MASK as u64);
-        let mut flags = kif::PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
+        let (phys, mut flags) = self.translate(virt, kif::PageFlags::R);
         flags |= kif::PageFlags::FIXED;
         tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags).unwrap();
     }
@@ -1057,7 +1057,7 @@ impl Activity {
             self.frames.push(frame);
             self.map(
                 addr + i * cfg::PAGE_SIZE,
-                base + (frame - cfg::MEM_OFFSET as Phys),
+                base + frame.offset() as goff,
                 1,
                 perm,
             )
@@ -1075,7 +1075,8 @@ impl Activity {
         let start = math::round_dn(start as usize, cfg::PAGE_SIZE);
         let end = math::round_up(end as usize, cfg::PAGE_SIZE);
         let pages = (end - start) / cfg::PAGE_SIZE;
-        let glob = base + (start - cfg::MEM_OFFSET) as Phys;
+        // the segments are identity mapped and we know that the physical memory is at `base`.
+        let glob = base + PhysAddr::new_raw(start as PhysAddrRaw).offset() as goff;
         self.map(VirtAddr::from(start), glob, pages, perm).unwrap();
     }
 }
@@ -1098,7 +1099,7 @@ impl Drop for Activity {
         if let Some(ref mut aspace) = self.aspace {
             // free frames we allocated for env, receive buffers etc.
             for f in &self.frames {
-                aspace.allocator_mut().free_pt(*f as paging::MMUPTE);
+                aspace.allocator_mut().free_pt(*f);
             }
         }
 

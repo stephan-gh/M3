@@ -143,14 +143,14 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
         r.perm
     );
 
-    let pte = activities::get_mut(r.act_id)
+    let (phys, flags) = activities::get_mut(r.act_id)
         .unwrap()
         .translate(r.virt, r.perm | kif::PageFlags::U);
-    if (pte & r.perm.bits()) == 0 {
+    if (flags & r.perm) == kif::PageFlags::empty() {
         Err(Error::new(Code::NoPerm))
     }
     else {
-        Ok(GlobAddr::new_from_phys(pte).unwrap().raw())
+        Ok(GlobAddr::new_from_phys(phys).unwrap().raw())
     }
 }
 

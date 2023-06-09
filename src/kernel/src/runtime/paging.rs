@@ -13,17 +13,17 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticCell, LazyStaticRefCell, StaticCell};
+use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::env;
 use base::errors::Error;
 use base::goff;
-use base::kif::{PageFlags, TileDesc, PTE};
-use base::mem::{GlobAddr, VirtAddr};
+use base::kif::{PageFlags, TileDesc};
+use base::mem::{GlobAddr, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use base::tcu;
 use base::util::math;
 
-use paging::{self, AddrSpace, Allocator, ArchPaging, Paging, Phys};
+use paging::{self, AddrSpace, Allocator, ArchPaging, Paging};
 
 use crate::mem;
 use crate::tiles;
@@ -39,30 +39,33 @@ extern "C" {
     fn __m3_heap_get_area(begin: *mut usize, end: *mut usize);
 }
 
-struct PTAllocator {}
+struct PTAllocator {
+    cur: PhysAddr,
+    max: PhysAddr,
+}
 
 impl Allocator for PTAllocator {
-    fn allocate_pt(&mut self) -> Result<Phys, Error> {
-        PT_POS.set(PT_POS.get() + cfg::PAGE_SIZE as goff);
-        Ok(PT_POS.get() - cfg::PAGE_SIZE as goff)
+    fn allocate_pt(&mut self) -> Result<PhysAddr, Error> {
+        assert!(self.cur + cfg::PAGE_SIZE as PhysAddrRaw <= self.max);
+        self.cur += cfg::PAGE_SIZE as PhysAddrRaw;
+        Ok(self.cur - PhysAddr::new_raw(cfg::PAGE_SIZE as PhysAddrRaw))
     }
 
-    fn translate_pt(&self, phys: Phys) -> VirtAddr {
+    fn translate_pt(&self, phys: PhysAddr) -> VirtAddr {
         if BOOTSTRAP.get() {
-            VirtAddr::new(phys)
+            VirtAddr::new(phys.as_raw() as VirtAddrRaw)
         }
         else {
-            cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
+            cfg::TILE_MEM_BASE + phys.offset() as VirtAddrRaw
         }
     }
 
-    fn free_pt(&mut self, _phys: Phys) {
+    fn free_pt(&mut self, _phys: PhysAddr) {
         unimplemented!();
     }
 }
 
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
-static PT_POS: LazyStaticCell<goff> = LazyStaticCell::default();
 static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
@@ -74,10 +77,12 @@ pub fn init() {
     let (mem_tile, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
 
     let base = GlobAddr::new_with(mem_tile, mem_base);
-    let root = base + mem_size / 2;
-    let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2;
-    PT_POS.set(pts_phys + cfg::PAGE_SIZE as goff);
-    let mut aspace = AddrSpace::new(tiles::KERNEL_ID as u64, root, PTAllocator {});
+    let mut alloc = PTAllocator {
+        cur: PhysAddr::new(0, (mem_size / 2) as PhysAddrRaw),
+        max: PhysAddr::new(0, mem_size as PhysAddrRaw),
+    };
+    let root = base + alloc.allocate_pt().unwrap().offset() as goff;
+    let mut aspace = AddrSpace::new(tiles::KERNEL_ID as u64, root, alloc);
     aspace.init();
 
     // map TCU
@@ -131,7 +136,7 @@ pub fn init() {
     BOOTSTRAP.set(false);
 }
 
-pub fn translate(virt: VirtAddr, perm: PageFlags) -> PTE {
+pub fn translate(virt: VirtAddr, perm: PageFlags) -> (PhysAddr, PageFlags) {
     ASPACE.borrow().translate(virt, perm.bits())
 }
 

@@ -18,7 +18,7 @@
 
 use base::cfg;
 use base::kif::{tilemux, PageFlags};
-use base::mem::VirtAddr;
+use base::mem::{PhysAddr, PhysAddrRaw, VirtAddr};
 
 use bitflags::bitflags;
 
@@ -27,7 +27,6 @@ use core::arch::asm;
 use crate::ArchMMUFlags;
 
 pub type MMUPTE = u64;
-pub type Phys = u64;
 
 pub const PTE_BITS: usize = 3;
 
@@ -78,8 +77,8 @@ pub struct ARMPaging {}
 impl crate::ArchPaging for ARMPaging {
     type MMUFlags = ARMMMUFlags;
 
-    fn build_pte(phys: Phys, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE {
-        let pte = phys | perm.bits();
+    fn build_pte(phys: PhysAddr, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE {
+        let pte = phys.as_raw() as MMUPTE | perm.bits();
         if leaf {
             if perm.has_empty_perm() {
                 0
@@ -96,8 +95,8 @@ impl crate::ArchPaging for ARMPaging {
         }
     }
 
-    fn pte_to_phys(pte: MMUPTE) -> Phys {
-        pte & !Self::MMUFlags::FLAGS.bits()
+    fn pte_to_phys(pte: MMUPTE) -> PhysAddr {
+        PhysAddr::new_raw((pte & !Self::MMUFlags::FLAGS.bits()) as PhysAddrRaw)
     }
 
     fn needs_invalidate(_new_flags: Self::MMUFlags, old_flags: Self::MMUFlags) -> bool {
@@ -185,7 +184,7 @@ impl crate::ArchPaging for ARMPaging {
         }
     }
 
-    fn set_root_pt(id: crate::ActId, root: Phys) {
+    fn set_root_pt(id: crate::ActId, root: PhysAddr) {
         // the ASID is 8 bit; make sure that we stay in that space
         assert!(
             id == tilemux::ACT_ID
@@ -193,8 +192,8 @@ impl crate::ArchPaging for ARMPaging {
                 || (id != tilemux::ACT_ID & 0xFF && id != tilemux::IDLE_ID & 0xFF)
         );
         // cacheable table walk, non-shareable, outer write-back write-allocate cacheable
-        let ttbr0_low: u32 = (root | 0b00_1001) as u32;
-        let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
+        let ttbr0_low: u32 = (root.as_raw() | 0b00_1001) as u32;
+        let ttbr0_high: u32 = (id as u32 & 0xFF) << 16;
         unsafe {
             asm!(
                  "mcrr p15, 0, {0}, {1}, c2",

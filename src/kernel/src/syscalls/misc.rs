@@ -19,7 +19,7 @@ use base::col::ToString;
 use base::errors::{Code, VerboseError};
 use base::goff;
 use base::kif::{self, syscalls};
-use base::mem::MsgBuf;
+use base::mem::{MsgBuf, PhysAddr, PhysAddrRaw};
 use base::rc::Rc;
 use base::tcu;
 
@@ -204,12 +204,10 @@ pub fn get_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        try_kmem_quota!(
-            actcap
-                .obj_caps()
-                .borrow_mut()
-                .obtain(r.dst, csess.unwrap(), true)
-        );
+        try_kmem_quota!(actcap
+            .obj_caps()
+            .borrow_mut()
+            .obtain(r.dst, csess.unwrap(), true));
     }
     else {
         sysc_err!(Code::InvArgs, "Unknown session id {}", r.sid);
@@ -311,9 +309,9 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                     // memory capability to the standard receive buffer. thus, we just determine the
                     // physical address here and remove the choice for the user.
                     ep_act.rbuf_addr()
-                        + cfg::SYSC_RBUF_SIZE as goff
-                        + cfg::UPCALL_RBUF_SIZE as goff
-                        + cfg::DEF_RBUF_SIZE as goff
+                        + cfg::SYSC_RBUF_SIZE as PhysAddrRaw
+                        + cfg::UPCALL_RBUF_SIZE as PhysAddrRaw
+                        + cfg::DEF_RBUF_SIZE as PhysAddrRaw
                 }
                 else if platform::tile_desc(dst_tile).has_virtmem() {
                     let rbuf = get_kobj!(act, r.rbuf_mem, MGate);
@@ -334,13 +332,13 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                                     ),
                                 )
                             })?;
-                    rbuf_phys + r.rbuf_off
+                    rbuf_phys + r.rbuf_off as PhysAddrRaw
                 }
                 else {
                     if r.rbuf_mem != kif::INVALID_SEL {
                         sysc_err!(Code::InvArgs, "rbuffer mem cap given for SPM tile");
                     }
-                    r.rbuf_off
+                    PhysAddr::new_raw(r.rbuf_off as PhysAddrRaw)
                 };
 
                 let replies = if ep.replies() > 0 {

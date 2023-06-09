@@ -24,11 +24,10 @@ use base::kif::{PageFlags, Perm, TileDesc};
 use base::libc;
 use base::log;
 use base::machine;
-use base::mem::VirtAddr;
+use base::mem::{PhysAddr, PhysAddrRaw, VirtAddr};
 use base::tcu::{EpId, Message, Reg, TileId, EP_REGS, TCU};
 
 use crate::paging;
-use ::paging::Phys;
 
 use isr::{ISRArch, ISR};
 
@@ -62,7 +61,7 @@ pub extern "C" fn exit(_code: i32) {
 pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
     let virt = VirtAddr::from(state.r[isr::TMC_ARG1]);
     let access = Perm::from_bits_truncate(state.r[isr::TMC_ARG2] as u32);
-    let flags = PageFlags::from(access) & PageFlags::RW;
+    let access = PageFlags::from(access) & PageFlags::RW;
 
     log!(
         LogFlags::Debug,
@@ -73,14 +72,17 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
 
     XLATES.set(XLATES.get() + 1);
 
-    let pte = paging::translate(virt, flags);
+    let (phys, flags) = paging::translate(virt, access);
     // no page faults supported
-    assert!(!(pte & PageFlags::RW.bits()) & flags.bits() == 0);
-    log!(LogFlags::Debug, "TCU can continue with PTE={:#x}", pte);
+    assert!(!(flags & PageFlags::RW) & access == PageFlags::empty());
+    log!(
+        LogFlags::Debug,
+        "TCU can continue with phys={} flags={:?}",
+        phys,
+        flags
+    );
 
     // insert TLB entry
-    let phys = pte & !(cfg::PAGE_MASK as u64);
-    let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
     TCU::insert_tlb(crate::OWN_ACT, virt, phys, flags).unwrap();
 
     state as *mut _ as *mut libc::c_void
@@ -114,15 +116,15 @@ pub fn init(name: &str) {
     ISR::enable_irqs();
 }
 
-pub fn virt_to_phys(virt: VirtAddr) -> (VirtAddr, Phys) {
+pub fn virt_to_phys(virt: VirtAddr) -> (VirtAddr, PhysAddr) {
     if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
-        (virt, virt.as_raw() as Phys)
+        (virt, virt.as_phys())
     }
     else {
-        let rbuf_pte = paging::translate(virt, PageFlags::R);
+        let (phys, _flags) = paging::translate(virt, PageFlags::R);
         (
             virt,
-            (rbuf_pte & !cfg::PAGE_MASK as u64) + (virt.as_raw() & (cfg::PAGE_MASK as u64)),
+            phys + (virt.as_phys() & PhysAddr::new_raw(cfg::PAGE_MASK as PhysAddrRaw)),
         )
     }
 }

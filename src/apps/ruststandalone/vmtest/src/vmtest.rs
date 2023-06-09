@@ -28,7 +28,7 @@ use base::io::LogFlags;
 use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
-use base::mem::{size_of, MsgBuf, VirtAddr};
+use base::mem::{size_of, MsgBuf, PhysAddr, PhysAddrRaw, VirtAddr};
 use base::tcu::{self, EpId, TileId, TCU};
 use base::util;
 
@@ -390,11 +390,11 @@ fn test_tlb() {
 
         // fill with lots of entries (beyond capacity)
         let mut virt = VirtAddr::from(0x2000_0000);
-        let mut phys = 0x1000_0000;
+        let mut phys = PhysAddr::new(0, 0);
         for _ in 0..TLB_SIZE * 2 {
             TCU::insert_tlb(ASID, virt, phys, PageFlags::RW).unwrap();
             virt += cfg::PAGE_SIZE;
-            phys += cfg::PAGE_SIZE as u64;
+            phys += cfg::PAGE_SIZE as PhysAddrRaw;
         }
 
         // this entry should be found (no error)
@@ -413,11 +413,11 @@ fn test_tlb() {
 
         // fill with lots of fixed entries
         let mut virt = VirtAddr::from(0x2000_0000);
-        let mut phys = 0x1000_0000;
+        let mut phys = PhysAddr::new(0, 0);
         for _ in 0..TLB_SIZE {
             TCU::insert_tlb(ASID, virt, phys, PageFlags::RW | PageFlags::FIXED).unwrap();
             virt += cfg::PAGE_SIZE;
-            phys += cfg::PAGE_SIZE as u64;
+            phys += cfg::PAGE_SIZE as PhysAddrRaw;
         }
 
         // now the TLB is full and we should get an error
@@ -452,7 +452,7 @@ fn test_tlb() {
 
         // insert entries with different flags
         let virt = VirtAddr::from(0x2000_0000);
-        let phys = 0x1000_0000;
+        let phys = PhysAddr::new(0, 0);
         let pgsz = cfg::PAGE_SIZE;
         TCU::insert_tlb(ASID, virt, phys, PageFlags::R).unwrap();
         TCU::insert_tlb(ASID, virt + pgsz * 1, phys, PageFlags::W).unwrap();
@@ -503,8 +503,14 @@ pub extern "C" fn env_run() {
     helper::init("vmtest");
 
     let virt = cfg::ENV_START;
-    let pte = paging::translate(virt, PageFlags::R);
-    log!(LogFlags::Info, "Translated virt={} to PTE={:#x}", virt, pte);
+    let (phys, flags) = paging::translate(virt, PageFlags::R);
+    log!(
+        LogFlags::Info,
+        "Translated virt={} to ({}, {:?})",
+        virt,
+        phys,
+        flags
+    );
 
     log!(LogFlags::Info, "Mapping memory area...");
     let area_begin = VirtAddr::from(0xC100_0000);

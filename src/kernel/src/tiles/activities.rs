@@ -18,11 +18,10 @@ use base::build_vmsg;
 use base::cell::{Cell, RefCell, StaticRefCell};
 use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
 use base::kif::{self, CapRngDesc, CapSel, CapType, TileDesc};
 use base::log;
-use base::mem::{MsgBuf, VirtAddr};
+use base::mem::{MsgBuf, PhysAddr, PhysAddrRaw, VirtAddr};
 use base::rc::{Rc, SRc};
 use base::tcu::Label;
 use base::tcu::{ActId, EpId, TileId, STD_EPS_COUNT, UPCALL_REP_OFF};
@@ -79,7 +78,7 @@ pub struct Activity {
     map_caps: RefCell<CapTable>,
 
     eps: RefCell<Vec<Rc<EPObject>>>,
-    rbuf_phys: Cell<goff>,
+    rbuf_phys: Cell<PhysAddr>,
     upcalls: RefCell<Box<SendQueue>>,
 }
 
@@ -104,7 +103,7 @@ impl Activity {
             obj_caps: RefCell::from(CapTable::default()),
             map_caps: RefCell::from(CapTable::default()),
             eps: RefCell::from(Vec::new()),
-            rbuf_phys: Cell::from(0),
+            rbuf_phys: Cell::from(PhysAddr::default()),
             upcalls: RefCell::from(SendQueue::new(QueueId::Activity(id), tile.tile())),
             tile,
         });
@@ -161,7 +160,7 @@ impl Activity {
                 ktcu::glob_to_phys_remote(self.tile_id(), glob, base::kif::PageFlags::RW).unwrap()
             }
             else {
-                rbuf_virt.as_raw()
+                rbuf_virt.as_phys()
             };
 
             self.init_eps(rbuf_phys)
@@ -171,7 +170,7 @@ impl Activity {
         }
     }
 
-    pub fn init_eps(&self, rbuf_phys: u64) -> Result<(), Error> {
+    pub fn init_eps(&self, rbuf_phys: PhysAddr) -> Result<(), Error> {
         use crate::cap::{RGateObject, SGateObject};
         use base::cfg;
         use base::tcu;
@@ -190,7 +189,11 @@ impl Activity {
         // attach syscall send endpoint
         {
             let rgate = RGateObject::new(cfg::SYSC_RBUF_ORD, cfg::SYSC_RBUF_ORD, false);
-            rgate.activate(platform::kernel_tile(), ktcu::KSYS_EP, 0xDEADBEEF);
+            rgate.activate(
+                platform::kernel_tile(),
+                ktcu::KSYS_EP,
+                PhysAddr::new_raw(0xDEADBEEF),
+            );
             let sgate = SGateObject::new(&rgate, self.id() as tcu::Label, 1);
             tilemux.config_snd_ep(self.eps_start + tcu::SYSC_SEP_OFF, act, &sgate)?;
         }
@@ -205,7 +208,7 @@ impl Activity {
                 rbuf_addr,
             );
             tilemux.config_rcv_ep(self.eps_start + tcu::SYSC_REP_OFF, act, None, &rgate)?;
-            rbuf_addr += cfg::SYSC_RBUF_SIZE as goff;
+            rbuf_addr += cfg::SYSC_RBUF_SIZE as PhysAddrRaw;
         }
 
         // attach upcall receive endpoint
@@ -222,7 +225,7 @@ impl Activity {
                 Some(self.eps_start + tcu::UPCALL_RPLEP_OFF),
                 &rgate,
             )?;
-            rbuf_addr += cfg::UPCALL_RBUF_SIZE as goff;
+            rbuf_addr += cfg::UPCALL_RBUF_SIZE as PhysAddrRaw;
         }
 
         // attach default receive endpoint
@@ -255,7 +258,7 @@ impl Activity {
         &self.kmem
     }
 
-    pub fn rbuf_addr(&self) -> goff {
+    pub fn rbuf_addr(&self) -> PhysAddr {
         self.rbuf_phys.get()
     }
 
