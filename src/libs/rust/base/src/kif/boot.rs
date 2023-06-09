@@ -92,7 +92,7 @@ impl fmt::Debug for Mod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "Mod[addr: {:?}, size: {:#x}, name: {}]",
+            "Mod[addr: {}, size: {:#x}, name: {}]",
             self.addr(),
             { self.size },
             self.name()
@@ -166,7 +166,7 @@ impl fmt::Debug for Mem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "Mem[addr: {:?}, size: {:#x}, res={}]",
+            "Mem[addr: {}, size: {:#x}, res={}]",
             self.addr(),
             self.size(),
             self.reserved()

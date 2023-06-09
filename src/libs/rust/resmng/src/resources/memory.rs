@@ -62,7 +62,7 @@ impl fmt::Debug for MemMod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "MemMod[sel: {}, res: {}, addr: {:?}, size: {} MiB]",
+            "MemMod[sel: {}, res: {}, addr: {}, size: {} MiB]",
             self.gate.sel(),
             self.reserved,
             self.addr,
@@ -234,7 +234,7 @@ impl fmt::Display for MemSlice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "MemSlice[{:?} .. {:?}, {:?}]",
+            "MemSlice[{} .. {}, {:?}]",
             self.mem.addr + self.offset,
             self.mem.addr + self.offset + (self.size - 1),
             self.perm,

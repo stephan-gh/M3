@@ -144,7 +144,7 @@ impl TileState {
 
         log!(
             LogFlags::ResMngTiles,
-            "Loading multiplexer '{}' to ({:?}, {}M) for {}",
+            "Loading multiplexer '{}' to ({}, {}M) for {}",
             name,
             mem_region.0,
             mem_region.1 / (1024 * 1024),

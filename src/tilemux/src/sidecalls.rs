@@ -99,7 +99,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
 
     log!(
         LogFlags::MuxSideCalls,
-        "sidecall::map(act={}, virt={}, global={:?}, pages={}, perm={:?})",
+        "sidecall::map(act={}, virt={}, glob={}, pages={}, perm={:?})",
         r.act_id,
         r.virt,
         r.global,

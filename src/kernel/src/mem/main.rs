@@ -49,7 +49,7 @@ impl Allocation {
 
 impl fmt::Debug for Allocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Alloc[addr={:?}, size={:#x}]", self.gaddr, self.size)
+        write!(f, "Alloc[addr={}, size={:#x}]", self.gaddr, self.size)
     }
 }
 
@@ -82,7 +82,7 @@ impl MainMemory {
             if let Ok(gaddr) = m.allocate(size, align) {
                 log!(
                     LogFlags::KernMem,
-                    "Allocated {:#x} bytes at {:?}",
+                    "Allocated {:#x} bytes at {}",
                     size,
                     gaddr
                 );
@@ -97,7 +97,7 @@ impl MainMemory {
             if m.free(alloc.gaddr, alloc.size) {
                 log!(
                     LogFlags::KernMem,
-                    "Freed {:#x} bytes at {:?}",
+                    "Freed {:#x} bytes at {}",
                     alloc.size,
                     alloc.gaddr
                 );

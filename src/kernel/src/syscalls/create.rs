@@ -38,7 +38,7 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     let r: syscalls::CreateMGate = get_request(msg)?;
     sysc_log!(
         act,
-        "create_mgate(dst={}, act={}, addr={:#x}, size={:#x}, perms={:?})",
+        "create_mgate(dst={}, act={}, addr={}, size={:#x}, perms={:?})",
         r.dst,
         r.act,
         r.addr,
@@ -381,7 +381,7 @@ pub fn create_map_async(
     {
         sysc_err!(
             Code::InvArgs,
-            "Memory capability is not page aligned (addr={:?}, size={:#x})",
+            "Memory capability is not page aligned (addr={}, size={:#x})",
             mgate.addr(),
             mgate.size()
         );

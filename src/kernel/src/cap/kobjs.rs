@@ -371,7 +371,7 @@ impl fmt::Debug for MGateObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "MGate[tile={}, addr={:?}, size={:#x}, perm={:?}, der={}]",
+            "MGate[tile={}, addr={}, size={:#x}, perm={:?}, der={}]",
             self.tile_id(),
             self.addr(),
             self.size(),
@@ -1008,11 +1008,6 @@ impl MapObject {
 
 impl fmt::Debug for MapObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Map[glob={:?}, flags={:#x}]",
-            self.global(),
-            self.flags()
-        )
+        write!(f, "Map[glob={}, flags={:#x}]", self.global(), self.flags())
     }
 }

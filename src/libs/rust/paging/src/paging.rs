@@ -187,7 +187,7 @@ impl<A: Allocator> AddrSpace<A> {
 
         log!(
             LogFlags::PgMap,
-            "Activity{}: mapping {}..{} to {:?}..{:?} ({}) with {:?}",
+            "Activity{}: mapping {}..{} to {}..{} ({}) with {:?}",
             self.id,
             virt,
             virt + pages * cfg::PAGE_SIZE - 1,

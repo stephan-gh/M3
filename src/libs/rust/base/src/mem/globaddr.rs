@@ -61,7 +61,7 @@ impl GlobAddr {
         let res = TCU::unpack_mem_ep(epid)
             .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off as goff))
             .ok_or_else(|| Error::new(Code::InvArgs));
-        log!(LogFlags::LibXlate, "Translated {} to {:?}", phys, res);
+        log!(LogFlags::LibXlate, "Translated {} to {}", phys, 0);
         res
     }
 
@@ -113,7 +113,7 @@ impl GlobAddr {
             if let Some((tile, addr, size, perm)) = get_ep(ep) {
                 log!(
                     LogFlags::LibXlate,
-                    "Translating {:?}: considering EP{} with tile={}, addr={:#x}, size={:#x}",
+                    "Translating {}: considering EP{} with tile={}, addr={:#x}, size={:#x}",
                     self,
                     ep,
                     tile,
@@ -134,7 +134,7 @@ impl GlobAddr {
                     }
 
                     let phys = PhysAddr::new(ep, (self.offset() - addr) as PhysAddrRaw);
-                    log!(LogFlags::LibXlate, "Translated {:?} to {}", self, phys);
+                    log!(LogFlags::LibXlate, "Translated {} to {}", self, phys);
                     return Ok(phys);
                 }
             }
@@ -143,7 +143,7 @@ impl GlobAddr {
     }
 }
 
-impl fmt::Debug for GlobAddr {
+impl fmt::Display for GlobAddr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.has_tile() {
             write!(f, "G[{}+{:#x}]", self.tile(), self.offset())
@@ -152,6 +152,12 @@ impl fmt::Debug for GlobAddr {
         else {
             write!(f, "G[{:#x}]", self.raw())
         }
+    }
+}
+
+impl fmt::Debug for GlobAddr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self as &dyn fmt::Display).fmt(f)
     }
 }
 

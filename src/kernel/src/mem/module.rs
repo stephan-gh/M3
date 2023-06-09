@@ -84,7 +84,7 @@ impl fmt::Debug for MemMod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "MemMod[type: {:?}, addr: {:?}, size: {} MiB, available: {} MiB, map: {:?}]",
+            "MemMod[type: {:?}, addr: {}, size: {} MiB, available: {} MiB, map: {:?}]",
             self.ty,
             self.gaddr,
             self.capacity() / (1024 * 1024),

@@ -327,7 +327,7 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                                 VerboseError::new(
                                     e.code(),
                                     base::format!(
-                                        "Receive buffer at {:?} not accessible via PMP",
+                                        "Receive buffer at {} not accessible via PMP",
                                         rbuf.addr()
                                     ),
                                 )
