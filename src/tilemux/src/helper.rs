@@ -13,9 +13,11 @@
  * General Public License version 2 for more details.
  */
 
-use base::machine;
-use base::tcu;
 use core::sync::atomic;
+
+use base::machine;
+use base::mem::VirtAddr;
+use base::tcu;
 
 pub fn flush_cache() {
     // nothing to do if we don't have virtual memory
@@ -24,9 +26,7 @@ pub fn flush_cache() {
     }
 
     // safety: cfg::TILE_MEM_BASE is mapped and sufficiently large
-    unsafe {
-        machine::flush_cache()
-    };
+    unsafe { machine::flush_cache() };
 }
 
 pub struct TCUCmdState {
@@ -51,7 +51,10 @@ impl TCUCmdState {
 
     pub fn restore(&mut self) {
         tcu::TCU::write_unpriv_reg(tcu::UnprivReg::Arg1, self.cmd_regs[1]);
-        tcu::TCU::write_data(self.cmd_regs[2] as usize, self.cmd_regs[3] as usize);
+        tcu::TCU::write_data(
+            VirtAddr::from(self.cmd_regs[2] as usize),
+            self.cmd_regs[3] as usize,
+        );
         // always restore the command register, because the previous activity might have an error code
         // in the command register or similar.
         atomic::fence(atomic::Ordering::SeqCst);

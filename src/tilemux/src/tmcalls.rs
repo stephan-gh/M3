@@ -16,11 +16,10 @@
 use core::convert::TryFrom;
 
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{GlobAddr, VirtAddr};
+use base::mem::{GlobAddr, GlobAddrRaw, VirtAddr};
 use base::tcu::{EpId, INVALID_EP, IRQ};
 use base::time::TimeDuration;
 use base::tmif;
@@ -91,16 +90,16 @@ fn tmcall_yield(_state: &mut arch::State) -> Result<(), Error> {
 
 fn tmcall_map(state: &mut arch::State) -> Result<(), Error> {
     let virt = VirtAddr::from(state.r[isr::TMC_ARG1]);
-    let phys = state.r[isr::TMC_ARG2] as goff;
+    let glob = GlobAddr::new(state.r[isr::TMC_ARG2] as GlobAddrRaw);
     let pages = state.r[isr::TMC_ARG3];
     let access = kif::Perm::from_bits_truncate(state.r[isr::TMC_ARG4] as u32);
     let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
 
     log!(
         LogFlags::MuxCalls,
-        "tmcall::map(virt={}, phys={:#x}, pages={}, access={:?})",
+        "tmcall::map(virt={}, glob={}, pages={}, access={:?})",
         virt,
-        phys,
+        glob,
         pages,
         access
     );
@@ -109,10 +108,9 @@ fn tmcall_map(state: &mut arch::State) -> Result<(), Error> {
         return Err(Error::new(Code::InvArgs));
     }
 
-    // TODO validate virtual and physical address
+    // TODO validate virtual and global address
 
-    let global = GlobAddr::new(phys);
-    activities::cur().map(virt, global, pages, flags | kif::PageFlags::U)
+    activities::cur().map(virt, glob, pages, flags | kif::PageFlags::U)
 }
 
 fn tmcall_reg_irq(state: &mut arch::State) -> Result<(), Error> {

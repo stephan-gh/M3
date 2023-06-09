@@ -18,8 +18,8 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::kif;
+use crate::mem::{PhysAddr, VirtAddr};
 use crate::tcu::EpId;
 use crate::time::TimeDuration;
 
@@ -93,12 +93,12 @@ cfg_if! {
             }
         }
 
-        pub fn xlate_fault(virt: usize, perm: kif::Perm) -> Result<(), Error> {
+        pub fn xlate_fault(virt: VirtAddr, perm: kif::Perm) -> Result<(), Error> {
             crate::arch::linux::ioctl::tlb_insert_addr(virt, perm.bits() as u8);
             Ok(())
         }
 
-        pub fn map(_virt: usize, _phys: goff, _pages: usize,
+        pub fn map(_virt: VirtAddr, _phys: PhysAddr, _pages: usize,
                    _access: kif::Perm) -> Result<(), Error> {
             Err(Error::new(Code::NotSup))
         }
@@ -148,15 +148,15 @@ cfg_if! {
             unreachable!();
         }
 
-        pub fn xlate_fault(virt: usize, perm: kif::Perm) -> Result<(), Error> {
-            TMABI::call2(Operation::TranslFault, virt, perm.bits() as usize)
+        pub fn xlate_fault(virt: VirtAddr, perm: kif::Perm) -> Result<(), Error> {
+            TMABI::call2(Operation::TranslFault, virt.as_local(), perm.bits() as usize)
         }
 
-        pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(), Error> {
+        pub fn map(virt: VirtAddr, phys: PhysAddr, pages: usize, access: kif::Perm) -> Result<(), Error> {
             TMABI::call4(
                 Operation::Map,
-                virt,
-                phys as usize,
+                virt.as_local(),
+                phys.as_raw() as usize,
                 pages,
                 access.bits() as usize,
             )

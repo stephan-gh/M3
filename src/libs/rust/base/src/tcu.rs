@@ -448,7 +448,7 @@ impl TCU {
         reply_lbl: Label,
         reply_ep: EpId,
     ) -> Result<(), Error> {
-        let msg_addr = msg as usize;
+        let msg_addr = VirtAddr::from(msg);
         Self::write_data(msg_addr, len);
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::Arg1, reply_lbl as Reg);
@@ -474,7 +474,7 @@ impl TCU {
         len: usize,
         msg_off: usize,
     ) -> Result<(), Error> {
-        let reply_addr = reply as usize;
+        let reply_addr = VirtAddr::from(reply);
         Self::write_data(reply_addr, len);
 
         Self::perform_send_reply(
@@ -484,7 +484,7 @@ impl TCU {
     }
 
     #[inline(always)]
-    fn perform_send_reply(msg_addr: usize, cmd: Reg) -> Result<(), Error> {
+    fn perform_send_reply(msg_addr: VirtAddr, cmd: Reg) -> Result<(), Error> {
         loop {
             Self::write_unpriv_reg(UnprivReg::Command, cmd);
 
@@ -503,7 +503,7 @@ impl TCU {
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
     #[inline(always)]
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        let res = Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::Read);
+        let res = Self::perform_transfer(ep, VirtAddr::from(data), size, off, CmdOpCode::Read);
         // ensure that the CPU is not reading the read data before the TCU is finished
         // note that x86 needs SeqCst here, because the Acquire/Release fence is implemented empty
         atomic::fence(atomic::Ordering::SeqCst);
@@ -515,19 +515,19 @@ impl TCU {
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
         // ensure that the TCU is not reading the data before the CPU has written everything
         atomic::fence(atomic::Ordering::SeqCst);
-        Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::Write)
+        Self::perform_transfer(ep, VirtAddr::from(data), size, off, CmdOpCode::Write)
     }
 
     #[inline(always)]
     fn perform_transfer(
         ep: EpId,
-        mut data: usize,
+        mut data: VirtAddr,
         mut size: usize,
         mut off: goff,
         cmd: CmdOpCode,
     ) -> Result<(), Error> {
         while size > 0 {
-            let amount = cmp::min(size, cfg::PAGE_SIZE - (data & cfg::PAGE_MASK));
+            let amount = cmp::min(size, cfg::PAGE_SIZE - (data.as_local() & cfg::PAGE_MASK));
 
             Self::write_data(data, amount);
             Self::write_unpriv_reg(UnprivReg::Arg1, off as Reg);
@@ -560,7 +560,7 @@ impl TCU {
     }
 
     #[cold]
-    pub fn handle_xlate_fault(addr: usize, perm: Perm) {
+    pub fn handle_xlate_fault(addr: VirtAddr, perm: Perm) {
         // report translation fault to TileMux or whoever handles the call; ignore errors, we won't
         // get back here if TileMux cannot resolve the fault.
         tmif::xlate_fault(addr, perm).ok();
@@ -963,12 +963,15 @@ impl TCU {
     }
 
     /// Writes the given address and size into the Data register
-    pub fn write_data(addr: usize, size: usize) {
+    pub fn write_data(addr: VirtAddr, size: usize) {
         #[cfg(feature = "hw22")]
-        Self::write_unpriv_reg(UnprivReg::Data, (size as Reg) << 32 | addr as Reg);
+        Self::write_unpriv_reg(
+            UnprivReg::Data,
+            (size as Reg) << 32 | addr.as_local() as Reg,
+        );
         #[cfg(not(feature = "hw22"))]
         {
-            Self::write_unpriv_reg(UnprivReg::DataAddr, addr as Reg);
+            Self::write_unpriv_reg(UnprivReg::DataAddr, addr.as_local() as Reg);
             Self::write_unpriv_reg(UnprivReg::DataSize, size as Reg);
         }
     }

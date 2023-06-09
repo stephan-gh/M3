@@ -57,7 +57,7 @@ fn bench_m3_noop_syscall(profiler: &Profiler) -> Results<CycleDuration> {
 
 #[inline(never)]
 fn bench_tlb_insert(profiler: &Profiler) -> Results<CycleDuration> {
-    let sample_addr = profiler as *const Profiler as usize;
+    let sample_addr = VirtAddr::from(profiler as *const _);
     profiler.run::<CycleInstant, _>(|| {
         tcu::TCU::handle_xlate_fault(sample_addr, Perm::R);
     })
