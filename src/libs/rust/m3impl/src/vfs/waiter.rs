@@ -62,8 +62,19 @@ impl FileWaiter {
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
     pub fn wait(&self) {
+        self.wait_cond(|| false);
+    }
+
+    /// Waits until any file has received any of the desired events or the given function returns
+    /// true
+    ///
+    /// Note also that this function uses
+    /// [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if no read/write on any file is
+    /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
+    /// function can only be done if all work is done.
+    pub fn wait_cond<C: Fn() -> bool>(&self, cond: C) {
         loop {
-            if self.tick_files() {
+            if self.tick_files() || cond() {
                 break;
             }
 
