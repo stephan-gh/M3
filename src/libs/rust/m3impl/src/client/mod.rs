@@ -35,6 +35,7 @@ mod pager;
 mod pipe;
 pub mod resmng;
 mod session;
+mod vterm;
 
 pub use self::disk::{Disk, DiskBlockNo, DiskBlockRange};
 pub use self::hash::{HashInput, HashOutput, HashSession};
@@ -44,3 +45,4 @@ pub use self::pager::{MapFlags, Pager};
 pub use self::pipe::{Pipe, Pipes};
 pub use self::resmng::ResMng;
 pub use self::session::ClientSession;
+pub use self::vterm::VTerm;
