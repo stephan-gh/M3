@@ -323,6 +323,10 @@ impl GenericFile {
     fn request_notification(&mut self, events: FileEvent) -> Result<(), Error> {
         let fid = self.file_id();
         let nb = self.nb_state.as_mut().unwrap();
+        // don't request a new notification if we already received the event
+        if nb.notify_received.contains(events) {
+            return Ok(());
+        }
 
         log!(
             LogFlags::LibFS,
