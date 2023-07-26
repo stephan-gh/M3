@@ -866,7 +866,9 @@ impl TCU {
     /// paging code.
     pub fn invalidate_page_unchecked(asid: u16, virt: VirtAddr) {
         #[cfg(feature = "hw22")]
-        let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | (PrivCmdOpCode::InvPage as Reg);
+        let val = ((asid as Reg) << 41)
+            | ((virt.as_local() as Reg) << 9)
+            | (PrivCmdOpCode::InvPage as Reg);
         #[cfg(not(feature = "hw22"))]
         let val = {
             Self::write_priv_reg(PrivReg::PrivCmdArg, virt.as_local() as Reg);
@@ -910,11 +912,11 @@ impl TCU {
         };
 
         #[cfg(feature = "hw22")]
-        let (arg_addr, cmd_addr) = (phys, virt);
+        let (arg_addr, cmd_addr) = (phys, virt.as_local());
         #[cfg(not(feature = "hw22"))]
-        let (arg_addr, cmd_addr) = (virt, phys);
+        let (arg_addr, cmd_addr) = (virt.as_local(), phys);
 
-        Self::write_priv_reg(PrivReg::PrivCmdArg, arg_addr.as_local() as Reg);
+        Self::write_priv_reg(PrivReg::PrivCmdArg, arg_addr as Reg);
         atomic::fence(atomic::Ordering::SeqCst);
         let cmd = ((asid as Reg) << 41)
             | (((cmd_addr as Reg) & !(cfg::PAGE_MASK as Reg)) << 9)
