@@ -3,15 +3,17 @@ use libc;
 use crate::cfg;
 use crate::kif;
 use crate::mem::VirtAddr;
+use crate::tcu::ActId;
 
 use super::tcu_fd;
 
 // this is defined in linux/drivers/tcu/tcu.cc (and the right value will be printed on driver initialization during boot time)
-const IOCTL_RGSTR_ACT: u64 = 0x00007101;
-const IOCTL_TLB_INSRT: u64 = 0x40087102;
-const IOCTL_UNREG_ACT: u64 = 0x00007103;
-const IOCTL_NOOP: u64 = 0x00007104;
-const IOCTL_NOOP_ARG: u64 = 0x40087105;
+const IOCTL_WAIT_ACT: u64 = 0x80087101;
+const IOCTL_RGSTR_ACT: u64 = 0x40087102;
+const IOCTL_TLB_INSRT: u64 = 0x40087103;
+const IOCTL_UNREG_ACT: u64 = 0x40087104;
+const IOCTL_NOOP: u64 = 0x00007105;
+const IOCTL_NOOP_ARG: u64 = 0x40087106;
 
 fn ioctl(magic_number: u64) {
     unsafe {
@@ -21,6 +23,18 @@ fn ioctl(magic_number: u64) {
             panic!("ioctl call {} failed with error {}", magic_number, res);
         }
     }
+}
+
+fn ioctl_read<T: Default>(magic_number: u64) -> T {
+    let mut arg: T = T::default();
+    unsafe {
+        let res = libc::ioctl(tcu_fd(), magic_number, &mut arg as *mut _);
+        if res != 0 {
+            libc::perror(0 as *const u8);
+            panic!("ioctl call {} failed with error {}", magic_number, res);
+        }
+    }
+    arg
 }
 
 fn ioctl_write<T>(magic_number: u64, arg: T) {
@@ -43,8 +57,12 @@ fn ioctl_plain(magic_number: u64, arg: usize) {
     }
 }
 
-pub fn register_act() {
-    ioctl(IOCTL_RGSTR_ACT);
+pub fn wait_act() -> ActId {
+    ioctl_read(IOCTL_WAIT_ACT)
+}
+
+pub fn register_act(id: ActId) {
+    ioctl_plain(IOCTL_RGSTR_ACT, id as usize);
 }
 
 pub fn tlb_insert_addr(virt: VirtAddr, perm: u8) {
@@ -62,8 +80,8 @@ pub fn tlb_insert_addr(virt: VirtAddr, perm: u8) {
     ioctl_plain(IOCTL_TLB_INSRT, arg);
 }
 
-pub fn unregister_act() {
-    ioctl(IOCTL_UNREG_ACT);
+pub fn unregister_act(id: ActId) {
+    ioctl_plain(IOCTL_UNREG_ACT, id as usize);
 }
 
 pub fn noop() {

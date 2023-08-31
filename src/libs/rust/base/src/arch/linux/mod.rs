@@ -17,7 +17,7 @@ pub fn tcu_fd() -> libc::c_int {
     TCU_DEV.borrow().as_raw_fd()
 }
 
-pub fn init() {
+pub fn init_fd() {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -25,10 +25,9 @@ pub fn init() {
         .open("/dev/tcu")
         .expect("Unable to open /dev/tcu");
     TCU_DEV.set(file);
+}
 
-    mmap::mmap_tcu(tcu_fd(), tcu::MMIO_ADDR, tcu::MMIO_SIZE, mmap::MemType::TCU)
-        .expect("Unable to map TCU MMIO region");
-
+pub fn init_env() {
     mmap::mmap_tcu(
         tcu_fd(),
         cfg::ENV_START,
@@ -36,6 +35,15 @@ pub fn init() {
         mmap::MemType::Environment,
     )
     .expect("Unable to map environment");
+}
+
+pub fn init() {
+    init_fd();
+
+    init_env();
+
+    mmap::mmap_tcu(tcu_fd(), tcu::MMIO_ADDR, tcu::MMIO_SIZE, mmap::MemType::TCU)
+        .expect("Unable to map TCU MMIO region");
 
     let (rbuf_virt_addr, rbuf_size) = TileDesc::new_from(env::boot().tile_desc).rbuf_std_space();
     mmap::mmap_tcu(
