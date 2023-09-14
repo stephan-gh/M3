@@ -8,7 +8,7 @@ use std::os::unix::io::AsRawFd;
 use crate::cell::LazyStaticRefCell;
 use crate::cfg;
 use crate::env;
-use crate::kif::TileDesc;
+use crate::kif::{Perm, TileDesc};
 use crate::tcu;
 
 static TCU_DEV: LazyStaticRefCell<File> = LazyStaticRefCell::default();
@@ -33,6 +33,7 @@ pub fn init_env() {
         cfg::ENV_START,
         cfg::ENV_SIZE,
         mmap::MemType::Environment,
+        Perm::RW,
     )
     .expect("Unable to map environment");
 }
@@ -42,8 +43,14 @@ pub fn init() {
 
     init_env();
 
-    mmap::mmap_tcu(tcu_fd(), tcu::MMIO_ADDR, tcu::MMIO_SIZE, mmap::MemType::TCU)
-        .expect("Unable to map TCU MMIO region");
+    mmap::mmap_tcu(
+        tcu_fd(),
+        tcu::MMIO_ADDR,
+        tcu::MMIO_SIZE,
+        mmap::MemType::TCU,
+        Perm::RW,
+    )
+    .expect("Unable to map TCU MMIO region");
 
     let (rbuf_virt_addr, rbuf_size) = TileDesc::new_from(env::boot().tile_desc).rbuf_std_space();
     mmap::mmap_tcu(
@@ -51,6 +58,7 @@ pub fn init() {
         rbuf_virt_addr,
         rbuf_size,
         mmap::MemType::StdRecvBuf,
+        Perm::R,
     )
     .expect("Unable to map standard receive buffer");
 }

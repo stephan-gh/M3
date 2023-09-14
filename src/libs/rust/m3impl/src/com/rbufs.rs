@@ -100,7 +100,6 @@ pub(crate) fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
 fn map_rbuf(addr: VirtAddr, size: usize) -> Result<MemGate, Error> {
     let size = math::round_up(size, cfg::PAGE_SIZE);
     let mgate = MemGate::new(size, Perm::R)?;
-    #[cfg(not(feature = "linux"))]
     crate::syscalls::create_map(
         addr,
         Activity::own().sel(),
@@ -110,7 +109,13 @@ fn map_rbuf(addr: VirtAddr, size: usize) -> Result<MemGate, Error> {
         Perm::R,
     )?;
     #[cfg(feature = "linux")]
-    base::linux::mmap::mmap(addr, size)?;
+    base::linux::mmap::mmap_tcu(
+        base::linux::tcu_fd(),
+        addr,
+        size,
+        base::linux::mmap::MemType::Custom,
+        Perm::R,
+    )?;
     Ok(mgate)
 }
 
