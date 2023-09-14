@@ -7,13 +7,12 @@ use crate::tcu::ActId;
 
 use super::tcu_fd;
 
-// this is defined in linux/drivers/tcu/tcu.cc (and the right value will be printed on driver initialization during boot time)
+// this is defined in linux/drivers/tcu/tcu.cc
 const IOCTL_WAIT_ACT: u64 = 0x80087101;
 const IOCTL_RGSTR_ACT: u64 = 0x40087102;
 const IOCTL_TLB_INSRT: u64 = 0x40087103;
 const IOCTL_UNREG_ACT: u64 = 0x40087104;
 const IOCTL_NOOP: u64 = 0x00007105;
-const IOCTL_NOOP_ARG: u64 = 0x40087106;
 
 fn ioctl(magic_number: u64) {
     unsafe {
@@ -35,16 +34,6 @@ fn ioctl_read<T: Default>(magic_number: u64) -> T {
         }
     }
     arg
-}
-
-fn ioctl_write<T>(magic_number: u64, arg: T) {
-    unsafe {
-        let res = libc::ioctl(tcu_fd(), magic_number, &arg as *const _);
-        if res != 0 {
-            libc::perror(0 as *const u8);
-            panic!("ioctl call {} failed with error {}", magic_number, res);
-        }
-    }
 }
 
 fn ioctl_plain(magic_number: u64, arg: usize) {
@@ -86,15 +75,4 @@ pub fn unregister_act(id: ActId) {
 
 pub fn noop() {
     ioctl(IOCTL_NOOP);
-}
-
-#[repr(C)]
-struct NoopArg {
-    arg1: u64,
-    arg2: u64,
-}
-
-pub fn noop_arg(arg1: u64, arg2: u64) {
-    let arg = NoopArg { arg1, arg2 };
-    ioctl_write(IOCTL_NOOP_ARG, arg);
 }
