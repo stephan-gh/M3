@@ -10,7 +10,7 @@ use super::tcu_fd;
 // this is defined in linux/drivers/tcu/tcu.cc
 const IOCTL_WAIT_ACT: u64 = 0x80087101;
 const IOCTL_RGSTR_ACT: u64 = 0x40087102;
-const IOCTL_TLB_INSRT: u64 = 0x40087103;
+const IOCTL_TLB_INSERT: u64 = 0x40087103;
 const IOCTL_UNREG_ACT: u64 = 0x40087104;
 const IOCTL_NOOP: u64 = 0x00007105;
 
@@ -66,7 +66,7 @@ pub fn tlb_insert_addr(virt: VirtAddr, perm: u8) {
     }
 
     let arg = virt.as_local() & !cfg::PAGE_MASK | perm as usize;
-    ioctl_plain(IOCTL_TLB_INSRT, arg);
+    ioctl_plain(IOCTL_TLB_INSERT, arg);
 }
 
 pub fn unregister_act(id: ActId) {
