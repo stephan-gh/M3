@@ -60,27 +60,14 @@ pub(crate) fn get_result(res: usize) -> Result<(), Error> {
 cfg_if! {
     if #[cfg(feature = "linux")] {
         use libc;
-        use std::ptr;
 
         #[inline(always)]
         pub fn wait(
-            ep: Option<EpId>,
-            irq: Option<IRQId>,
+            _ep: Option<EpId>,
+            _irq: Option<IRQId>,
             duration: Option<TimeDuration>,
         ) -> Result<(), Error> {
-            if ep.is_some() || irq.is_some() {
-                return Err(Error::new(Code::NotSup));
-            }
-
-            if let Some(dur) = duration {
-                let time = libc::timespec {
-                    tv_sec: dur.as_secs() as i64,
-                    tv_nsec: (dur.as_nanos() - dur.as_secs() as u128 * 1_000_000_000) as i64,
-                };
-                unsafe {
-                    libc::nanosleep(&time, ptr::null_mut());
-                }
-            }
+            crate::arch::linux::wait_msg(duration);
             Ok(())
         }
 
