@@ -1,0 +1,24 @@
+<config>
+    <env>M3_HW_M3LX=1</env>
+    <mods>
+        <mod name="bbl" file="bbl" />
+        <mod name="initrd" file="rootfs.cpio" />
+        <mod name="dtb" file="m3lx.dtb" />
+    </mods>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <dom tile="rocket|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb">
+                <app args="/tcutest receiver">
+                    <rgate name="chan" msgsize="64" slots="2" />
+                </app>
+                <app args="/tcutest sender">
+                    <sgate name="chan" label="1" />
+                </app>
+                <app args="/tcutest sender">
+                    <sgate name="chan" label="2" />
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
