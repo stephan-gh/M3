@@ -41,6 +41,7 @@ pub const DEF_QUOTA_ID: QuotaId = 1;
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u64)]
 pub enum Sidecalls {
+    Info,
     ActInit,
     ActCtrl,
     Map,
@@ -54,6 +55,11 @@ pub enum Sidecalls {
     ResetStats,
     Shutdown,
 }
+
+/// The info sidecall
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct Info {}
 
 /// The operations for the `act_ctrl` sidecall
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]

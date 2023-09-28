@@ -466,6 +466,19 @@ pub fn tile_mem(dst: Selector, tile: Selector) -> Result<(), Error> {
     send_receive_result(&buf)
 }
 
+/// Requests information about the running multiplexer on the given tile
+pub fn tile_mux_info(tile: Selector) -> Result<syscalls::MuxType, Error> {
+    let mut buf = SYSC_BUF.borrow_mut();
+    build_vmsg!(
+        buf,
+        syscalls::Operation::TileMuxInfo,
+        syscalls::TileMuxInfo { tile }
+    );
+
+    let reply: Reply<syscalls::TileMuxInfoReply> = send_receive(&buf)?;
+    Ok(reply.data.ty)
+}
+
 /// Resets the given tile.
 ///
 /// In any case, this call will invalidate all PMP EPs. If mux_mem is not `INVALID_SEL`, `mux_mem`

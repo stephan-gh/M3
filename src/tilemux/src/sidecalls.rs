@@ -42,6 +42,12 @@ fn reply_msg(msg: &'static tcu::Message, reply: &MsgBuf) {
     tcu::TCU::reply(tcu::TMSIDE_REP, reply, msg_off).unwrap();
 }
 
+fn info(_msg: &'static tcu::Message) -> Result<kif::syscalls::MuxType, Error> {
+    log!(LogFlags::MuxSideCalls, "sidecall::info()",);
+
+    Ok(kif::syscalls::MuxType::TileMux)
+}
+
 fn activity_init(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::ActInit = get_request(msg)?;
 
@@ -295,6 +301,9 @@ fn handle_sidecall(msg: &'static tcu::Message) {
     let mut val2 = 0;
     let op: kif::tilemux::Sidecalls = de.pop().unwrap();
     let res = match op {
+        kif::tilemux::Sidecalls::Info => info(msg).map(|t| {
+            val1 = t.into();
+        }),
         kif::tilemux::Sidecalls::ActInit => activity_init(msg),
         kif::tilemux::Sidecalls::ActCtrl => activity_ctrl(msg),
         kif::tilemux::Sidecalls::Map => map(msg),

@@ -9,7 +9,7 @@
     <dom>
         <app args="root">
             <dom tile="boom+nic|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb">
-                <app args="/bin/sh" foreign="1" />
+                <app args="/bin/sh" />
             </dom>
         </app>
     </dom>

@@ -26,7 +26,9 @@ use base::mem::{GlobAddr, GlobOff, MsgBuf, VirtAddr};
 use base::quota;
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{self, ActId, EpId, TileId};
+
 use core::cmp;
+use core::convert::TryFrom;
 
 use crate::cap::{
     EPObject, EPQuota, GateObject, MGateObject, RGateObject, SGateObject, TileObject,
@@ -469,6 +471,15 @@ impl TileMux {
         }
 
         Ok(())
+    }
+
+    pub fn info_async(tilemux: RefMut<'_, Self>) -> Result<kif::syscalls::MuxType, Error> {
+        let mut buf = MsgBuf::borrow_def();
+        let msg = kif::tilemux::Info {};
+        build_vmsg!(buf, kif::tilemux::Sidecalls::Info, &msg);
+
+        Self::send_receive_sidecall_async::<kif::tilemux::Info>(tilemux, None, buf, &msg)
+            .map(|r| kif::syscalls::MuxType::try_from(r.val1).unwrap())
     }
 
     pub fn activity_init_async(

@@ -21,7 +21,7 @@ use core::fmt;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::com::MemGate;
 use crate::errors::{Code, Error};
-use crate::kif::TileDesc;
+use crate::kif::{syscalls::MuxType, TileDesc};
 use crate::quota::Quota;
 use crate::rc::Rc;
 use crate::syscalls;
@@ -235,6 +235,11 @@ impl Tile {
     /// Returns the tile description
     pub fn desc(&self) -> TileDesc {
         self.desc
+    }
+
+    /// Returns the multiplexer type that runs on this tile
+    pub fn mux_type(&self) -> Result<MuxType, Error> {
+        syscalls::tile_mux_info(self.sel())
     }
 
     /// Returns the EP, time, and page table quota

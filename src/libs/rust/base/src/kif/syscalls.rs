@@ -65,6 +65,7 @@ pub enum Operation {
     TileSetQuota,
     TileSetPMP,
     TileMem,
+    TileMuxInfo,
     TileReset,
     SemCtrl,
 
@@ -286,6 +287,38 @@ pub struct TileSetPMP {
 pub struct TileMem {
     pub tile: CapSel,
     pub dst: CapSel,
+}
+
+/// The multiplexer types for the `tile_mux_info` system call
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Serialize_repr,
+    Deserialize_repr,
+)]
+#[repr(u64)]
+pub enum MuxType {
+    None,
+    TileMux,
+    Linux,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct TileMuxInfo {
+    pub tile: CapSel,
+}
+
+/// The tile mux info reply message
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct TileMuxInfoReply {
+    pub ty: MuxType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
