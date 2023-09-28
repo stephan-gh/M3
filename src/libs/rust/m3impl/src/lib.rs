@@ -34,6 +34,7 @@ pub use base::{
 
 pub mod cap;
 pub mod client;
+#[cfg(not(feature = "linux"))]
 pub mod compat;
 pub mod crypto;
 pub mod env;
