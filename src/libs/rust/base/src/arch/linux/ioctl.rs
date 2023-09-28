@@ -69,8 +69,8 @@ pub fn tlb_insert_addr(virt: VirtAddr, perm: u8) {
     ioctl_plain(IOCTL_TLB_INSERT, arg);
 }
 
-pub fn unregister_act(id: ActId) {
-    ioctl_plain(IOCTL_UNREG_ACT, id as usize);
+pub fn unregister_act(id: ActId, status: i32) {
+    ioctl_plain(IOCTL_UNREG_ACT, id as usize | (status as usize) << 16);
 }
 
 pub fn noop() {
