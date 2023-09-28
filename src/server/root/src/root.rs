@@ -27,6 +27,7 @@ use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::io::LogFlags;
 use m3::kif;
+use m3::kif::syscalls::MuxType;
 use m3::log;
 use m3::mem::{GlobAddr, GlobOff, VirtAddr};
 use m3::syscalls;
@@ -119,7 +120,11 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         res: &mut Resources,
         child: &mut OwnChild,
     ) -> Result<(), VerboseError> {
-        let bmod = if !child.cfg().is_foreign() {
+        let tile = child.child_tile().unwrap().tile_obj().clone();
+
+        // if TileMux is running on that tile, we have control about the activity's virtual address
+        // space and can thus load the program into the address space.
+        let bmod = if tile.mux_type()? == MuxType::TileMux {
             Some(
                 self.fetch_mod(child.cfg().name(), false)
                     .ok_or_else(|| Error::new(Code::NotFound))?,
@@ -136,7 +141,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         )?;
 
         let mut act = ChildActivity::new_with(
-            child.child_tile().unwrap().tile_obj().clone(),
+            tile,
             ActivityArgs::new(child.name())
                 .resmng(ResMng::new(sgate))
                 .kmem(child.kmem().unwrap()),
@@ -198,7 +203,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         domain: &config::Domain,
     ) -> Result<(), VerboseError> {
         if tile.tile_id() != Activity::own().tile_id()
-            && !domain.apps().first().unwrap().is_foreign()
+            && tile.tile_obj().mux_type()? == MuxType::TileMux
         {
             // determine minimum range of boot modules we need to give access to to cover all boot
             // modules that are run on this tile. note that these should always be contiguous,

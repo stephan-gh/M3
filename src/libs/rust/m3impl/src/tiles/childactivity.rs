@@ -22,6 +22,8 @@ use core::cmp;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 
+use base::kif::syscalls::MuxType;
+
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::Cell;
 use crate::cfg;
@@ -330,15 +332,26 @@ impl ChildActivity {
     /// the functions completeness or to stop it.
     pub fn run(self, func: fn() -> Result<(), Error>) -> Result<RunningProgramActivity, Error> {
         let args = crate::env::args().collect::<Vec<_>>();
-        let file = VFS::open(args[0], OpenFlags::RX | OpenFlags::NEW_SESS)?;
-        let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
-
         let func_addr = VirtAddr::from(func as *const ());
-        self.do_exec_file(
-            Some((&mut mapper, file.into_generic())),
-            &args,
-            Some(func_addr),
-        )
+
+        match self.tile().mux_type()? {
+            // if TileMux is running on that tile, we have control about the activity's virtual
+            // address space and can thus load the program into the address space
+            MuxType::TileMux => {
+                let file = VFS::open(args[0], OpenFlags::RX | OpenFlags::NEW_SESS)?;
+                let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
+                self.do_exec_file(
+                    Some((&mut mapper, file.into_generic())),
+                    &args,
+                    Some(func_addr),
+                )
+            },
+
+            // otherwise (e.g., for M³Linux) we simply don't load the program. In case of M³Linux,
+            // this happens afterwards on Linux by performing a fork and exec with the arguments
+            // from the environment.
+            _ => self.do_exec_file(None, &args, Some(func_addr)),
+        }
     }
 
     /// Executes the given program and arguments with `self`.
@@ -346,9 +359,15 @@ impl ChildActivity {
     /// The method returns the [`RunningProgramActivity`] on success that can be used to wait for
     /// the program completeness or to stop it.
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<RunningProgramActivity, Error> {
-        let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
-        let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
-        self.exec_file(Some((&mut mapper, file.into_generic())), args)
+        match self.tile().mux_type()? {
+            // same as for `run`
+            MuxType::TileMux => {
+                let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
+                let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
+                self.exec_file(Some((&mut mapper, file.into_generic())), args)
+            },
+            _ => self.exec_file(None, args),
+        }
     }
 
     /// Executes the program given as a [`FileRef`] with `self`, using `mapper` to initiate the

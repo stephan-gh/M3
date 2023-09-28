@@ -288,6 +288,11 @@ pub fn init() {
     crate::tiles::init();
     crate::io::init();
     crate::com::init();
+
+    #[cfg(feature = "linux")]
+    if let Some(cl) = crate::env::get().load_closure() {
+        OwnActivity::exit(cl());
+    }
 }
 
 pub fn deinit() {

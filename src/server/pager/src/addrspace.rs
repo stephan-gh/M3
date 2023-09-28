@@ -84,7 +84,7 @@ impl AddrSpace {
     }
 
     pub fn has_owner(&self) -> bool {
-        self.owner.is_some()
+        self.owner.is_some() && self.child.is_some()
     }
 
     pub fn add_child(
@@ -143,9 +143,6 @@ impl AddrSpace {
             if let Some(c) = child {
                 assert!(self.child.is_none());
                 self.child = Some(c);
-            }
-            else {
-                assert!(self.child.is_some());
             }
             self.owner = Some(act);
             Ok(act)

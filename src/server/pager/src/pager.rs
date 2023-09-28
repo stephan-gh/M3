@@ -30,6 +30,7 @@ use m3::col::{String, ToString, Vec};
 use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
+use m3::kif::syscalls::MuxType;
 use m3::mem::VirtAddr;
 use m3::server::{ExcType, RequestHandler, Server};
 use m3::tcu::Label;
@@ -98,8 +99,9 @@ impl subsys::ChildStarter for PagedChildStarter {
         };
 
         // create child activity
+        let tile = child.child_tile().unwrap().tile_obj().clone();
         let mut act = ChildActivity::new_with(
-            child.child_tile().unwrap().tile_obj().clone(),
+            tile.clone(),
             ActivityArgs::new(child.name())
                 .resmng(ResMng::new(resmng_sgate))
                 .pager(Pager::new(child_sess, pager_sgate, child_sgate)?)
@@ -118,7 +120,9 @@ impl subsys::ChildStarter for PagedChildStarter {
             act.add_mount(m.path(), &path);
         }
 
-        let run = if !child.cfg().is_foreign() {
+        // if TileMux is running on that tile, we have control about the activity's virtual address
+        // space and can thus load the program into the address space.
+        let run = if tile.mux_type()? == MuxType::TileMux {
             // init address space (give it activity and mgate selector)
             let mut hdl = REQHDL.borrow_mut();
             let aspace = hdl.clients_mut().get_mut(child_sid).unwrap();
