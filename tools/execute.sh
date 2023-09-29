@@ -67,15 +67,13 @@ generate_config() {
 
 generate_m3lx_deps() {
     initrds=$(xmllint --xpath './/dom[@initrd]/@initrd' "$1" 2>/dev/null | wc -l)
-    if [ "$initrds" -gt 1 ]; then
-        echo "Multiple domains with initrd are not supported" >&2 && exit 1
-    fi
     if [ "$initrds" -eq 0 ]; then
         return
     fi
 
     # generate final initrd
     crossroot="$(readlink -f "$crossdir/../../")"
+    bbl="$(readlink -f "$build/../riscv-pk/bbl")"
     initrd="$crossroot/images/rootfs.cpio"
     targetdir="$crossroot/build/buildroot-fs/cpio/target"
     # we build upon the initrd generation of buildroot
@@ -93,37 +91,61 @@ generate_m3lx_deps() {
         "$crossroot/host/bin/fakeroot" -- "$crossroot/build/buildroot-fs/cpio/fakeroot" ) >/dev/null
     rm -rf "$targetdir"
 
+    # create files in module path for the requested initrd modules
+    # note that the following two loops are actually not necessary, because there is currently no
+    # way to specify the multiplexer or initrd to use. however, I think for consistency we should
+    # allow different domains to reference different multiplexers and initrds and extend this later.
+    initrds=$(xmllint --xpath './/dom[@initrd]/@initrd' "$1" | sed -e 's/initrd="\(.*\)"/\1/g' | sort | uniq)
+    for initrd_name in $initrds; do
+        initrd_dst=$(xmllint --xpath "string(.//mods/mod[@name=\"$initrd_name\"]/@file)" "$1")
+        cp -f "$initrd" "$M3_MOD_PATH/$initrd_dst"
+    done
+
+    # create files in module path for the requested mux modules
+    muxes=$(xmllint --xpath './/dom[@mux]/@mux' "$1" | sed -e 's/mux="\(.*\)"/\1/g' | sort | uniq)
+    for mux_name in $muxes; do
+        mux_dst=$(xmllint --xpath "string(.//mods/mod[@name=\"$mux_name\"]/@file)" "$1")
+        cp -f "$bbl" "$M3_MOD_PATH/$mux_dst"
+    done
+
     # determine initrd size
     initrd_size=$(stat --printf="%s" "$initrd")
     # round up to page size
     initrd_size=$(python -c "print('{}'.format(($initrd_size + 0xFFF) & 0xFFFFF000))")
-    # ensure that we find it during module lookup
-    cp -f "$initrd" "$M3_MOD_PATH/rootfs.cpio"
-    cp -f "$build/../riscv-pk/bbl" "$M3_MOD_PATH/bbl"
 
-    # determine memory size for the multiplexer
-    mem_size=$(xmllint --xpath 'string(.//dom[@initrd]/@muxmem)' "$1")
-    case "$mem_size" in
-        *G) mem_size=$(("${mem_size%G*}" * 1024 * 1024 * 1024)) ;;
-        *M) mem_size=$(("${mem_size%M*}" * 1024 * 1024)) ;;
-        *K) mem_size=$(("${mem_size%K*}" * 1024)) ;;
-    esac
-    # ensure that it's a power of two. otherwise we can't configure RISC-V's PMP properly
-    if [ "$(python -c "print('{}'.format(($mem_size & ($mem_size - 1) == 0)))")" != "True" ]; then
-        echo "The memory size ($mem_size) for Linux needs to be a power of two!" >&2 && exit 1
-    fi
+    # generate DTBs
+    dtbs=$(xmllint --xpath './/dom[@dtb]/@dtb' "$1" | sed -e 's/dtb="\(.*\)"/\1/g' | sort | uniq)
+    for dtb in $dtbs; do
+        mem_size=$(xmllint --xpath "string(.//dom[@dtb=\"$dtb\"]/@muxmem)" "$1")
+        dtb_dst=$(xmllint --xpath "string(.//mods/mod[@name=\"$dtb\"]/@file)" "$1")
 
-    # we always place the initrd at the end of the memory region
-    mem_off=0x10000000
-    initrd_end=$(printf "%#x" $(("$mem_off" + "$mem_size")))
-    initrd_start=$(printf "%#x" $((initrd_end - initrd_size)))
-    sed -e "s/linux,initrd-start = <.*>;/linux,initrd-start = <$initrd_start>;/g" \
-        -e "s/linux,initrd-end = <.*>;/linux,initrd-end = <$initrd_end>;/g" \
-        -e "s/reg = <MEM_REGION>;/reg = <0x00000000 $mem_off 0x00000000 $(printf "%#x" "$mem_size")>;/g" \
-        "src/m3lx/configs/$M3_TARGET.dts" > "$M3_OUT/m3lx.dts" || exit 1
+        # determine memory size for the multiplexer
+        case "$mem_size" in
+            *G) mem_size=$(("${mem_size%G*}" * 1024 * 1024 * 1024)) ;;
+            *M) mem_size=$(("${mem_size%M*}" * 1024 * 1024)) ;;
+            *K) mem_size=$(("${mem_size%K*}" * 1024)) ;;
+        esac
+        # ensure that it's a power of two. otherwise we can't configure RISC-V's PMP properly
+        if [ "$(python -c "print('{}'.format(($mem_size & ($mem_size - 1) == 0)))")" != "True" ]; then
+            echo "The memory size ($mem_size) for Linux needs to be a power of two!" >&2 && exit 1
+        fi
 
-    # generate dtb
-    dtc -O dtb "$M3_OUT/m3lx.dts" -o "$M3_MOD_PATH/m3lx.dtb"
+        # we always place the initrd at the end of the memory region
+        mem_off=0x10000000
+        initrd_end=$(printf "%#x" $(("$mem_off" + "$mem_size")))
+        initrd_start=$(printf "%#x" $((initrd_end - initrd_size)))
+        sed -e "s/linux,initrd-start = <.*>;/linux,initrd-start = <$initrd_start>;/g" \
+            -e "s/linux,initrd-end = <.*>;/linux,initrd-end = <$initrd_end>;/g" \
+            -e "s/reg = <MEM_REGION>;/reg = <0x00000000 $mem_off 0x00000000 $(printf "%#x" "$mem_size")>;/g" \
+            "src/m3lx/configs/$M3_TARGET.dts" > "$M3_OUT/$dtb.dts" || exit 1
+        if [ "$M3_HW_UARTNOBUF" = "1" ]; then
+            sed --in-place -e 's/compatible = "sifive,uart0";/compatible = "sifive,uart0"; nobuf = "1";/g' \
+                "$M3_OUT/$dtb.dts" || exit 1
+        fi
+
+        # generate dtb
+        dtc -O dtb "$M3_OUT/$dtb.dts" -o "$M3_MOD_PATH/$dtb_dst"
+    done
 }
 
 get_kernel() {

@@ -1,5 +1,5 @@
 <config>
-    <env>M3_HW_M3LX=1</env>
+    <env>M3_HW_M3LX=1 M3_HW_UARTNOBUF=1</env>
     <mods>
         <mod name="bbl" file="bbl" />
         <mod name="initrd" file="rootfs.cpio" />

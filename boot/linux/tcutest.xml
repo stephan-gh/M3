@@ -3,15 +3,18 @@
     <mods>
         <mod name="bbl" file="bbl" />
         <mod name="initrd" file="rootfs.cpio" />
-        <mod name="dtb" file="m3lx.dtb" />
+        <mod name="dtb1" file="m3lx1.dtb" />
+        <mod name="dtb2" file="m3lx2.dtb" />
     </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom tile="rocket|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb">
+            <dom tile="rocket|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb1">
                 <app args="/tcutest receiver">
                     <rgate name="chan" msgsize="64" slots="2" />
                 </app>
+            </dom>
+            <dom tile="rocket|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb2">
                 <app args="/tcutest sender">
                     <sgate name="chan" label="1" />
                 </app>
