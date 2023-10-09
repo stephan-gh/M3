@@ -116,6 +116,12 @@ generate_m3lx_deps() {
     # generate DTBs
     dtbs=$(xmllint --xpath './/dom[@dtb]/@dtb' "$1" | sed -e 's/dtb="\(.*\)"/\1/g' | sort | uniq)
     for dtb in $dtbs; do
+        # ensure that different DTBs are used for different memory sizes
+        mem_count=$(xmllint --xpath ".//dom[@dtb=\"$dtb\"]/@muxmem" "$1" | sort | uniq | wc -l)
+        if [ "$mem_count" -ne 1 ]; then
+            echo "DTB \"$dtb\" is used with different memory sizes (muxmem)." >&2 && exit 1
+        fi
+
         mem_size=$(xmllint --xpath "string(.//dom[@dtb=\"$dtb\"]/@muxmem)" "$1")
         dtb_dst=$(xmllint --xpath "string(.//mods/mod[@name=\"$dtb\"]/@file)" "$1")
 
