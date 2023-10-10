@@ -401,6 +401,8 @@ fn test_pmp_failures() {
     // flush the cache to be sure that the reads cause cache misses
     unsafe { machine::flush_cache() };
 
+    // the physical address is only invalid on RISC-V (where we have a base offset of 0x1000_0000)
+    #[cfg(target_arch = "riscv64")]
     {
         // invalid physical address
         let virt = VirtAddr::from(0x3000_0000);
@@ -433,6 +435,8 @@ fn test_pmp_failures() {
         TCU::config_mem(regs, OWN_ACT, MEM_TILE, base_off, cfg::PAGE_SIZE, Perm::RW);
     });
 
+    CU_REQS.set(0);
+
     {
         // beyond bounds
         let virt = VirtAddr::from(0x4000_0000);
@@ -458,8 +462,8 @@ fn test_pmp_failures() {
         atomic::fence(atomic::Ordering::SeqCst);
         let _val = unsafe { ptr::read_volatile(addr.add(cfg::PAGE_SIZE)) };
 
-        while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 2 {}
-        assert_eq!(CU_REQS.get(), 2);
+        while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 1 {}
+        assert_eq!(CU_REQS.get(), 1);
 
         EXPECTED_CU_REQ.set(Some(tcu::CUReq::PMPFailure {
             phys: global.to_phys(PageFlags::R).unwrap().as_raw(),
@@ -471,8 +475,8 @@ fn test_pmp_failures() {
         // flush the cache to trigger a LLC miss
         unsafe { machine::flush_cache() };
 
-        while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 3 {}
-        assert_eq!(CU_REQS.get(), 3);
+        while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 2 {}
+        assert_eq!(CU_REQS.get(), 2);
         EXPECTED_CU_REQ.set(None);
 
         paging::unmap(virt, size * 2);
