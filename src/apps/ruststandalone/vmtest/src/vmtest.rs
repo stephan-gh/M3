@@ -443,6 +443,7 @@ fn test_pmp_failures() {
         let global = GlobAddr::new_with(MEM_TILE, base_off);
         let size = cfg::PAGE_SIZE;
         paging::map_global(virt, global, size * 2, PageFlags::RW);
+        atomic::fence(atomic::Ordering::SeqCst);
 
         let addr = virt.as_mut_ptr::<u8>();
 
