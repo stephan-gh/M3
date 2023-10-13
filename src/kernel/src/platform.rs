@@ -257,7 +257,10 @@ pub fn init() {
             kmem_idx += 1;
         }
         else {
-            utiles.push(tile);
+            let tile_id = tile.id;
+            if tile_id != kernel_tile() {
+                utiles.push(tile);
+            }
         }
 
         let cid = { tile.id }.chip() as usize;
@@ -272,14 +275,14 @@ pub fn init() {
 
     // write-back boot info
     let mut uoffset = addr.offset();
-    uinfo.tile_count = (utiles.len() - 1) as u64;
+    uinfo.tile_count = utiles.len() as u64;
     uinfo.mem_count = umems.len() as u64;
     ktcu::write_slice(addr.tile(), uoffset, &[uinfo]);
     uoffset += size_of::<boot::Info>() as GlobOff;
     uoffset += info.mod_count as GlobOff * size_of::<boot::Mod>() as GlobOff;
 
     // write-back user tiles
-    ktcu::write_slice(addr.tile(), uoffset, &utiles[1..]);
+    ktcu::write_slice(addr.tile(), uoffset, &utiles);
     uoffset += uinfo.tile_count as GlobOff * size_of::<boot::Tile>() as GlobOff;
 
     // write-back user memory regions
