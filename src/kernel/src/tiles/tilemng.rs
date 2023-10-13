@@ -78,7 +78,7 @@ pub fn tilemux(tile: TileId) -> RefMut<'static, TileMux> {
 pub fn find_tile(tiledesc: &kif::TileDesc) -> Option<TileId> {
     platform::user_tiles().find(|&tile| {
         platform::tile_desc(tile).isa() == tiledesc.isa()
-            || platform::tile_desc(tile).tile_type() == tiledesc.tile_type()
+            && platform::tile_desc(tile).tile_type() == tiledesc.tile_type()
     })
 }
 
