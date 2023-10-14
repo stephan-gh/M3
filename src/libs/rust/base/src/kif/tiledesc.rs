@@ -61,6 +61,8 @@ pub enum TileISA {
     NICDev,
     /// Dummy ISA to represent the serial input device
     SerialDev,
+    /// Dummy ISA to represent a flash with the Common Flash Interface (CFI)
+    CFIDev,
 }
 
 bitflags! {
@@ -169,6 +171,7 @@ impl TileDesc {
         self.isa() == TileISA::NICDev
             || self.isa() == TileISA::IDEDev
             || self.isa() == TileISA::SerialDev
+            || self.isa() == TileISA::CFIDev
     }
 
     /// Return if the tile supports activities
@@ -291,6 +294,14 @@ impl TileDesc {
                     res = TileDesc::new_with_attr(
                         TileType::Comp,
                         TileISA::SerialDev,
+                        0,
+                        TileAttr::empty(),
+                    )
+                },
+                "cfidev" => {
+                    res = TileDesc::new_with_attr(
+                        TileType::Comp,
+                        TileISA::CFIDev,
                         0,
                         TileAttr::empty(),
                     )

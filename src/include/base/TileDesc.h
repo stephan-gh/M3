@@ -49,6 +49,7 @@ enum class TileISA {
     IDE_DEV = 7,
     NIC_DEV = 8,
     SERIAL_DEV = 9,
+    CFI_DEV = 10,
 };
 
 enum TileAttr {
@@ -121,7 +122,7 @@ struct TileDesc {
      */
     bool is_device() const {
         return isa() == TileISA::NIC_DEV || isa() == TileISA::IDE_DEV ||
-               isa() == TileISA::SERIAL_DEV;
+               isa() == TileISA::SERIAL_DEV || isa() == TileISA::CFI_DEV;
     }
 
     /**

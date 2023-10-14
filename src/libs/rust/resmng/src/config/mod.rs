@@ -293,6 +293,7 @@ impl TileType {
                 "idedev" => desc.isa() == kif::TileISA::IDEDev,
                 "nicdev" => desc.isa() == kif::TileISA::NICDev,
                 "serdev" => desc.isa() == kif::TileISA::SerialDev,
+                "cfidev" => desc.isa() == kif::TileISA::CFIDev,
                 _ => false,
             };
             if !matches {
