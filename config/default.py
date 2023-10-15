@@ -73,7 +73,7 @@ for i in range(0, num_kecacc):
     tile = createKecAccTile(noc=root.noc,
                             options=options,
                             id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + i),
-                            cmdline=cmd_list[1],  # FIXME
+                            cmdline="",
                             memTile=None,
                             spmsize='64MB')
     tiles.append(tile)
