@@ -34,10 +34,38 @@ impl minicov::CoverageWriter for Gem5CovWriter {
     }
 }
 
-#[cfg(not(feature = "linux"))]
+#[cfg(all(not(feature = "linux"), not(target_arch = "riscv64")))]
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
     pub fn gem5_shutdown(delay: u64);
+}
+
+#[cfg(target_arch = "riscv64")]
+unsafe fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64) -> u64 {
+    let result: u64;
+    unsafe {
+        core::arch::asm!(
+            ".long 0x9E00007B",
+            inout("a0") src => result,
+            in("a1") len,
+            in("a2") offset,
+            in("a3") file,
+            options(readonly, nostack, preserves_flags),
+        )
+    }
+    result
+}
+
+#[cfg(target_arch = "riscv64")]
+unsafe fn gem5_shutdown(delay: u64) -> ! {
+    unsafe {
+        core::arch::asm!(
+            ".long 0x4200007B",
+            inout("a0") delay => _,
+            options(nomem, nostack, preserves_flags),
+        )
+    }
+    loop {}
 }
 
 pub fn write_coverage(_act: u64) {
