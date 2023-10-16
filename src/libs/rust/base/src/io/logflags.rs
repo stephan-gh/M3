@@ -237,6 +237,13 @@ bitflags! {
         const PipeReqs      = 1 << (Self::__pipe_start.bits() + 0);
         /// pipe: data transfers / state changes
         const PipeData      = 1 << (Self::__pipe_start.bits() + 1);
+
+        #[doc(hidden)]
+        const __rot_start = Self::__pipe_start.bits() + 2;
+
+        const RoTBoot       = 1 << (Self::__rot_start.bits() + 0);
+        const RoTReqs       = 1 << (Self::__rot_start.bits() + 1);
+        const RoTDbg        = 1 << (Self::__rot_start.bits() + 2);
     }
 }
 

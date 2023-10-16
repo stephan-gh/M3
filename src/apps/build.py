@@ -20,6 +20,7 @@ dirs = [
     'parchksum',
     'ping',
     'queue',
+    'raser',
     'resmngtest',
     'rusthello',
     'rustnettests',

@@ -20,6 +20,7 @@ members = [
     "apps/msgchan/msgchansnd",
     "apps/netechoserver",
     "apps/ping",
+    "apps/raser",
     "apps/resmngtest",
     "apps/rusthello",
     "apps/rustnettests",
@@ -31,6 +32,7 @@ members = [
     "apps/spammer",
     "kernel",
     "server/crypto/hashmux",
+    "server/crypto/rots",
     "server/disk",
     "server/m3fs",
     "server/net",
@@ -40,7 +42,8 @@ members = [
     "server/vterm",
 ]
 exclude = [
-    "tilemux"
+    "rot",
+    "tilemux",
 ]
 resolver = "2"
 

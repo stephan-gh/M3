@@ -1,0 +1,36 @@
+<config>
+    <env>M3_GEM5_CFG=config/rot.py M3_GEM5_O3_CORES=1 M3_GEM5_MINOR_CORES=3</env>
+    <rot layers="brom,blau.bin,rosa.bin" />
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <dom tile="core+rot">
+                <app args="rots" daemon="1">
+                    <serv name="rot" />
+                    <mod name="rot-certificate.json" perm="r" />
+                </app>
+            </dom>
+            <dom tile="perf|core">
+                <app args="disk -d -i" daemon="1">
+                    <serv name="disk" />
+                    <tiles type="idedev" />
+                </app>
+                <app args="m3fs -m 4 disk" daemon="1">
+                    <serv name="m3fs" />
+                    <sess name="disk" args="0" />
+                </app>
+                <app args="net -m 4 net 192.168.42.1" daemon="1">
+                    <serv name="net" />
+                    <tiles type="nicdev" />
+                </app>
+            </dom>
+            <dom tile="effi|core">
+                <app args="raser">
+                    <sess name="m3fs" />
+                    <sess name="rot" args="RASer" />
+                    <sess name="net" args="socks=1 tcp=4242" />
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>

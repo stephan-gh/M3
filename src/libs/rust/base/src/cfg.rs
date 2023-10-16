@@ -60,8 +60,14 @@ pub const TILE_MEM_BASE: VirtAddr = VirtAddr::new(0xE000_0000);
 
 pub const MEM_CAP_END: VirtAddr = RBUF_STD_ADDR;
 
-#[cfg(target_arch = "riscv64")]
-pub const ENV_START: VirtAddr = VirtAddr::new((MEM_OFFSET + PAGE_SIZE) as VirtAddrRaw);
+pub const MEM_ENV_START: VirtAddr = VirtAddr::new((MEM_OFFSET + PAGE_SIZE) as VirtAddrRaw);
+pub const BROM_BASE: VirtAddr = VirtAddr::new(0x0b00_0000);
+pub const BROM_ENV_START: VirtAddr = VirtAddr::new(BROM_BASE.as_raw() + PAGE_SIZE as VirtAddrRaw);
+
+#[cfg(all(target_arch = "riscv64", not(feature = "rot")))]
+pub const ENV_START: VirtAddr = MEM_ENV_START;
+#[cfg(all(target_arch = "riscv64", feature = "rot"))]
+pub const ENV_START: VirtAddr = BROM_ENV_START;
 #[cfg(not(target_arch = "riscv64"))]
 pub const ENV_START: VirtAddr = VirtAddr::new((MEM_OFFSET + 0x1F_E000) as VirtAddrRaw);
 pub const ENV_SIZE: usize = PAGE_SIZE;

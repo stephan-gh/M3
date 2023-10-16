@@ -125,6 +125,12 @@
                     </xs:complexType>
                 </xs:element>
 
+                <xs:element name="rot" minOccurs="0" maxOccurs="1">
+                    <xs:complexType>
+                        <xs:attribute name="layers" type="xs:string" use="required"/>
+                    </xs:complexType>
+                </xs:element>
+
                 <xs:element name="kernel" minOccurs="1" maxOccurs="unbounded">
                     <xs:complexType>
                         <xs:attribute name="args" type="xs:string"/>

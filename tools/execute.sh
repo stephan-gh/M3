@@ -225,12 +225,61 @@ get_mods() {
     done
 }
 
+get_rot_layers() {
+    local IFS=','
+    layers=$(xmllint --xpath 'string(/config/rot/@layers)' "$1" 2>/dev/null)
+    read -ra layerArray <<< "$layers"
+    for i in "${!layerArray[@]}"; do
+        path="$build/rotbin/${layerArray[i]}"
+        if [ ! -f "$path" ]; then
+            echo "RoT layer '$path' does not exist." >&2 && exit 1
+        fi
+        layerArray[i]="$path"
+    done
+    echo "${layerArray[*]}"
+}
+
+print_module_hashes() {
+    if ! command -v openssl &> /dev/null; then
+        echo "NOTE: openssl is not installed. Cannot print SHA3-256 hashes of boot modules."
+        return
+    fi
+
+    IFS=',' read -ra modules <<< "$1"
+    for module in "${modules[@]}"; do
+        if [[ "$module" == *"="* ]]; then
+            IFS='=' read -r module_name module_path <<< "$module"
+        else
+            module_name="RoT layer"
+            module_path="$module"
+        fi
+        hash=$(openssl dgst -sha3-256 "$module_path" | awk '{print $2}')
+        echo "SHA3-256 hash of $module_name ($module_path): $hash"
+    done
+}
+
 build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
     generate_m3lx_deps "$1" || exit 1
 
     kernels=$(get_kernel "$1") || exit 1
     mods="$(get_mods "$1" "gem5"),tilemux=$bindir/tilemux" || exit 1
+
+    rot_layers="$(get_rot_layers "$1")"
+    if [ -n "$rot_layers" ]; then
+        kernel="${kernels%,}"
+        # Strip the path from the kernel binary and save cmdline arguments
+        kernels="$(basename "$kernel")"
+        kernel="${kernel%% *}"
+        if [ ! -f "$kernel" ]; then
+            echo "Kernel '$kernel' does not exist." >&2
+            echo "At the moment the RoT only supports a single kernel." >&2
+            exit 1
+        fi
+        # Make the kernel a boot module that can be loaded by the RoT
+        mods="$mods,kernel=$kernel"
+        print_module_hashes "$rot_layers,$mods"
+    fi
 
     if [ "$M3_GEM5_LOG" = "" ]; then
         M3_GEM5_LOG="Tcu"
@@ -271,6 +320,7 @@ build_params_gem5() {
     fi
     params=("${params[@]}" "$M3_GEM5_CFG" --cpu-type "$M3_GEM5_CPU" --isa "$M3_ISA")
     params=("${params[@]}" --cmd "$cmd" --mods "$mods" --logflags "$M3_LOG")
+    params=("${params[@]}" --rot-layers "$rot_layers")
     params=("${params[@]}" --cpu-clock="$M3_GEM5_CPUFREQ" --sys-clock="$M3_GEM5_MEMFREQ")
     if [ "$M3_GEM5_PAUSE" != "" ]; then
         params=("${params[@]}" --pausetile="$M3_GEM5_PAUSE")

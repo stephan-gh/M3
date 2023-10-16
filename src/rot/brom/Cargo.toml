@@ -1,0 +1,10 @@
+[package]
+name = "brom"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base.workspace = true
+lang.workspace = true
+rot.workspace = true
+riscv-rt.workspace = true

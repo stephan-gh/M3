@@ -1,0 +1,12 @@
+[package]
+name = "rot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base = { path = "../../rust/base" }
+kecacc = { path = "../kecacc" }
+cshake = { path = "../cshake" }
+ed25519-dalek = { version = "2.1.0", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc", "serde"] }
+serde_json = { version = "1.0.108", default-features = false, features = ["alloc", "raw_value"] }

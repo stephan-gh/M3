@@ -25,6 +25,7 @@ pub mod random;
 use core::ffi::CStr;
 use core::intrinsics;
 use core::slice;
+use core::sync::atomic;
 
 use crate::mem;
 
@@ -83,6 +84,24 @@ pub fn object_to_bytes_mut<T: Sized>(obj: &mut T) -> &mut [u8] {
 #[inline(always)]
 pub fn unlikely(cond: bool) -> bool {
     intrinsics::unlikely(cond)
+}
+
+/// Clear the specified memory location and ensure that the compiler does not
+/// optimize it away.
+///
+/// # Safety
+/// The caller must ensure that the pointer is valid and that either:
+///   - Zeroed memory is valid for the type `T`, or
+///   - The pointer is never de-referenced again.
+pub unsafe fn clear_volatile<T>(ptr: *mut T) {
+    /*
+     * To avoid the unstable intrinsic this could be replaced with
+     *   core::ptr::write_volatile(ptr, core::mem::zeroed());
+     * but that seems to result in a memset() on the stack followed by
+     * a memcpy(), rather than calling memset() directly on the pointer.
+     */
+    core::intrinsics::volatile_set_memory(ptr, 0, 1);
+    atomic::compiler_fence(atomic::Ordering::SeqCst);
 }
 
 /// Expands to the current function name.

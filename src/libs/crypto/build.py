@@ -2,6 +2,7 @@ dirs = [
     'cshake',
     'kecacc',
     'kecacc-xkcp',
+    'rot',
 ]
 
 

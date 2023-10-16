@@ -34,6 +34,7 @@ mod network;
 mod pager;
 mod pipe;
 pub mod resmng;
+mod rot;
 mod session;
 mod vterm;
 
@@ -44,5 +45,6 @@ pub use self::network::Network;
 pub use self::pager::{MapFlags, Pager};
 pub use self::pipe::{Pipe, Pipes};
 pub use self::resmng::{ResMng, ResMngChild};
+pub use self::rot::RoTSession;
 pub use self::session::ClientSession;
 pub use self::vterm::VTerm;

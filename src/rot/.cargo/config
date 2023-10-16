@@ -1,0 +1,23 @@
+[build]
+target = "riscv64imac-unknown-none-elf"
+
+[target.'cfg(all())']
+rustflags = ["-Wrust-2018-idioms"]
+
+[target.'cfg(any(target_arch = "riscv64", target_arch = "riscv32"))']
+rustflags = [
+    "-C", "link-arg=-Tmemory.ld",
+    "-C", "link-arg=-Tlink.x",
+    "-C", "link-arg=-T../gp.ld",
+    "-C", "link-arg=-n", # Avoid unneeded 4K alignment of sections
+    #"-C", "link-arg=--relax-gp", # Works only together with +relax feature in toolchain json
+    #"-C", "code-model=small",
+    "-C", "force-frame-pointers=y", # Needed for backtraces, can be removed to save space
+    "-Z", "llvm_module_flag=SmallDataLimit:u32:0:error",
+]
+
+# The curve25519-dalek crate has two backends: one using 32-bit operations and one using
+# 64-bit operations. Normally this is auto-detected, but this does not seem to work for
+# custom targets/toolchains.
+[target.'cfg(target_pointer_width = "64")']
+rustflags = ["--cfg", "curve25519_dalek_bits=\"64\""]

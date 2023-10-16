@@ -341,6 +341,10 @@ run_clippy() {
         target=(--target riscv64gc-unknown-linux-gnu
                 --target-dir "$rustbuild"
                 -Z "build-std=core,alloc,std,panic_abort")
+    elif [[ "$1" == src/rot/* ]]; then
+        target=(--target riscv64imc-unknown-none-elf
+                --target-dir "$rustbuild"
+                -Z "build-std=core,alloc")
     else
         target=("${rust_target_args[@]}")
     fi

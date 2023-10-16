@@ -1,0 +1,18 @@
+[package]
+name = "rosa"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base.workspace = true
+lang.workspace = true
+rot.workspace = true
+kecacc.workspace = true
+riscv-rt.workspace = true
+talc.workspace = true
+
+[features]
+default = []
+gem5 = ["base/gem5"]
+hw = ["base/hw"]
+hw22 = ["base/hw22"]

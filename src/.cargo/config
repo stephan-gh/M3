@@ -1,8 +1,17 @@
 [build]
-rustflags = ["-Wrust-2018-idioms"]
 target = "toolchain/rust/riscv64-linux-m3-musl.json"
+
+# rustflags specified in [build] are overridden by the target-specific rustflags
+[target.'cfg(all())']
+rustflags = ["-Wrust-2018-idioms"]
 
 [target.'riscv64-linux-m3-muslcov']
 rustflags = ["-Cinstrument-coverage", "-Zno-profiler-runtime"]
 [target.'x86_64-linux-m3-muslcov']
 rustflags = ["-Cinstrument-coverage", "-Zno-profiler-runtime"]
+
+# The curve25519-dalek crate has two backends: one using 32-bit operations and one using
+# 64-bit operations. Normally this is auto-detected, but this does not seem to work for
+# custom targets/toolchains.
+[target.'cfg(target_pointer_width = "64")']
+rustflags = ["--cfg", "curve25519_dalek_bits=\"64\""]

@@ -170,3 +170,15 @@ pub enum Hash {
     Output,
     GetMem,
 }
+
+/// The operations for the RoT service protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum RoT {
+    GetRotCertificate,
+    GetSecretMem,
+    GetHash,
+    GetCdi,
+    DeriveSecret,
+    Certify,
+}
