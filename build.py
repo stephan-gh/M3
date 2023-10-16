@@ -86,6 +86,12 @@ class M3Env(Env):
             self['ASFLAGS'] += ['-mabi=lp64']
             self['CFLAGS'] += ['-march=rv64imac', '-mabi=lp64']
             self['CXXFLAGS'] += ['-march=rv64imac', '-mabi=lp64']
+            # make sure that embedded C-code or similar (minicov with llvm-profile library)
+            # for Rust is built with soft-float as well
+            cflags = os.environ.get('TARGET_CFLAGS')
+            cflags = cflags.replace('-march=rv64imafdc', '-march=rv64imac')
+            cflags = cflags.replace('-mabi=lp64d', '-mabi=lp64')
+            self['CRGENV']['TARGET_CFLAGS'] = cflags
         # use the soft-float target spec for rust
         self['TRIPLE'] += 'sf'
 
