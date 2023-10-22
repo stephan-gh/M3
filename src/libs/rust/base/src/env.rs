@@ -252,25 +252,31 @@ impl iter::Iterator for Vars {
 
 static VARS: LazyStaticRefCell<Vec<String>> = LazyStaticRefCell::default();
 
+// try to find the value from an iterator of strings of <key>=<value>
+fn find_value<'s>(it: impl iter::Iterator<Item = &'s str>, key: &str) -> Option<&'s str> {
+    it.map(|p| {
+        let mut pair = p.splitn(2, '=');
+        (pair.next().unwrap(), pair.next().unwrap())
+    })
+    .find(|(k, _v)| *k == key)
+    .map(|(_k, v)| v)
+}
+
 /// Returns the value of the environment variable with given key.
 pub fn var<K: AsRef<str>>(key: K) -> Option<String> {
-    // try to find the value from an iterator of strings of <key>=<value>
-    fn find_value<'s>(it: impl iter::Iterator<Item = &'s str>, key: &str) -> Option<String> {
-        it.map(|p| {
-            let mut pair = p.splitn(2, '=');
-            (pair.next().unwrap(), pair.next().unwrap())
-        })
-        .find(|(k, _v)| *k == key)
-        .map(|(_k, v)| v.to_string())
-    }
-
     // if we have already copied the env vars, use the copy
     if VARS.is_some() {
-        find_value(VARS.borrow().iter().map(|s| &s[..]), key.as_ref())
+        find_value(VARS.borrow().iter().map(|s| &s[..]), key.as_ref()).map(|v| v.to_string())
     }
     else {
-        find_value(Vars::default(), key.as_ref())
+        find_value(Vars::default(), key.as_ref()).map(|v| v.to_string())
     }
+}
+
+/// Returns the original (static) value of the environment variable with given key.
+/// Variables removed or modified at runtime are not considered.
+pub fn boot_var<K: AsRef<str>>(key: K) -> Option<&'static str> {
+    find_value(Vars::default(), key.as_ref())
 }
 
 /// Returns the environment-variable iterator, containing each variable as a pair of key and value.

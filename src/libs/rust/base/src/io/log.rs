@@ -19,7 +19,6 @@
 //! Contains the logger
 
 use core::cmp;
-use core::str::FromStr;
 
 use crate::cell::{RefMut, StaticCell, StaticRefCell};
 use crate::env;
@@ -143,10 +142,14 @@ pub fn init(tile_id: TileId, name: &str) {
     Log::get().unwrap().init(tile_id, name);
 
     // set log flags afterwards so that we can properly print errors during parsing
-    if let Some(log) = env::var("LOG") {
-        let log_commas = log.replace(',', "|");
-        let flags = LogFlags::from_str(&log_commas)
-            .unwrap_or_else(|_| panic!("Unable to decode log-flags '{}'", log));
+    if let Some(log) = env::boot_var("LOG") {
+        let flags = log
+            .split(',')
+            .map(|flag| {
+                flag.parse()
+                    .unwrap_or_else(|_| panic!("Unable to decode log-flag '{}'", flag))
+            })
+            .collect();
         LOG_FLAGS.set(flags);
     }
 }
