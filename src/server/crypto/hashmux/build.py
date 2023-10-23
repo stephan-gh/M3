@@ -1,7 +1,9 @@
 def build(gen, env):
     features = []
+    if False:  # Not used by default at the moment
+        features = ['kecacc/backend-rust']
     # FIXME: Enable hardware accelerator on "hw" target
-    if env['TGT'] != 'gem5':
+    elif env['TGT'] != 'gem5':
         features = ['kecacc/backend-xkcp']
 
     # libkecacc-xkcp is only needed if the hardware accelerator is not available

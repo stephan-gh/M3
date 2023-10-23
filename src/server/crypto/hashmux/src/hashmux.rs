@@ -67,8 +67,9 @@ static BUF1: StaticRefCell<AlignedBuf<BUFFER_SIZE>> = StaticRefCell::new(Aligned
 static BUF2: StaticRefCell<AlignedBuf<BUFFER_SIZE>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
 // Memory region used to save/load states of the accelerator for context switches
+const EMPTY_STATE: KecAccState = KecAccState::new();
 static STATES: StaticRefCell<[KecAccState; MAX_SESSIONS]> =
-    StaticRefCell::new([KecAccState::new(); MAX_SESSIONS]);
+    StaticRefCell::new([EMPTY_STATE; MAX_SESSIONS]);
 
 /// Amount of bytes that may be directly returned as part of the TCU reply.
 /// Must also fit into [`MsgBuf::borrow_def()`].
