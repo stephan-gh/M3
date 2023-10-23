@@ -22,10 +22,10 @@ pub mod math;
 pub mod parse;
 pub mod random;
 
+use core::ffi::CStr;
 use core::intrinsics;
 use core::slice;
 
-use crate::libc;
 use crate::mem;
 
 /// Converts the given C string into a string slice
@@ -34,9 +34,13 @@ use crate::mem;
 ///
 /// This function assumes that `s` points to a permanently valid and null-terminated C string
 pub unsafe fn cstr_to_str(s: *const i8) -> &'static str {
-    let len = libc::strlen(s);
-    let sl = slice::from_raw_parts(s, len + 1);
-    &*(&sl[..sl.len() - 1] as *const [i8] as *const str)
+    unsafe { CStr::from_ptr(s.cast()) }.to_str().unwrap()
+}
+
+/// Converts the given C string into a string slice. If the string is not null-terminated,
+/// the function will panic.
+pub fn cstr_slice_to_str(s: &[u8]) -> &str {
+    CStr::from_bytes_until_nul(s).unwrap().to_str().unwrap()
 }
 
 /// Creates a slice of `T`s for the given address range

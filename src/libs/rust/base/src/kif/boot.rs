@@ -47,7 +47,7 @@ pub struct Mod {
     pub addr: u64,
     /// The size of the module
     pub size: u64,
-    name: [i8; MAX_MODNAME_LEN],
+    name: [u8; MAX_MODNAME_LEN],
 }
 
 impl Mod {
@@ -59,9 +59,7 @@ impl Mod {
             size,
             name: [0; MAX_MODNAME_LEN],
         };
-        for (a, c) in m.name.iter_mut().zip(name.bytes()) {
-            *a = c as i8;
-        }
+        m.name[..name.len()].copy_from_slice(name.as_bytes());
         m.name[name.len()] = 0;
         m
     }
@@ -73,8 +71,7 @@ impl Mod {
 
     /// Returns the name and arguments of the module
     pub fn name(&self) -> &str {
-        // safety: we trust our loader
-        unsafe { util::cstr_to_str(self.name.as_ptr()) }
+        util::cstr_slice_to_str(&self.name)
     }
 }
 
@@ -179,7 +176,7 @@ impl fmt::Debug for Mem {
 #[derive(Default, Copy, Clone)]
 pub struct Service {
     sessions: u32,
-    name: [i8; MAX_SERVNAME_LEN],
+    name: [u8; MAX_SERVNAME_LEN],
 }
 
 impl Service {
@@ -190,9 +187,7 @@ impl Service {
             sessions,
             name: [0; MAX_SERVNAME_LEN],
         };
-        for (a, c) in m.name.iter_mut().zip(name.bytes()) {
-            *a = c as i8;
-        }
+        m.name[..name.len()].copy_from_slice(name.as_bytes());
         m.name[name.len()] = 0;
         m
     }
@@ -203,8 +198,7 @@ impl Service {
 
     /// Returns the name of the service
     pub fn name(&self) -> &str {
-        // safety: we trust our loader
-        unsafe { util::cstr_to_str(self.name.as_ptr()) }
+        util::cstr_slice_to_str(&self.name)
     }
 }
 
