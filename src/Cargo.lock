@@ -108,6 +108,7 @@ name = "hashmux"
 version = "0.1.0"
 dependencies = [
  "base",
+ "kecacc",
  "m3",
 ]
 
@@ -177,6 +178,13 @@ dependencies = [
  "lang",
  "num_enum",
  "paging",
+]
+
+[[package]]
+name = "kecacc"
+version = "0.1.0"
+dependencies = [
+ "base",
 ]
 
 [[package]]

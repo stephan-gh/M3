@@ -1,4 +1,5 @@
 dirs = [
+    'kecacc',
     'kecacc-xkcp',
 ]
 

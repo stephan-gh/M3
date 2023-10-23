@@ -12,8 +12,8 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::StaticRefCell;
-use m3::mem;
+use base::cell::StaticRefCell;
+use base::mem;
 
 const STATE_SIZE64: usize = 256 / mem::size_of::<u64>();
 

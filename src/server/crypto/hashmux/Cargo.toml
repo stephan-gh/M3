@@ -10,9 +10,4 @@ crate-type = ["staticlib"]
 [dependencies]
 base = { path = "../../../libs/rust/base" }
 m3 = { path = "../../../libs/rust/m3" }
-
-[features]
-default = []
-gem5 = []
-hw = []
-hw22 = []
+kecacc = { path = "../../../libs/crypto/kecacc" }

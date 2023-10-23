@@ -1,0 +1,13 @@
+[package]
+name = "kecacc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base = { path = "../../../libs/rust/base" }
+
+[features]
+default = []
+gem5 = []
+hw = []
+hw22 = []

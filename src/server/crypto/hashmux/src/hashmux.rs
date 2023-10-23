@@ -14,17 +14,6 @@
 
 #![no_std]
 
-// Choose between using hardware accelerator vs software fallback using XKCP.
-// Note that this is a compile-time choice currently, the XKCP increases the
-// binary size of HashMux by about 200 KiB.
-// FIXME: Enable hardware accelerator on "hw" target
-#[cfg(feature = "gem5")]
-mod kecacc;
-
-#[cfg(not(feature = "gem5"))]
-#[path = "kecacc-xkcp.rs"]
-mod kecacc;
-
 use base::const_assert;
 
 use core::cmp::min;
@@ -46,7 +35,7 @@ use m3::server::{
 use m3::tcu::{EpId, Message, TCU};
 use m3::time::{TimeDuration, TimeInstant};
 
-use crate::kecacc::{KecAcc, KecAccState};
+use kecacc::{KecAcc, KecAccState};
 
 /// Size of the two SRAMs used as temporary buffer for TCU transfers
 /// and the accelerator.
