@@ -15,13 +15,12 @@
 #![no_std]
 
 // Choose between using hardware accelerator vs software fallback using XKCP.
-// Note that this is a compile-time choice currently, the XKCP increases the
-// binary size of HashMux by about 200 KiB.
-// FIXME: Enable hardware accelerator on "hw" target
-#[cfg(feature = "gem5")]
+// Currently this is a compile-time choice using Rust features.
+
+#[cfg(not(feature = "backend-xkcp"))]
 mod kecacc;
 
-#[cfg(not(feature = "gem5"))]
+#[cfg(feature = "backend-xkcp")]
 #[path = "kecacc-xkcp.rs"]
 mod kecacc;
 

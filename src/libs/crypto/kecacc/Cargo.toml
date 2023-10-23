@@ -4,10 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-base = { path = "../../../libs/rust/base" }
+base = { path = "../../../libs/rust/base", optional = true }
 
 [features]
-default = []
-gem5 = []
-hw = []
-hw22 = []
+# backend-kecacc is the default, but can be overridden by specifying one of:
+backend-xkcp = ["dep:base"]
