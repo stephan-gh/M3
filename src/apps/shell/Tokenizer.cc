@@ -90,7 +90,7 @@ std::vector<Token> Tokenizer::tokenize(const char *input) {
 
             case IN_STR:
                 if(c == '"') {
-                    tokens.push_back(Token(input + start, i - start - 1));
+                    tokens.push_back(Token(input + start, i - start));
                     state = DEFAULT;
                     start = i + 1;
                 }
