@@ -428,7 +428,7 @@ fn shake_and_hash_file(t: &mut dyn WvTester) {
 
 const PIPE_SHAKE_SIZE: usize = 256 * 1024; // 256 KiB
 
-// echo Pipe! | hashsum shake128 -O 262144 -o - | hashsum sha3-224
+// echo Pipe! | hashsum shake128 -O 262144 -o - | hashsum sha3-256
 fn shake_and_hash_pipe(t: &mut dyn WvTester) {
     let pipes = wv_assert_ok!(Pipes::new("pipes"));
 
@@ -462,7 +462,7 @@ fn shake_and_hash_pipe(t: &mut dyn WvTester) {
         ipipe.close_writer();
     }
     {
-        // hashsum sha3-224
+        // hashsum sha3-256
         let mut ofile = wv_assert_some!(opipe.reader());
         wv_assert_ok!(ofile.hash_input(&hash, usize::MAX));
         opipe.close_reader();
