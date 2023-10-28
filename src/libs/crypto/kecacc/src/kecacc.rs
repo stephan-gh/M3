@@ -118,6 +118,10 @@ impl KecAcc {
         self.start_cmd(Cmd(CmdType::AbsorbLast as u64));
     }
 
+    pub fn start_absorb_last(&self, buf: &[u8]) {
+        self.start_cmd(Cmd::sponge(CmdType::AbsorbLast, buf));
+    }
+
     pub fn start_squeeze(&self, buf: &mut [u8]) {
         self.start_cmd(Cmd::sponge(CmdType::Squeeze, buf));
     }

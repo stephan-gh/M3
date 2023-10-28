@@ -129,6 +129,11 @@ impl KecAcc {
         };
     }
 
+    pub fn start_absorb_last(&self, buf: &[u8]) {
+        self.start_absorb(buf);
+        self.start_pad();
+    }
+
     pub fn start_squeeze(&self, buf: &mut [u8]) {
         let mut s = self.state.borrow_mut();
         match &mut s.state {
