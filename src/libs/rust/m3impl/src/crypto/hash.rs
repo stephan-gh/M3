@@ -43,17 +43,29 @@ pub enum HashType {
     SHA3_512,
     SHAKE128,
     SHAKE256,
+    CSHAKE128,
+    CSHAKE256,
 }
 
 impl HashAlgorithm {
-    pub const ALL: [&'static HashAlgorithm; 6] = [
+    pub const ALL: [&'static HashAlgorithm; 8] = [
         &Self::SHA3_224,
         &Self::SHA3_256,
         &Self::SHA3_384,
         &Self::SHA3_512,
         &Self::SHAKE128,
         &Self::SHAKE256,
+        &Self::CSHAKE128,
+        &Self::CSHAKE256,
     ];
+    /// cSHAKE128 algorithm, with the assumption that the client will absorb the encoded
+    /// function and customization string itself (e.g. using the extra cshake crate).
+    /// WARNING: Will generate non-compliant output if this is not done.
+    pub const CSHAKE128: HashAlgorithm = Self::new_shake("cshake128", HashType::CSHAKE128, 1344);
+    /// cSHAKE256 algorithm, with the assumption that the client will absorb the encoded
+    /// function and customization string itself (e.g. using the extra cshake crate).
+    /// WARNING: Will generate non-compliant output if this is not done.
+    pub const CSHAKE256: HashAlgorithm = Self::new_shake("cshake256", HashType::CSHAKE256, 1088);
     pub const MAX_OUTPUT_BYTES: usize = 512 / 8;
     pub const SHA3_224: HashAlgorithm = Self::new_sha3("sha3-224", HashType::SHA3_224, 1152, 224);
     pub const SHA3_256: HashAlgorithm = Self::new_sha3("sha3-256", HashType::SHA3_256, 1088, 256);

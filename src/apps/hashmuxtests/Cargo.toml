@@ -9,4 +9,5 @@ crate-type = ["staticlib"]
 
 [dependencies]
 m3 = { path = "../../libs/rust/m3" }
+cshake = { path = "../../libs/crypto/cshake" }
 hex-literal = "0.3.4"

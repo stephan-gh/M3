@@ -75,7 +75,7 @@ struct KeccakHashType {
     uint8_t pad_delim;
 };
 
-constexpr uint8_t HASH_TYPE_COUNT = 7;
+constexpr uint8_t HASH_TYPE_COUNT = 9;
 constexpr KeccakHashType HASH_TYPES[HASH_TYPE_COUNT] = {
     {0,    0x00}, // RESET
     {1152, 0x06}, // SHA3-224
@@ -83,7 +83,9 @@ constexpr KeccakHashType HASH_TYPES[HASH_TYPE_COUNT] = {
     {832,  0x06}, // SHA3-384
     {576,  0x06}, // SHA3-512
     {1344, 0x1F}, // SHAKE128
-    {1088, 0x1F}, // SHAKE128
+    {1088, 0x1F}, // SHAKE256
+    {1344, 0x04}, // cSHAKE128 (with N!="" or S!="")
+    {1088, 0x04}, // cSHAKE256 (with N!="" or S!="")
 };
 
 template<auto KeccakP1600_HandleBytes, auto KeccakF1600_FastLoop, typename B>
