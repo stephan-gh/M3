@@ -12,6 +12,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::sync::atomic;
+
 const STATE_SIZE: usize = 256;
 
 /// Represents a saved state of the KecAcc accelerator.
@@ -89,6 +91,15 @@ impl KecAcc {
 
     pub fn poll_complete(&self) {
         while self.is_busy() {}
+    }
+
+    pub fn poll_complete_barrier(&self) {
+        self.poll_complete();
+
+        // Make sure the accelerator is actually done and has written back
+        // its result. Without this computing a SHA3-512 hash on x86_64 returns
+        // the previous contents of the buffer instead of the generated hash.
+        atomic::fence(atomic::Ordering::SeqCst);
     }
 
     fn start_cmd(&self, cmd: Cmd) {

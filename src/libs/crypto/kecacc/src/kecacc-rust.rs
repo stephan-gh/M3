@@ -77,6 +77,11 @@ impl KecAcc {
         while self.is_busy() {}
     }
 
+    pub fn poll_complete_barrier(&self) {
+        self.poll_complete()
+        // No need for memory barrier because no hardware is involved
+    }
+
     pub fn start_init(&self, hash_type: u8) {
         let mut s = self.state.borrow_mut();
         match hash_type {

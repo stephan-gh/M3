@@ -17,7 +17,6 @@
 use base::const_assert;
 
 use core::cmp::min;
-use core::sync::atomic;
 
 use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
 use m3::col::{Vec, VecDeque};
@@ -429,12 +428,7 @@ impl HashSession {
 
         KECACC.start_pad();
         KECACC.start_squeeze(buf);
-        KECACC.poll_complete();
-
-        // Make sure the accelerator above is actually done and has written back
-        // its result. Without this computing a SHA3-512 hash on x86_64 returns
-        // the previous contents of the buffer instead of the generated hash.
-        atomic::fence(atomic::Ordering::SeqCst);
+        KECACC.poll_complete_barrier();
         msg.set_from_slice(buf);
 
         req.reply_msg(msg, req_rgate);
