@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-base = { path = "../../../libs/rust/base", optional = true }
+base = { path = "../../../libs/rust/base" }
 sha3 = { version = "0.10.8", default-features = false, optional = true }
 
 [features]
 # backend-kecacc is the default, but can be overridden by specifying one of:
-backend-xkcp = ["dep:base"]
-backend-rust = ["dep:base", "dep:sha3"]
+backend-xkcp = []
+backend-rust = ["dep:sha3"]

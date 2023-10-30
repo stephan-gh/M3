@@ -12,6 +12,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::crypto::HashType;
 use core::sync::atomic;
 
 const STATE_SIZE: usize = 256;
@@ -109,8 +110,8 @@ impl KecAcc {
         }
     }
 
-    pub fn start_init(&self, hash_type: u8) {
-        self.start_cmd(Cmd::init(hash_type));
+    pub fn start_init(&self, hash_type: HashType) {
+        self.start_cmd(Cmd::init(hash_type as u8));
     }
 
     pub fn start_load(&self, state: &KecAccState) {

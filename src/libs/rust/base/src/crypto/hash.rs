@@ -37,7 +37,8 @@ pub struct HashAlgorithm {
 #[repr(usize)]
 pub enum HashType {
     // Note: Must match the order in HashAlgorithm::ALL
-    SHA3_224 = 1,
+    NONE,
+    SHA3_224,
     SHA3_256,
     SHA3_384,
     SHA3_512,

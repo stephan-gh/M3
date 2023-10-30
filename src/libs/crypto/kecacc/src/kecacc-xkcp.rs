@@ -13,6 +13,7 @@
  */
 
 use base::cell::StaticRefCell;
+use base::crypto::HashType;
 use base::mem;
 
 const STATE_SIZE64: usize = 256 / mem::size_of::<u64>();
@@ -74,9 +75,12 @@ impl KecAcc {
         // No need for memory barrier because no hardware is involved
     }
 
-    pub fn start_init(&self, hash_type: u8) {
+    pub fn start_init(&self, hash_type: HashType) {
         unsafe {
-            assert!(kecacc_init(self.state.borrow_mut().as_mut_ptr(), hash_type));
+            assert!(kecacc_init(
+                self.state.borrow_mut().as_mut_ptr(),
+                hash_type as u8
+            ));
         }
     }
 

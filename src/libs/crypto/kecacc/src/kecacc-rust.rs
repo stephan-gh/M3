@@ -13,6 +13,7 @@
  */
 
 use base::cell::StaticRefCell;
+use base::crypto::HashType;
 use base::mem;
 use sha3::digest::{ExtendableOutput, FixedOutput, Output, Update, XofReader};
 use Sha3State::*;
@@ -82,17 +83,17 @@ impl KecAcc {
         // No need for memory barrier because no hardware is involved
     }
 
-    pub fn start_init(&self, hash_type: u8) {
+    pub fn start_init(&self, hash_type: HashType) {
         let mut s = self.state.borrow_mut();
         match hash_type {
-            0x0 => s.state = Reset,
-            0x1 => s.state = Sha3_224(sha3::Sha3_224::default()),
-            0x2 => s.state = Sha3_256(sha3::Sha3_256::default()),
-            0x3 => s.state = Sha3_384(sha3::Sha3_384::default()),
-            0x4 => s.state = Sha3_512(sha3::Sha3_512::default()),
-            0x5 => s.state = Shake128(sha3::Shake128::default()),
-            0x6 => s.state = Shake256(sha3::Shake256::default()),
-            _ => panic!("Invalid hash type: {}", hash_type),
+            HashType::NONE => s.state = Reset,
+            HashType::SHA3_224 => s.state = Sha3_224(sha3::Sha3_224::default()),
+            HashType::SHA3_256 => s.state = Sha3_256(sha3::Sha3_256::default()),
+            HashType::SHA3_384 => s.state = Sha3_384(sha3::Sha3_384::default()),
+            HashType::SHA3_512 => s.state = Sha3_512(sha3::Sha3_512::default()),
+            HashType::SHAKE128 => s.state = Shake128(sha3::Shake128::default()),
+            HashType::SHAKE256 => s.state = Shake256(sha3::Shake256::default()),
+            _ => panic!("Unsupported hash type: {:?}", hash_type),
         }
     }
 
