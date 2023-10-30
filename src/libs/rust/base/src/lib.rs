@@ -61,6 +61,7 @@ pub mod backtrace;
 pub mod cell;
 pub mod cfg;
 pub mod col;
+pub mod crypto;
 pub mod elf;
 pub mod env;
 pub mod errors;

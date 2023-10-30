@@ -27,16 +27,15 @@ pub mod com;
 pub mod net;
 
 pub use base::{
-    backtrace, borrow, boxed, build_vmsg, cell, cfg, col, cpu, elf, errors, format, function,
-    impl_boxitem, kif, libc, log, mem, quota, rc, serde, serialize, sync, tcu, time, tmif, util,
-    vec,
+    backtrace, borrow, boxed, build_vmsg, cell, cfg, col, cpu, crypto, elf, errors, format,
+    function, impl_boxitem, kif, libc, log, mem, quota, rc, serde, serialize, sync, tcu, time,
+    tmif, util, vec,
 };
 
 pub mod cap;
 pub mod client;
 #[cfg(not(feature = "linux"))]
 pub mod compat;
-pub mod crypto;
 pub mod env;
 pub mod server;
 pub mod syscalls;
