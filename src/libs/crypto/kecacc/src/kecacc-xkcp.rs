@@ -20,7 +20,7 @@ const STATE_SIZE64: usize = 256 / mem::size_of::<u64>();
 
 /// Represents the state of the KecAcc accelerator.
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct KecAccState {
     data: [u64; STATE_SIZE64],
 }

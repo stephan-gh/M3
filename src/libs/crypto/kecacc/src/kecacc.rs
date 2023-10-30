@@ -18,7 +18,7 @@ use core::sync::atomic;
 const STATE_SIZE: usize = 256;
 
 /// Represents a saved state of the KecAcc accelerator.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[repr(align(256))]
 pub struct KecAccState {
     data: [u8; STATE_SIZE],
