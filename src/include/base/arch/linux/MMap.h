@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Nils Asmussen, Barkhausen Institut
+ * Copyright (C) 2023 Nils Asmussen, Barkhausen Institut
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
  *
@@ -13,10 +13,21 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Env.h>
+#pragma once
 
-EXTERN_C NORETURN void __m3c_exit(m3::Errors::Code status, bool abort) {
-    if(!abort)
-        m3::deinit();
-    m3::__exit(status);
+#include <base/Common.h>
+#include <base/KIF.h>
+
+namespace m3lx {
+
+enum MemType {
+    TCU,
+    Environment,
+    StdRecvBuf,
+    Custom,
+};
+
+void mmap_tcu(int fd, void *addr, size_t size, MemType type, uint perm);
+void munmap_tcu(void *addr, size_t size);
+
 }

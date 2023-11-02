@@ -29,10 +29,17 @@
 
 using namespace m3;
 
+// TODO workaround until "compat" respects the multiplexer
+#if defined(__m3lx__)
+static const char *CHILD_TILE = "own";
+#else
+static const char *CHILD_TILE = "compat|own";
+#endif
+
 NOINLINE static void creation() {
     Profile pr(4, 2);
 
-    auto tile = Tile::get("core|own");
+    auto tile = Tile::get(CHILD_TILE);
     WVPERF("Activity creation", pr.run<CycleInstant>([&tile] {
         ChildActivity act(tile, "hello");
     }));
@@ -46,7 +53,7 @@ NOINLINE static void run() {
     rgate.activate();
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
 
-    auto tile = Tile::get("compat|own");
+    auto tile = Tile::get(CHILD_TILE);
     Results<CycleDuration> res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         ChildActivity act(tile, "hello");
@@ -68,13 +75,12 @@ NOINLINE static void run() {
             return 0;
         });
 
-        if(act.wait() == 0) {
-            auto reply = receive_msg(rgate);
-            cycles_t time;
-            reply >> time;
-            if(i >= warmup)
-                res.push(CycleDuration::from_raw(time));
-        }
+        auto reply = receive_msg(rgate);
+        cycles_t time;
+        reply >> time;
+        if(i >= warmup)
+            res.push(CycleDuration::from_raw(time));
+        WVASSERTEQ(act.wait(), 0);
     }
 
     WVPERF("Activity run", res);
@@ -83,7 +89,7 @@ NOINLINE static void run() {
 NOINLINE static void run_wait() {
     Profile pr(4, 2);
 
-    auto tile = Tile::get("compat|own");
+    auto tile = Tile::get(CHILD_TILE);
     WVPERF("Activity run wait", pr.run<CycleInstant>([&tile] {
         ChildActivity act(tile, "hello");
         act.run([]() {
@@ -93,6 +99,7 @@ NOINLINE static void run_wait() {
     }));
 }
 
+#if !defined(__m3lx__)
 NOINLINE static void exec() {
     Profile pr(4, 2);
 
@@ -104,10 +111,13 @@ NOINLINE static void exec() {
         act.wait();
     }));
 }
+#endif
 
 void bactivity() {
     RUN_BENCH(creation);
     RUN_BENCH(run);
     RUN_BENCH(run_wait);
+#if !defined(__m3lx__)
     RUN_BENCH(exec);
+#endif
 }

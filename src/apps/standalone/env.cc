@@ -13,6 +13,8 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/arch/m3/Init.h>
+
 #include "common.h"
 
 using namespace m3;

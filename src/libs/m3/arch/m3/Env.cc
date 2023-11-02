@@ -16,6 +16,7 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/arch/m3/Init.h>
 #include <base/Common.h>
 #include <base/TMIF.h>
 #include <base/stream/Serial.h>

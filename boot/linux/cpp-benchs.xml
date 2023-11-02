@@ -1,0 +1,35 @@
+<config>
+    <env>M3_HW_M3LX=1</env>
+    <mods>
+        <mod name="fs" file="bench.img" />
+        <mod name="bbl" file="bbl" />
+        <mod name="initrd" file="rootfs.cpio" />
+        <mod name="dtb" file="m3lx.dtb" />
+    </mods>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem" daemon="1">
+                    <serv name="m3fs" />
+                    <mod name="fs" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager">
+                    <sess name="m3fs" />
+                    <mod name="fs" perm="r" />
+                    <mod name="bbl" perm="r" />
+                    <mod name="initrd" perm="r" />
+                    <mod name="dtb" perm="r" />
+                    <tiles type="boom+nic|core" count="1" />
+                    <dom tile="boom+nic|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb">
+                        <app args="/lxcppbenchs">
+                            <mount fs="m3fs" path="/" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>

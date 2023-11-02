@@ -236,7 +236,7 @@ private:
 
     void do_exec(int argc, const char *const *argv, const char *const *envp, uintptr_t func_addr);
     void load_segment(ElfPh &pheader, char *buffer);
-    size_t load(Env *env, int argc, const char *const *argv, const char *const *envp, char *buffer);
+    uintptr_t load(char *buffer);
     void clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest);
     size_t serialize_state(Env &senv, char *buffer, size_t offset);
     size_t store_arguments(char *begin, char *buffer, int argc, const char *const *argv);

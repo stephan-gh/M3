@@ -18,6 +18,9 @@
 
 #pragma once
 
+#if defined(__m3lx__)
+#   include <base/arch/linux/Init.h>
+#endif
 #include <base/Common.h>
 #include <base/Config.h>
 #include <base/Errors.h>
@@ -104,11 +107,14 @@ public:
 #define ENV_SPACE_END   (ENV_SPACE_START + ENV_SPACE_SIZE)
 
 static inline BootEnv *bootenv() {
+#if defined(__m3lx__)
+    // without further measures, the linker does not include the m3lx-specific initialization. as a
+    // workaround we call a function of that compilation unit here when we are referring to one of
+    // the mappings. as the TCU (needing the other mapping) also calls this function, this seems
+    // good enough.
+    (void)m3lx::tcu_fd();
+#endif
     return reinterpret_cast<BootEnv *>(ENV_START);
 }
-
-extern std::pair<int, char **> init(bool tls = true);
-extern void deinit();
-NORETURN extern void __exit(int code);
 
 }

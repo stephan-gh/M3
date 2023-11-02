@@ -216,6 +216,15 @@ class M3Env(Env):
             env.install(gen, outdir=env['RUSTLIBS'], input=o)
         return outs
 
+    def lx_exe(self, gen, out, ins, libs=[], dir='bin'):
+        env = self.clone()
+        env['LIBPATH'] += [env['LXLIBDIR']]
+
+        libs = ['base-lx', 'm3-lx', 'thread', 'gem5'] + libs
+        bin = env.cxx_exe(gen, out, ins, libs, [])
+        env.install(gen, env['RUSTBINS'], bin)
+        return bin
+
     def lx_cargo_ws(self, gen, outs):
         env = self.clone()
 
@@ -276,6 +285,7 @@ class M3Env(Env):
 env = M3Env()
 
 env['CPPPATH'] += ['src/include']
+env['ASFLAGS'] += ['-Wl,-W', '-Wall', '-Wextra']
 env['CFLAGS'] += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CXXFLAGS'] += ['-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CPPFLAGS'] += ['-U_FORTIFY_SOURCE']
@@ -300,6 +310,19 @@ else:
 if btype == 'bench':
     env['CPPFLAGS'] += ['-Dbench']
 
+# add some important paths
+builddir = 'build/' + target + '-' + isa + '-' + btype
+env['TGT'] = target
+env['ISA'] = isa
+env['BUILD'] = btype
+env['BUILDDIR'] = builddir
+env['BINDIR'] = builddir + '/bin'
+env['LIBDIR'] = builddir + '/bin'
+env['LXLIBDIR'] = builddir + '/lxlib'
+env['MEMDIR'] = builddir + '/mem'
+env['TOOLDIR'] = builddir + '/toolsbin'
+env['RUSTLIBS'] = builddir + '/rust/libs'
+
 # for host compilation
 hostenv = env.clone()
 hostenv['CXXFLAGS'] += ['-std=c++11']
@@ -309,17 +332,10 @@ if btype == 'release':
     hostenv.remove_flag('CFLAGS', '-flto')
     hostenv.remove_flag('LINKFLAGS', '-flto')
 
-# for linux compilation
-lxenv = env.clone()
-lxenv['TGT'] = target
-lxenv['ISA'] = isa
-lxenv['BUILD'] = btype
-lxenv['CPPPATH'] = []
-lxenv['TRIPLE'] = 'riscv64gc-unknown-linux-gnu'
-
-env.hostenv = hostenv
-
 # for target compilation
+env['CROSS'] = cross
+env['CROSSDIR'] = crossdir
+env['CROSSVER'] = crossver
 env['CXX'] = cross + 'g++'
 env['CPP'] = cross + 'cpp'
 env['AS'] = cross + 'gcc'
@@ -327,40 +343,31 @@ env['CC'] = cross + 'gcc'
 env['AR'] = cross + 'gcc-ar'
 env['RANLIB'] = cross + 'gcc-ranlib'
 env['STRIP'] = cross + 'strip'
+env['SHLINK'] = cross + 'gcc'
 
+# basic flags for target compilation
+env['CPPFLAGS'] += ['-D__' + target + '__']
+env['CFLAGS'] += ['-gdwarf-2', '-fno-stack-protector', '-ffunction-sections', '-fdata-sections']
 env['CXXFLAGS'] += [
-    '-std=c++20', '-ffreestanding', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
-    '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member',
+    '-std=c++20', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
+    '-fno-stack-protector', '-Wno-address-of-packed-member',
     '-ffunction-sections', '-fdata-sections'
 ]
-env['CPPFLAGS'] += ['-D__' + target + '__', '-D_GNU_SOURCE']
-env['CFLAGS'] += ['-gdwarf-2', '-fno-stack-protector', '-ffunction-sections', '-fdata-sections']
-env['ASFLAGS'] += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS'] += ['-Wl,--gc-section', '-Wno-lto-type-mismatch', '-fno-stack-protector']
-env['TRIPLE'] = rustisa + '-linux-m3-' + rustabi
 
-# add some important paths
-builddir = 'build/' + target + '-' + isa + '-' + btype
-env['TGT'] = target
-env['ISA'] = isa
-env['BUILD'] = btype
-env['BUILDDIR'] = builddir
-env['BINDIR'] = builddir + '/bin'
-env['LIBDIR'] = builddir + '/bin'
-env['MEMDIR'] = builddir + '/mem'
-env['TOOLDIR'] = builddir + '/toolsbin'
-env['RUSTLIBS'] = builddir + '/rust/libs'
-env['CROSS'] = cross
-env['CROSSDIR'] = crossdir
-env['CROSSVER'] = crossver
-hostenv['TOOLDIR'] = env['TOOLDIR']
-hostenv['BINDIR'] = env['BINDIR']
-hostenv['BUILDDIR'] = env['BUILDDIR']
-lxenv['RUSTLIBS'] = env['RUSTLIBS']
+# for linux compilation
+lxenv = env.clone()
+lxenv['CPPFLAGS'] += ['-D__m3lx__']
+lxenv['TRIPLE'] = 'riscv64gc-unknown-linux-gnu'
 lxenv['RUSTOUT'] = 'm3lx'
 lxenv['RUSTBINS'] = builddir + '/lxbin'
 
-# add arch-dependent stuff to env
+env.hostenv = hostenv
+
+# m3-specific settings
+env['CXXFLAGS'] += ['-ffreestanding', '-fno-threadsafe-statics']
+env['CPPFLAGS'] += ['-D_GNU_SOURCE']
+env['TRIPLE'] = rustisa + '-linux-m3-' + rustabi
 if isa == 'x86_64':
     # disable red-zone for all applications, because we used the application's stack in rctmux's
     # IRQ handlers since applications run in privileged mode. TODO can we enable that now?

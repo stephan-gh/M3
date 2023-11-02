@@ -6,9 +6,6 @@ def build(gen, env):
     files = ['Thread.cc', 'ThreadManager.cc']
     files += ['isa/' + env['ISA'] + '/ThreadSwitch.S']
     files += ['isa/' + env['ISA'] + '/Thread.cc']
-    lib = env.static_lib(
-        gen,
-        out='thread',
-        ins=files
-    )
+    lib = env.static_lib(gen, out='thread', ins=files)
     env.install(gen, env['LIBDIR'], lib)
+    env.install(gen, env['LXLIBDIR'], lib)

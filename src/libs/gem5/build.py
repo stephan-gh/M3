@@ -3,6 +3,7 @@ def build(gen, env):
 
     lib = env.static_lib(gen, out='gem5', ins=files)
     env.install(gen, env['LIBDIR'], lib)
+    env.install(gen, env['LXLIBDIR'], lib)
 
     sf_env = env.clone()
     sf_env.soft_float()

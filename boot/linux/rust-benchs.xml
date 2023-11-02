@@ -24,7 +24,7 @@
                     <mod name="dtb" perm="r" />
                     <tiles type="boom+nic|core" count="1" />
                     <dom tile="boom+nic|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb">
-                        <app args="/lxbench">
+                        <app args="/lxrustbenchs">
                             <mount fs="m3fs" path="/" />
                         </app>
                     </dom>

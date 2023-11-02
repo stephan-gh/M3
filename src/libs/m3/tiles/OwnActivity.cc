@@ -16,6 +16,9 @@
  * General Public License version 2 for more details.
  */
 
+#if defined(__m3lx__)
+#   include <base/arch/linux/Init.h>
+#endif
 #include <base/Init.h>
 
 #include <m3/session/ResMng.h>
@@ -36,6 +39,10 @@ OwnActivity::OwnActivity()
       _epmng(*this),
       _ms(),
       _fds() {
+#if defined(__m3lx__)
+    // ensure that the compilation unit that potentially calls a lambda is linked in
+    m3lx::lambda_dummy();
+#endif
     init_state();
     init_fs();
 

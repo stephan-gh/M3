@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2022 Nils Asmussen, Barkhausen Institut
+ * Copyright (C) 2023 Nils Asmussen, Barkhausen Institut
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
  *
@@ -13,25 +13,16 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/m3/Init.h>
-#include <base/stream/Serial.h>
+#pragma once
 
-using namespace m3;
-
-extern "C" int main(int argc, char **argv);
-
-extern "C" void env_run() {
-    const auto [argc, argv] = init(false);
-    Serial::init("axieth", TileId::from_raw(bootenv()->tile_id));
-
-    int res = main(argc, argv);
-
-    deinit();
-    ::exit(res);
-}
+#include <base/Common.h>
+#include <utility>
 
 namespace m3 {
-NORETURN void __exit(int) {
-    Machine::shutdown();
-}
+
+extern std::pair<int, char **> init(bool tls = true);
+extern void deinit();
+
+NORETURN extern void __exit(int code);
+
 }

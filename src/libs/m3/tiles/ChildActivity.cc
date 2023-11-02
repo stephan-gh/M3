@@ -21,6 +21,7 @@
 #include <m3/Syscalls.h>
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
+#include <m3/stream/Standard.h>
 #include <m3/tiles/ChildActivity.h>
 #include <m3/tiles/OwnActivity.h>
 #include <m3/vfs/File.h>
@@ -164,10 +165,38 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
     Activity::own().files()->delegate(*this);
     Activity::own().mounts()->delegate(*this);
 
-    // we need a new session to be able to get memory mappings
-    _exec = std::make_unique<FStream>(argv[0], FILE_RWX | FILE_NEWSESS);
+    // if TileMux is running on that tile, we have control about the activity's virtual address
+    // space and can thus load the program into the address space
+    if(_tile->mux_type() == KIF::Syscall::MuxType::TILE_MUX) {
+        // we need a new session to be able to get memory mappings
+        _exec = std::make_unique<FStream>(argv[0], FILE_RWX | FILE_NEWSESS);
 
-    size_t size = load(&senv, argc, argv, envp, buffer.get());
+        senv.entry = load(buffer.get());
+    }
+    else {
+        // otherwise (e.g., for M³Linux) we simply don't load the program. In case of M³Linux, this
+        // happens afterwards on Linux by performing a fork and exec with the arguments from the
+        // environment.
+        senv.entry = 0;
+    }
+
+    char *cur_buf = buffer.get();
+    size_t size = store_arguments(cur_buf, cur_buf, argc, argv);
+
+    const char *const *envvars = envp ? envp : EnvVars::vars();
+    int var_count = 0;
+    const char *const *envvarsp = envvars;
+    while(envvarsp && *envvarsp++)
+        var_count++;
+
+    if(var_count > 0) {
+        size = Math::round_up(size, sizeof(uint64_t));
+        char *env_buf = cur_buf + size;
+        senv.envp = ENV_SPACE_START + static_cast<size_t>(env_buf - cur_buf);
+        size += store_arguments(cur_buf, env_buf, var_count, envvars);
+    }
+    else
+        senv.envp = 0;
 
     senv.platform = env()->platform;
     senv.tile_id = 0;
@@ -289,8 +318,7 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
     clear_mem(mem, buffer, pheader.p_memsz - pheader.p_filesz, segoff);
 }
 
-size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const char *const *envp,
-                           char *buffer) {
+uintptr_t ChildActivity::load(char *buffer) {
     /* load and check ELF header */
     ElfEh header;
     if(_exec->read(&header, sizeof(header)).unwrap() != sizeof(header))
@@ -331,25 +359,7 @@ size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const ch
                          Pager::MAP_UNINIT | Pager::MAP_NOLPAGE);
     }
 
-    size_t env_size = store_arguments(buffer, buffer, argc, argv);
-
-    const char *const *envvars = envp ? envp : EnvVars::vars();
-    int var_count = 0;
-    const char *const *envvarsp = envvars;
-    while(envvarsp && *envvarsp++)
-        var_count++;
-
-    if(var_count > 0) {
-        env_size = Math::round_up(env_size, sizeof(uint64_t));
-        char *env_buf = buffer + env_size;
-        env->envp = ENV_SPACE_START + static_cast<size_t>(env_buf - buffer);
-        env_size += store_arguments(buffer, env_buf, var_count, envvars);
-    }
-    else
-        env->envp = 0;
-
-    env->entry = header.e_entry;
-    return env_size;
+    return header.e_entry;
 }
 
 size_t ChildActivity::store_arguments(char *begin, char *buffer, int argc,

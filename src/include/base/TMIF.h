@@ -41,17 +41,60 @@ enum Operation : word_t {
 
 }
 
-#if defined(__x86_64__)
-#    include "arch/x86_64/TMABI.h"
-#elif defined(__arm__)
-#    include "arch/arm/TMABI.h"
-#elif defined(__riscv)
-#    include "arch/riscv/TMABI.h"
+#if defined(__m3lx__)
+#    include "arch/linux/IOCtl.h"
+#    include "arch/linux/Wait.h"
 #else
-#    error "Unsupported ISA"
+#    if defined(__x86_64__)
+#        include "arch/x86_64/TMABI.h"
+#    elif defined(__arm__)
+#        include "arch/arm/TMABI.h"
+#    elif defined(__riscv)
+#        include "arch/riscv/TMABI.h"
+#    else
+#        error "Unsupported ISA"
+#    endif
 #endif
 
 namespace m3 {
+
+#if defined(__m3lx__)
+
+struct TMIF {
+    static Errors::Code wait(epid_t, irq_t, TimeDuration timeout) {
+        m3lx::wait_msg(timeout);
+        return Errors::SUCCESS;
+    }
+
+    NORETURN static Errors::Code exit(Errors::Code code) {
+        if(code == Errors::SUCCESS)
+            ::exit(0);
+        ::exit(1);
+    }
+
+    static Errors::Code xlate_fault(uintptr_t virt, uint perm) {
+        m3lx::tlb_insert_addr(virt, perm);
+        return Errors::SUCCESS;
+    }
+
+    static Errors::Code map(uintptr_t, goff_t, size_t, uint) {
+        return Errors::NOT_SUP;
+    }
+
+    static Errors::Code reg_irq(irq_t) {
+        return Errors::NOT_SUP;
+    }
+
+    static Errors::Code flush_invalidate() {
+        return Errors::NOT_SUP;
+    }
+
+    static Errors::Code init_tls(uintptr_t) {
+        return Errors::NOT_SUP;
+    }
+};
+
+#else
 
 struct TMIF {
     static Errors::Code wait(epid_t ep, irq_t irq, TimeDuration timeout) {
@@ -82,5 +125,7 @@ struct TMIF {
         return TMABI::call2(Operation::INIT_TLS, virt, 0);
     }
 };
+
+#endif
 
 }
