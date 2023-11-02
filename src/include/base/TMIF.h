@@ -62,6 +62,10 @@ struct TMIF {
         return TMABI::call1(Operation::EXIT, static_cast<word_t>(code));
     }
 
+    static Errors::Code xlate_fault(uintptr_t virt, uint perm) {
+        return TMABI::call2(Operation::TRANSL_FAULT, virt, perm);
+    }
+
     static Errors::Code map(uintptr_t virt, goff_t phys, size_t pages, uint perm) {
         return TMABI::call4(Operation::MAP, virt, phys, pages, perm);
     }
