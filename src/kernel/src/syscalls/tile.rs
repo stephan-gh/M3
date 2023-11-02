@@ -239,7 +239,7 @@ pub fn tile_mux_info_async(
     msg: &'static tcu::Message,
 ) -> Result<(), VerboseError> {
     let r: syscalls::TileMuxInfo = get_request(msg)?;
-    sysc_log!(act, "tile_mux_info(tile={}", r.tile);
+    sysc_log!(act, "tile_mux_info(tile={})", r.tile);
 
     let act_caps = act.obj_caps().borrow();
     let tile = get_kobj_ref!(act_caps, r.tile, Tile);
