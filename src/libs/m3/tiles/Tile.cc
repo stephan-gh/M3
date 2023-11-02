@@ -129,6 +129,10 @@ Reference<Tile> Tile::derive(Option<uint> eps, Option<TimeDuration> time, Option
     return Reference<Tile>(new Tile(sel, desc(), 0, false));
 }
 
+KIF::Syscall::MuxType Tile::mux_type() const {
+    return Syscalls::tile_mux_info(sel());
+}
+
 std::tuple<Quota<uint>, Quota<TimeDuration>, Quota<size_t>> Tile::quota() const {
     return Syscalls::tile_quota(sel());
 }

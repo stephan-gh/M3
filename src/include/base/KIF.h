@@ -409,7 +409,7 @@ struct KIF {
             xfer_t mux_mem_sel;
         } PACKED;
 
-        enum TileMuxType {
+        enum MuxType {
             TILE_MUX,
             LINUX,
         };

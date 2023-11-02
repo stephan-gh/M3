@@ -367,7 +367,7 @@ void Syscalls::tile_set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool ove
     send_receive_throw(req_buf);
 }
 
-KIF::Syscall::TileMuxType Syscalls::tile_mux_info(capsel_t tile) {
+KIF::Syscall::MuxType Syscalls::tile_mux_info(capsel_t tile) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::TileMuxInfo>();
     req.opcode = KIF::Syscall::TILE_MUX_INFO;
@@ -378,7 +378,7 @@ KIF::Syscall::TileMuxType Syscalls::tile_mux_info(capsel_t tile) {
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::SUCCESS)
         throw SyscallException(res, static_cast<KIF::Syscall::Operation>(req.opcode));
-    return static_cast<KIF::Syscall::TileMuxType>(reply->type);
+    return static_cast<KIF::Syscall::MuxType>(reply->type);
 }
 
 void Syscalls::tile_mem(capsel_t dst, capsel_t tile) {

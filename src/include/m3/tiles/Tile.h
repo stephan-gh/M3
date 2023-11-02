@@ -105,6 +105,11 @@ public:
                            Option<size_t> pts = None);
 
     /**
+     * @return the multiplexer type that runs on this tile
+     */
+    KIF::Syscall::MuxType mux_type() const;
+
+    /**
      * @return the description of the tile
      */
     const TileDesc &desc() const noexcept {
