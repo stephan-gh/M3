@@ -506,6 +506,15 @@ case "$cmd" in
         "$tooldir/gem5log" "$M3_ISA" trace "${paths[@]}" | less
         ;;
 
+    tracelx=*)
+        paths=("build/linux/vmlinux" "build/riscv-pk/bbl")
+        names=${cmd#tracelx=}
+        for f in ${names//,/ }; do
+            paths=("${paths[@]}" "$build/lxbin/$f+0x2AAAAAA000")
+        done
+        "$tooldir/gem5log" "$M3_ISA" trace "${paths[@]}" | less
+        ;;
+
     flamegraph=*)
         paths=()
         names=${cmd#flamegraph=}
