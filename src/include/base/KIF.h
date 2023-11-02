@@ -183,8 +183,8 @@ struct KIF {
             TILE_QUOTA,
             TILE_SET_QUOTA,
             TILE_SET_PMP,
-            TILE_MUX_INFO,
             TILE_MEM,
+            TILE_MUX_INFO,
             TILE_RESET,
             SEM_CTRL,
 
