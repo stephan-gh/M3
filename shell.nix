@@ -6,7 +6,7 @@ let
 	generalInputs = [ git gawk openssh which rsync wget cpio ];
 
 	# building gem5
-	gem5Inputs = [ scons gcc python3 zlib.dev protobuf gnum4 ];
+	gem5Inputs = [ scons gcc python3 zlib.dev protobuf gnum4 python310Packages.pydot ];
 
 	# building the C cross compiler
 	crossInputs = [ gcc python3 perl unzip bc flock ] ++
