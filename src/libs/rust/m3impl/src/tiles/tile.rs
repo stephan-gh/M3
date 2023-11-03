@@ -180,14 +180,28 @@ impl Tile {
                     }
                 },
                 "clone" => {
-                    if let Ok(tile) = Self::new_with(own.desc(), args) {
-                        return Ok(tile);
+                    // on m3lx, we don't support "clone", because the required semantics are
+                    // difficult to support. At first, being a clone requires to have the same
+                    // multiplexer type, i.e., Linux again. And the semantics of Tile::get("clone")
+                    // are that we get a new tile for ourself, which would require us to boot up a
+                    // new Linux instance. This takes simply too long to do that dynamically, IMO.
+                    // Therefore, the most sensible way to handle "clone" on m3lx is to let it
+                    // always fail. Meaning, applications should provide "own" as a fallback.
+                    #[cfg(not(feature = "linux"))]
+                    {
+                        if let Ok(tile) = Self::new_with(own.desc(), args) {
+                            return Ok(tile);
+                        }
                     }
                 },
                 "compat" => {
-                    let type_isa = TileDesc::new(own.desc().tile_type(), own.desc().isa(), 0);
-                    if let Ok(tile) = Self::new_with(type_isa, args) {
-                        return Ok(tile);
+                    // same as for "clone"
+                    #[cfg(not(feature = "linux"))]
+                    {
+                        let type_isa = TileDesc::new(own.desc().tile_type(), own.desc().isa(), 0);
+                        if let Ok(tile) = Self::new_with(type_isa, args) {
+                            return Ok(tile);
+                        }
                     }
                 },
                 p => {

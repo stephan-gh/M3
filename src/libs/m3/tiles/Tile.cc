@@ -96,19 +96,31 @@ Reference<Tile> Tile::get(const char *desc, bool init) {
                 return own;
         }
         else if(strcmp(props, "clone") == 0) {
+            // on m3lx, we don't support "clone", because the required semantics are difficult to
+            // support. At first, being a clone requires to have the same multiplexer type, i.e.,
+            // Linux again. And the semantics of Tile::get("clone") are that we get a new tile for
+            // ourself, which would require us to boot up a new Linux instance. This takes simply
+            // too long to do that dynamically, IMO. Therefore, the most sensible way to handle
+            // "clone" on m3lx is to let it always fail. Meaning, applications should provide "own"
+            // as a fallback.
+#if !defined(__m3lx__)
             try {
                 return Tile::alloc(own->desc(), init);
             }
             catch(...) {
             }
+#endif
         }
         else if(strcmp(props, "compat") == 0) {
+            // same as for "clone"
+#if !defined(__m3lx__)
             try {
                 auto type_isa = TileDesc(own->desc().type(), own->desc().isa(), 0);
                 return Tile::alloc(type_isa, init);
             }
             catch(...) {
             }
+#endif
         }
         else {
             auto base = TileDesc(own->desc().type(), own->desc().isa(), 0);
