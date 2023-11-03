@@ -410,6 +410,7 @@ struct KIF {
         } PACKED;
 
         enum MuxType {
+            NONE,
             TILE_MUX,
             LINUX,
         };
