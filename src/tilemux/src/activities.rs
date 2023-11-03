@@ -895,6 +895,13 @@ impl Activity {
         crate::app_env().boot.tile_id = pex_env().tile_id;
         crate::app_env().boot.platform = pex_env().platform;
         if self.id() != kif::tilemux::IDLE_ID {
+            log!(
+                LogFlags::MuxActs,
+                "Starting Activity {} with entry={:#x}, sp={:#x}",
+                self.id(),
+                crate::app_env().entry,
+                crate::app_env().sp
+            );
             arch::init_state(
                 &mut self.user_state,
                 crate::app_env().entry as usize,
