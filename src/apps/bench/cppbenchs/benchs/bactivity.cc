@@ -29,11 +29,13 @@
 
 using namespace m3;
 
-// TODO workaround until "compat" respects the multiplexer
 #if defined(__m3lx__)
+// TODO workaround until "compat" respects the multiplexer
 static const char *CHILD_TILE = "own";
+static const char *EXEC_FILE = "/bin/true";
 #else
 static const char *CHILD_TILE = "compat|own";
+static const char *EXEC_FILE = "/bin/noop";
 #endif
 
 NOINLINE static void creation() {
@@ -99,25 +101,21 @@ NOINLINE static void run_wait() {
     }));
 }
 
-#if !defined(__m3lx__)
 NOINLINE static void exec() {
     Profile pr(4, 2);
 
-    auto tile = Tile::get("core|own");
+    auto tile = Tile::get(CHILD_TILE);
     WVPERF("Activity exec", pr.run<CycleInstant>([&tile] {
         ChildActivity act(tile, "hello");
-        const char *args[] = {"/bin/noop"};
+        const char *args[] = {EXEC_FILE};
         act.exec(ARRAY_SIZE(args), args);
         act.wait();
     }));
 }
-#endif
 
 void bactivity() {
     RUN_BENCH(creation);
     RUN_BENCH(run);
     RUN_BENCH(run_wait);
-#if !defined(__m3lx__)
     RUN_BENCH(exec);
-#endif
 }
