@@ -29,19 +29,10 @@
 
 using namespace m3;
 
-#if defined(__m3lx__)
-// TODO workaround until "compat" respects the multiplexer
-static const char *CHILD_TILE = "own";
-static const char *EXEC_FILE = "/bin/true";
-#else
-static const char *CHILD_TILE = "compat|own";
-static const char *EXEC_FILE = "/bin/noop";
-#endif
-
 NOINLINE static void creation() {
     Profile pr(4, 2);
 
-    auto tile = Tile::get(CHILD_TILE);
+    auto tile = Tile::get("compat|own");
     WVPERF("Activity creation", pr.run<CycleInstant>([&tile] {
         ChildActivity act(tile, "hello");
     }));
@@ -55,7 +46,7 @@ NOINLINE static void run() {
     rgate.activate();
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
 
-    auto tile = Tile::get(CHILD_TILE);
+    auto tile = Tile::get("compat|own");
     Results<CycleDuration> res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         ChildActivity act(tile, "hello");
@@ -91,7 +82,7 @@ NOINLINE static void run() {
 NOINLINE static void run_wait() {
     Profile pr(4, 2);
 
-    auto tile = Tile::get(CHILD_TILE);
+    auto tile = Tile::get("compat|own");
     WVPERF("Activity run wait", pr.run<CycleInstant>([&tile] {
         ChildActivity act(tile, "hello");
         act.run([]() {
@@ -104,10 +95,14 @@ NOINLINE static void run_wait() {
 NOINLINE static void exec() {
     Profile pr(4, 2);
 
-    auto tile = Tile::get(CHILD_TILE);
+    auto tile = Tile::get("compat|own");
     WVPERF("Activity exec", pr.run<CycleInstant>([&tile] {
         ChildActivity act(tile, "hello");
-        const char *args[] = {EXEC_FILE};
+#if defined(__m3lx__)
+        const char *args[] = {"/bin/true"};
+#else
+        const char *args[] = {"/bin/noop"};
+#endif
         act.exec(ARRAY_SIZE(args), args);
         act.wait();
     }));
