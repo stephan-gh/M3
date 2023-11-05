@@ -104,6 +104,7 @@ pub type TileDescRaw = u64;
 /// [`create_activity`]: ../../m3/syscalls/fn.create_activity.html
 #[repr(C)]
 #[derive(Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct TileDesc {
     val: TileDescRaw,
 }
