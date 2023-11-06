@@ -178,7 +178,7 @@ pub const EP_REGS: usize = 3;
 pub const PRINT_REGS: usize = 32;
 
 cfg_if! {
-    if #[cfg(target_vendor = "hw22")] {
+    if #[cfg(feature = "hw22")] {
         /// The external registers
         #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
         #[repr(u64)]
@@ -214,7 +214,9 @@ bitflags! {
 }
 
 cfg_if! {
-    if #[cfg(target_vendor = "hw22")] {
+    if #[cfg(feature = "hw22")] {
+        const CU_REQ_TYPE_MASK: Reg = 0x3;
+
         #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
         #[repr(u64)]
         /// The privileged registers
@@ -232,6 +234,8 @@ cfg_if! {
         }
     }
     else {
+        const CU_REQ_TYPE_MASK: Reg = 0x7;
+
         #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
         #[repr(u64)]
         /// The privileged registers
@@ -393,9 +397,9 @@ impl CUReq {
     fn new_foreign_receive(req: Reg) -> Self {
         Self::ForeignReceive {
             act: (req >> 48) as u16,
-            #[cfg(target_vendor = "hw22")]
+            #[cfg(feature = "hw22")]
             ep: ((req >> 2) & 0xFFFF) as EpId,
-            #[cfg(not(target_vendor = "hw22"))]
+            #[cfg(not(feature = "hw22"))]
             ep: ((req >> 3) & 0xFFFF) as EpId,
         }
     }
@@ -846,7 +850,7 @@ impl TCU {
     /// Returns the current CU request
     pub fn get_cu_req() -> Option<CUReq> {
         let req = Self::read_priv_reg(PrivReg::CUReq);
-        match req & 0x7 {
+        match req & CU_REQ_TYPE_MASK {
             0x2 => Some(CUReq::new_foreign_receive(req)),
             0x3 => Some(CUReq::new_pmp_failure(req)),
             _ => None,
@@ -860,6 +864,7 @@ impl TCU {
 
     /// Enables CU requests in case of PMP failures
     pub fn enable_pmp_cureqs() {
+        #[cfg(not(feature = "hw22"))]
         Self::write_priv_reg(PrivReg::PrivCtrl, PrivCtrl::PMP_FAILURES.bits());
     }
 
