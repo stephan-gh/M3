@@ -18,7 +18,6 @@ use crate::errors::Error;
 use crate::kif;
 use crate::syscalls;
 use crate::tcu::{EpId, TOTAL_EPS};
-use crate::tiles::Activity;
 
 /// Represents a TCU endpoint that can be used for communication
 ///
@@ -47,7 +46,7 @@ impl Default for EPArgs {
     fn default() -> Self {
         Self {
             epid: TOTAL_EPS,
-            act: Activity::own().sel(),
+            act: kif::SEL_ACT,
             replies: 0,
         }
     }
