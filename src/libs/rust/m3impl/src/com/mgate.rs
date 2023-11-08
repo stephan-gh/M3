@@ -20,7 +20,7 @@ use core::fmt;
 
 use base::mem::GlobAddr;
 
-use crate::cap::{CapFlags, Selector};
+use crate::cap::{CapFlags, SelSpace, Selector};
 use crate::cell::Ref;
 use crate::col::Vec;
 use crate::com::ep::EP;
@@ -107,7 +107,7 @@ impl MGateArgs {
     }
 
     /// Sets the capability selector that should be used for this [`MemGate`]. Otherwise and by
-    /// default, [`Activity::own().alloc_sel`](crate::tiles::OwnActivity::alloc_sel) will be used to
+    /// default, [`SelSpace::get().alloc_sel`](crate::cap::SelSpace::alloc_sel) will be used to
     /// choose a free selector.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
@@ -128,7 +128,7 @@ impl MemGate {
     /// This method will allocate `size` bytes with given permissions from the resource manager.
     pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            Activity::own().alloc_sel()
+            SelSpace::get().alloc_sel()
         }
         else {
             args.sel
@@ -155,7 +155,7 @@ impl MemGate {
         size: GlobOff,
         perm: Perm,
     ) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         syscalls::create_mgate(sel, act, virt, size, perm)?;
         Ok(MemGate::new_owned_bind(sel))
     }
@@ -178,7 +178,7 @@ impl MemGate {
 
     /// Binds a new `MemGate` to the boot module with given name.
     pub fn new_bind_bootmod(name: &str) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         Activity::own().resmng().unwrap().use_mod(sel, name)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
@@ -213,7 +213,7 @@ impl MemGate {
     /// Note that kernel makes sure that only owned permissions can be passed on to the derived
     /// `MemGate`.
     pub fn derive(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         self.derive_for(Activity::own().sel(), sel, offset, size, perm)
     }
 

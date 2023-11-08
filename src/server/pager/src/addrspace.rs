@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cap::Selector;
+use m3::cap::{SelSpace, Selector};
 use m3::cfg;
 use m3::client::MapFlags;
 use m3::col::Vec;
@@ -25,8 +25,8 @@ use m3::log;
 use m3::mem::{GlobOff, VirtAddr};
 use m3::reply_vmsg;
 use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
-use m3::tiles::Activity;
 use m3::util::math;
+
 use resmng::childs;
 
 use crate::dataspace::DataSpace;
@@ -132,7 +132,7 @@ impl AddrSpace {
             Err(Error::new(Code::InvArgs))
         }
         else {
-            let act = act.unwrap_or_else(|| Activity::own().alloc_sel());
+            let act = act.unwrap_or_else(|| SelSpace::get().alloc_sel());
             log!(
                 LogFlags::PgReqs,
                 "[{}] pager::init(child={:?}, act={})",
@@ -256,7 +256,7 @@ impl AddrSpace {
         let flags = MapFlags::from_bits_truncate(args.pop()?);
         let off = args.pop()?;
 
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let virt = aspace.map_ds_with(virt, len, off, perm, flags, sel)?;
 
         xchg.out_args().push(virt);
@@ -386,7 +386,7 @@ impl AddrSpace {
         );
 
         // immediately insert a region, so that we don't allocate new memory on PFs
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         ds.populate(sel);
 
         aspace.ds.push(ds);

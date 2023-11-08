@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cap::Selector;
+use m3::cap::{SelSpace, Selector};
 use m3::cfg::PAGE_SIZE;
 use m3::client::M3FS;
 use m3::com::{MemGate, RecvGate, SendGate};
@@ -65,7 +65,7 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn create_srv(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
 
     // invalid dest selector
@@ -98,7 +98,7 @@ fn create_srv(t: &mut dyn WvTester) {
 }
 
 fn create_sgate(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
 
     // invalid dest selector
@@ -116,7 +116,7 @@ fn create_sgate(t: &mut dyn WvTester) {
 }
 
 fn create_mgate(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let virt = VirtAddr::new(0);
     let unaligned_virt = VirtAddr::new(0xFF);
 
@@ -213,7 +213,7 @@ fn create_mgate(t: &mut dyn WvTester) {
 }
 
 fn create_rgate(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
 
     // invalid dest selector
     wv_assert_err!(t, syscalls::create_rgate(SEL_ACT, 10, 10), Code::InvArgs);
@@ -228,12 +228,12 @@ fn create_rgate(t: &mut dyn WvTester) {
 }
 
 fn create_sess(t: &mut dyn WvTester) {
-    let srv = Activity::own().alloc_sel();
+    let srv = SelSpace::get().alloc_sel();
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
     wv_assert_ok!(rgate.activate());
     wv_assert_ok!(syscalls::create_srv(srv, rgate.sel(), "test", 0,));
 
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
 
     // invalid dest selector
     wv_assert_err!(
@@ -347,7 +347,7 @@ fn create_map(t: &mut dyn WvTester) {
 }
 
 fn create_activity(t: &mut dyn WvTester) {
-    let sels = Activity::own().alloc_sels(3);
+    let sels = SelSpace::get().alloc_sels(3);
     let kmem = Activity::own().kmem().sel();
 
     let tile = wv_assert_ok!(Tile::get("compat|own"));
@@ -380,7 +380,7 @@ fn create_activity(t: &mut dyn WvTester) {
 
     wv_assert_ok!(syscalls::create_activity(sels, "test", tile.sel(), kmem));
     if !tile.desc().has_virtmem() {
-        let new_sels = Activity::own().alloc_sels(3);
+        let new_sels = SelSpace::get().alloc_sels(3);
         wv_assert_err!(
             t,
             syscalls::create_activity(new_sels, "test", tile.sel(), kmem),
@@ -391,7 +391,7 @@ fn create_activity(t: &mut dyn WvTester) {
 }
 
 fn create_sem(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
 
     // invalid selector
     wv_assert_err!(t, syscalls::create_sem(SEL_ACT, 0), Code::InvArgs);
@@ -403,7 +403,7 @@ fn create_sem(t: &mut dyn WvTester) {
 }
 
 fn alloc_ep(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
 
     // try to use the EP object after the activity we allocated it for is gone
     {
@@ -499,7 +499,7 @@ fn activate(t: &mut dyn WvTester) {
     let ep2 = wv_assert_ok!(Activity::own().epmng_mut().acquire(0));
     let ep3 = wv_assert_ok!(Activity::own().epmng_mut().acquire(1));
     let ep4 = wv_assert_ok!(Activity::own().epmng_mut().acquire(2));
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
     let rgate = wv_assert_ok!(RecvGate::new(5, 5));
     let sgate = wv_assert_ok!(SendGate::new(&rgate));
@@ -585,7 +585,7 @@ fn activate(t: &mut dyn WvTester) {
 
 fn derive_mem(t: &mut dyn WvTester) {
     let act = Activity::own().sel();
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let mem = wv_assert_ok!(MemGate::new(0x4000, Perm::RW));
 
     // invalid dest selector
@@ -641,7 +641,7 @@ fn derive_mem(t: &mut dyn WvTester) {
 }
 
 fn derive_kmem(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let quota = wv_assert_ok!(Activity::own().kmem().quota()).remaining();
 
     // invalid dest selector
@@ -703,7 +703,7 @@ fn derive_kmem(t: &mut dyn WvTester) {
 }
 
 fn derive_tile(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let tile = wv_assert_ok!(Tile::get("compat"));
     let oquota = wv_assert_ok!(tile.quota());
     let oquote_eps = oquota.endpoints().remaining();
@@ -798,7 +798,7 @@ impl Handler<()> for DummyHandler {
 }
 
 fn derive_srv(t: &mut dyn WvTester) {
-    let crd = CapRngDesc::new(CapType::Object, Activity::own().alloc_sels(2), 2);
+    let crd = CapRngDesc::new(CapType::Object, SelSpace::get().alloc_sels(2), 2);
     let mut hdl = DummyHandler {
         sessions: SessionContainer::new(16),
     };
@@ -822,7 +822,7 @@ fn derive_srv(t: &mut dyn WvTester) {
 }
 
 fn get_sess(t: &mut dyn WvTester) {
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let mut hdl = DummyHandler {
         sessions: SessionContainer::new(16),
     };
@@ -886,7 +886,7 @@ fn mgate_region(t: &mut dyn WvTester) {
     wv_assert_err!(t, syscalls::mgate_region(SEL_ACT), Code::InvArgs);
     wv_assert_err!(
         t,
-        syscalls::mgate_region(Activity::own().alloc_sel()),
+        syscalls::mgate_region(SelSpace::get().alloc_sel()),
         Code::InvArgs
     );
 
@@ -900,7 +900,7 @@ fn kmem_quota(t: &mut dyn WvTester) {
     wv_assert_err!(t, syscalls::kmem_quota(SEL_ACT), Code::InvArgs);
     wv_assert_err!(
         t,
-        syscalls::kmem_quota(Activity::own().alloc_sel()),
+        syscalls::kmem_quota(SelSpace::get().alloc_sel()),
         Code::InvArgs
     );
 }
@@ -910,7 +910,7 @@ fn tile_quota(t: &mut dyn WvTester) {
     wv_assert_err!(t, syscalls::tile_quota(SEL_ACT), Code::InvArgs);
     wv_assert_err!(
         t,
-        syscalls::tile_quota(Activity::own().alloc_sel()),
+        syscalls::tile_quota(SelSpace::get().alloc_sel()),
         Code::InvArgs
     );
 }
@@ -937,7 +937,7 @@ fn sem_ctrl(t: &mut dyn WvTester) {
     wv_assert_err!(t, syscalls::sem_ctrl(SEL_ACT, SemOp::Down), Code::InvArgs);
     wv_assert_err!(
         t,
-        syscalls::sem_ctrl(Activity::own().alloc_sel(), SemOp::Down),
+        syscalls::sem_ctrl(SelSpace::get().alloc_sel(), SemOp::Down),
         Code::InvArgs
     );
 }
@@ -965,7 +965,7 @@ fn exchange(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("compat|own"));
     let child = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let csel = sel;
     let unused = CapRngDesc::new(CapType::Object, sel, 1);
     let used = CapRngDesc::new(CapType::Object, 0, 1);
@@ -1025,7 +1025,7 @@ fn obtain(t: &mut dyn WvTester) {
     let m3fs = wv_assert_ok!(M3FS::new(1, "m3fs-clone"));
     let m3fs = m3fs.borrow();
     let sess = m3fs.as_any().downcast_ref::<M3FS>().unwrap().sess();
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let crd = CapRngDesc::new(CapType::Object, sel, 1);
     let inval = CapRngDesc::new(CapType::Object, SEL_ACT, 1);
 

@@ -18,6 +18,7 @@
 mod chan;
 mod input;
 
+use m3::cap::SelSpace;
 use m3::cell::LazyStaticRefCell;
 use m3::col::Vec;
 use m3::com::{opcodes, GateIStream, MemGate, Perm, RGateArgs, RecvGate};
@@ -156,7 +157,7 @@ impl VTermSession {
         let sess = Self::get_sess(cli, sid)?;
         match &mut sess.data {
             SessionData::Chan(c) => {
-                let sel = Activity::own().alloc_sel();
+                let sel = SelSpace::get().alloc_sel();
                 c.set_dest(sel);
                 xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sel, 1));
                 Ok(())
@@ -229,7 +230,7 @@ pub fn main() -> Result<(), Error> {
         sess.with_chan(is, |c, is| c.request_notify(is))
     });
 
-    let sel = Activity::own().alloc_sel();
+    let sel = SelSpace::get().alloc_sel();
     let serial_gate = Activity::own()
         .resmng()
         .unwrap()

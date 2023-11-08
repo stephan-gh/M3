@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cap::{CapFlags, Capability, Selector};
+use m3::cap::{CapFlags, Capability, SelSpace, Selector};
 use m3::col::{String, Vec};
 use m3::com::SendGate;
 use m3::errors::{Code, Error};
@@ -22,7 +22,6 @@ use m3::log;
 use m3::mem::MsgBuf;
 use m3::serialize::M3Deserializer;
 use m3::syscalls;
-use m3::tiles::Activity;
 use m3::{build_vmsg, kif};
 
 use core::cmp::Reverse;
@@ -88,7 +87,7 @@ impl Service {
     }
 
     pub fn derive_async(&self, child: childs::Id, sessions: u32) -> Result<Self, Error> {
-        let dst = Activity::own().alloc_sels(2);
+        let dst = SelSpace::get().alloc_sels(2);
         let event = events::alloc_event();
         let id = self.id;
         let name = self.name.clone();

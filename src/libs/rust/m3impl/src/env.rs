@@ -283,6 +283,7 @@ extern "Rust" {
 pub fn init() {
     #[cfg(feature = "linux")]
     crate::linux::init();
+    crate::cap::init();
     crate::syscalls::init();
     crate::com::pre_init();
     crate::tiles::init();

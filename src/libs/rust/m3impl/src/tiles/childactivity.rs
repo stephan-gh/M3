@@ -24,7 +24,7 @@ use core::ops::{Deref, DerefMut};
 
 use base::kif::syscalls::MuxType;
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::cell::Cell;
 use crate::cfg;
 use crate::client::{Pager, ResMng};
@@ -145,7 +145,7 @@ impl ChildActivity {
     /// The given tile specifies the tile where the activity will execute and its resource share
     /// (CPU time etc.).
     pub fn new_with(tile: Rc<Tile>, args: ActivityArgs<'_>) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sels(3);
+        let sel = SelSpace::get().alloc_sels(3);
 
         // create child activity struct
         let mut act = ChildActivity {
@@ -212,10 +212,9 @@ impl ChildActivity {
 
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
-        Activity::own().next_sel.set(cmp::max(
-            act.child_sel.get(),
-            Activity::own().next_sel.get(),
-        ));
+        SelSpace::get()
+            .next
+            .set(cmp::max(act.child_sel.get(), SelSpace::get().next.get()));
 
         Ok(act)
     }
@@ -302,7 +301,7 @@ impl ChildActivity {
     /// Obtains the given capability range of `self` to [`Activity::own`](Activity::own).
     pub fn obtain(&self, crd: CapRngDesc) -> Result<Selector, Error> {
         let count = crd.count();
-        let start = Activity::own().alloc_sels(count);
+        let start = SelSpace::get().alloc_sels(count);
         self.obtain_to(crd, start).map(|_| start)
     }
 

@@ -18,11 +18,10 @@
 
 use core::fmt;
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::errors::Error;
 use crate::server::SessId;
 use crate::syscalls;
-use crate::tiles::Activity;
 
 /// Represents a session at the server-side.
 pub struct ServerSession {
@@ -36,7 +35,7 @@ impl ServerSession {
     /// specifies whether the CLOSE message should be sent to the server as soon as all derived
     /// session capabilities have been revoked.
     pub fn new(srv: Selector, creator: usize, id: SessId, auto_close: bool) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         Self::new_with_sel(srv, sel, creator, id, auto_close)
     }
 

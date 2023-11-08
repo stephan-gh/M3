@@ -18,7 +18,7 @@
 
 use core::fmt;
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::com::{GateIStream, RecvGate};
 use crate::errors::{Code, Error};
 use crate::io::LogFlags;
@@ -193,7 +193,7 @@ impl Server {
     where
         H: Handler<S>,
     {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
 

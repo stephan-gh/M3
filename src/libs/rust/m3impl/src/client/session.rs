@@ -18,7 +18,7 @@
 
 use core::fmt;
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::com::{opcodes, SendGate};
 use crate::errors::Error;
 use crate::kif;
@@ -38,7 +38,7 @@ pub struct ClientSession {
 impl ClientSession {
     /// Creates a new `ClientSession` by opening a session at the server with given name.
     pub fn new(name: &str) -> Result<Self, Error> {
-        Self::new_with_sel(name, Activity::own().alloc_sel())
+        Self::new_with_sel(name, SelSpace::get().alloc_sel())
     }
 
     /// Creates a new `ClientSession` by opening a session at the server with given name, using the
@@ -86,7 +86,7 @@ impl ClientSession {
     ///
     /// Returns the obtained [`SendGate`]
     pub fn connect(&self) -> Result<SendGate, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         self.connect_for(Activity::own(), sel)?;
         Ok(SendGate::new_bind(sel))
     }
@@ -178,7 +178,7 @@ impl ClientSession {
         PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
         POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
-        let caps = Activity::own().alloc_sels(count);
+        let caps = SelSpace::get().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::Object, caps, count);
         self.obtain_for(Activity::own().sel(), crd, pre, post)?;
         Ok(crd)

@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::errors::Error;
 use crate::kif;
 use crate::syscalls;
@@ -31,7 +31,7 @@ pub struct Semaphore {
 impl Semaphore {
     /// Creates a new object that is attached to the global semaphore `name`.
     pub fn attach(name: &str) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         Activity::own().resmng().unwrap().use_sem(sel, name)?;
 
         Ok(Semaphore {
@@ -41,7 +41,7 @@ impl Semaphore {
 
     /// Creates a new semaphore with the initial value `value`.
     pub fn create(value: u32) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         syscalls::create_sem(sel, value)?;
 
         Ok(Semaphore {

@@ -18,7 +18,7 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 
 use crate::boxed::Box;
-use crate::cap::Selector;
+use crate::cap::{SelSpace, Selector};
 use crate::cfg;
 use crate::col::{ToString, Vec};
 use crate::com::{opcodes, GateIStream, RecvGate, SGateArgs, SendGate};
@@ -31,7 +31,6 @@ use crate::server::{
     server_loop, CapExchange, ExcType, Handler, Server, ServerSession, SessId, SessionContainer,
 };
 use crate::tcu::Label;
-use crate::tiles::Activity;
 use crate::util::math;
 use crate::vec;
 
@@ -104,7 +103,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Handl
             return Err(Error::new(Code::NoSpace));
         }
 
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let serv = ServerSession::new_with_sel(srv_sel, sel, crt, sid, false)?;
         let sess = S::new(serv, arg)?;
         // the add cannot fail, because we called can_add before
@@ -208,7 +207,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
             return Err(Error::new(Code::NoSpace));
         }
 
-        let sels = Activity::own().alloc_sels(2);
+        let sels = SelSpace::get().alloc_sels(2);
         let sgate = SendGate::new_with(
             SGateArgs::new(&self.rgate)
                 .label(sid as Label)

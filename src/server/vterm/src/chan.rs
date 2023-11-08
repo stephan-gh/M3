@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cap::Selector;
+use m3::cap::{SelSpace, Selector};
 use m3::cell::{RefMut, StaticRefCell};
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, RecvGate, SendGate, EP};
@@ -26,7 +26,6 @@ use m3::rc::Rc;
 use m3::reply_vmsg;
 use m3::server::SessId;
 use m3::tcu::Message;
-use m3::tiles::Activity;
 use m3::vfs::{FileEvent, FileInfo, FileMode, TMode};
 use m3::{build_vmsg, send_vmsg};
 
@@ -95,7 +94,7 @@ impl Channel {
             return Err(Error::new(Code::Exists));
         }
 
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         self.notify_gates = Some((rgate, SendGate::new_bind(sel)));
         Ok(sel)
     }

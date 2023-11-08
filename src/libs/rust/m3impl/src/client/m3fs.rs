@@ -20,7 +20,7 @@ use core::any::Any;
 use core::fmt;
 
 use crate::boxed::Box;
-use crate::cap::Selector;
+use crate::cap::{SelSpace, Selector};
 use crate::cell::RefCell;
 use crate::client::ClientSession;
 use crate::col::Vec;
@@ -64,7 +64,7 @@ impl M3FS {
     /// Creates a new session at the m3fs server with given name.
     #[allow(clippy::new_ret_no_self)]
     pub fn new(id: usize, name: &str) -> Result<FSHandle, Error> {
-        let sels = Activity::own().alloc_sels(2);
+        let sels = SelSpace::get().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
         sess.connect_for(Activity::own(), sels + 1)?;
         Ok(Self::create(id, sess, SendGate::new_bind(sels + 1)))

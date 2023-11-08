@@ -18,7 +18,7 @@
 
 use core::fmt;
 
-use crate::cap::{CapFlags, Selector};
+use crate::cap::{CapFlags, SelSpace, Selector};
 use crate::cell::Ref;
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
@@ -72,7 +72,7 @@ impl SGateArgs {
     }
 
     /// Sets the capability selector to use for the [`SendGate`]. Otherwise and by default,
-    /// [`Activity::own().alloc_sel`](crate::tiles::OwnActivity::alloc_sel) will be used.
+    /// [`SelSpace::get().alloc_sel`](crate::cap::SelSpace::alloc_sel) will be used.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -100,7 +100,7 @@ impl SendGate {
     /// Creates a new `SendGate` with given arguments.
     pub fn new_with(args: SGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            Activity::own().alloc_sel()
+            SelSpace::get().alloc_sel()
         }
         else {
             args.sel
@@ -114,7 +114,7 @@ impl SendGate {
 
     /// Creates the `SendGate` with given name as defined in the application's configuration
     pub fn new_named(name: &str) -> Result<Self, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         Activity::own().resmng().unwrap().use_sgate(sel, name)?;
         Ok(SendGate {
             gate: Gate::new(sel, CapFlags::empty()),

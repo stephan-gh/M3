@@ -21,8 +21,8 @@
 use core::fmt;
 use core::ops::Deref;
 
-use crate::cap::{CapFlags, Capability, Selector};
-use crate::cell::{Cell, Ref, RefCell, RefMut};
+use crate::cap::{CapFlags, Capability};
+use crate::cell::{Ref, RefCell, RefMut};
 use crate::client::ResMng;
 use crate::com::EpMng;
 use crate::env;
@@ -48,7 +48,6 @@ use crate::vfs::{FileTable, MountTable};
 /// and [`exit`](`OwnActivity::exit`).
 pub struct OwnActivity {
     base: Activity,
-    pub(crate) next_sel: Cell<Selector>,
     epmng: RefCell<EpMng>,
     files: RefCell<FileTable>,
     mounts: RefCell<MountTable>,
@@ -72,7 +71,6 @@ impl OwnActivity {
                 data: env.load_data(),
                 kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             },
-            next_sel: Cell::from(env.load_first_sel()),
             epmng: RefCell::new(EpMng::default()),
             // mounts first; files depend on mounts
             mounts: RefCell::new(env.load_mounts()),
@@ -178,18 +176,6 @@ impl OwnActivity {
     /// Returns a reference to the activity's resource manager.
     pub fn resmng(&self) -> Option<&ResMng> {
         self.rmng.as_ref()
-    }
-
-    /// Allocates a new capability selector and returns it.
-    pub fn alloc_sel(&self) -> Selector {
-        self.alloc_sels(1)
-    }
-
-    /// Allocates `count` new and contiguous capability selectors and returns the first one.
-    pub fn alloc_sels(&self, count: u64) -> Selector {
-        let next = self.next_sel.get();
-        self.next_sel.set(next + count);
-        next
     }
 }
 

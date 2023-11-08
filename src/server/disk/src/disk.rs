@@ -19,7 +19,7 @@ mod backend;
 mod gem5;
 mod partition;
 
-use m3::cap::Selector;
+use m3::cap::{SelSpace, Selector};
 use m3::cell::LazyStaticRefCell;
 use m3::client::{DiskBlockNo, DiskBlockRange};
 use m3::col::{Treap, Vec};
@@ -33,7 +33,6 @@ use m3::server::{
     CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, ServerSession,
     SessId, DEF_MAX_CLIENTS,
 };
-use m3::tiles::Activity;
 
 use backend::BlockDevice;
 use gem5::IDEBlockDevice;
@@ -102,7 +101,7 @@ impl DiskSession {
         );
 
         let sess = cli.get_mut(sid).unwrap();
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let range = DiskBlockRange::new_range(bno, len);
         sess.blocks.remove(&range);
         sess.blocks.insert(range, sel);

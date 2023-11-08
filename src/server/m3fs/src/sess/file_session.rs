@@ -21,7 +21,7 @@ use crate::ops::inodes;
 use crate::sess::{meta_session::FileLimit, M3FSSession};
 
 use m3::{
-    cap::Selector,
+    cap::{SelSpace, Selector},
     cell::RefCell,
     col::{String, ToString, Vec},
     com::GateIStream,
@@ -194,7 +194,7 @@ impl FileSession {
         // determine extent from byte offset
         let (_, extpos) = inodes::get_seek_pos(&inode, offset as usize, SeekMode::Set)?;
 
-        let sel = m3::tiles::Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let (len, _) = inodes::get_extent_mem(
             &inode,
             &extpos,
@@ -284,7 +284,7 @@ impl FileSession {
             self.commit_append(&inode, self.cur_bytes)?;
         }
 
-        let mut sel = m3::tiles::Activity::own().alloc_sel();
+        let mut sel = SelSpace::get().alloc_sel();
 
         // do we need to append to the file?
         let (len, extlen) = if out && (self.next_fileoff as u64 == inode.size) {

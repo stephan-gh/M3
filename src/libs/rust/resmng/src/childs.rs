@@ -16,7 +16,7 @@
 use bitflags::bitflags;
 use core::fmt;
 use m3::boxed::Box;
-use m3::cap::Selector;
+use m3::cap::{SelSpace, Selector};
 use m3::cell::{Cell, RefCell};
 use m3::client::resmng;
 use m3::col::{String, ToString, Treap, Vec};
@@ -163,7 +163,7 @@ pub trait Child {
         syscalls::exchange(self.activity_sel(), crd, dst, false)
     }
     fn obtain(&self, src: Selector) -> Result<Selector, Error> {
-        let dst = Activity::own().alloc_sels(1);
+        let dst = SelSpace::get().alloc_sels(1);
         let own = CapRngDesc::new(CapType::Object, dst, 1);
         syscalls::exchange(self.activity_sel(), own, src, true)?;
         Ok(dst)

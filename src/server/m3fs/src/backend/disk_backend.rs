@@ -18,7 +18,7 @@ use crate::backend::{Backend, SuperBlock};
 use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, BlockRange, Extent};
 
-use m3::cap::Selector;
+use m3::cap::{SelSpace, Selector};
 use m3::client::Disk;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
@@ -106,7 +106,7 @@ impl Backend for DiskBackend {
 
     fn sync_meta(&self, block: &mut MetaBufferBlock) -> Result<(), Error> {
         // check if there is a filebuffer entry for it or create one
-        let msel = m3::tiles::Activity::own().alloc_sel();
+        let msel = SelSpace::get().alloc_sel();
         crate::file_buffer_mut().get_extent(self, block.blockno(), 1, msel, Perm::RWX, None)?;
 
         // okay, so write it from metabuffer to filebuffer
@@ -140,7 +140,7 @@ impl Backend for DiskBackend {
 
     fn clear_extent(&self, ext: Extent) -> Result<(), Error> {
         let zeros = [0; crate::data::MAX_BLOCK_SIZE as usize];
-        let sel = m3::tiles::Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let mut i = 0;
         while i < ext.length {
             let bytes = crate::file_buffer_mut().get_extent(

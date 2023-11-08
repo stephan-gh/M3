@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::errors::Error;
 use crate::kif;
 use crate::syscalls;
@@ -141,7 +141,7 @@ impl EP {
     }
 
     fn alloc_cap(epid: EpId, act: Selector, replies: u32) -> Result<(Selector, EpId), Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let id = syscalls::alloc_ep(sel, act, epid, replies)?;
         Ok((sel, id))
     }

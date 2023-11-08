@@ -21,7 +21,7 @@ use core::cmp;
 
 use base::io::LogFlags;
 
-use m3::cap::Selector;
+use m3::cap::{SelSpace, Selector};
 use m3::cell::RefCell;
 use m3::col::Vec;
 use m3::com::GateIStream;
@@ -88,7 +88,7 @@ impl SocketSession {
         let sbuf_slots: usize = is.pop()?;
 
         // 2 caps for us, 2 for the client
-        let caps = m3::tiles::Activity::own().alloc_sels(4);
+        let caps = SelSpace::get().alloc_sels(4);
 
         let res = self.add_socket(
             ty,

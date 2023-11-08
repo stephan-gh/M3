@@ -16,6 +16,7 @@
  * General Public License version 2 for more details.
  */
 
+use m3::cap::SelSpace;
 use m3::cell::StaticCell;
 use m3::cfg;
 use m3::com::{MemGate, Perm, RecvGate};
@@ -32,7 +33,7 @@ use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
 
 pub fn run(t: &mut dyn WvTester) {
-    SEL.set(Activity::own().alloc_sel());
+    SEL.set(SelSpace::get().alloc_sel());
 
     wv_run_test!(t, noop);
     wv_run_test!(t, activate);

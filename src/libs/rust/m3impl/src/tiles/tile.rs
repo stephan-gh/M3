@@ -18,7 +18,7 @@
 
 use core::fmt;
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::com::MemGate;
 use crate::errors::{Code, Error};
 use crate::kif::{syscalls::MuxType, TileDesc};
@@ -127,7 +127,7 @@ impl Tile {
 
     /// Allocates a new tile from the resource manager with given description
     pub fn new_with(desc: TileDesc, args: TileArgs) -> Result<Rc<Self>, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         let (id, ndesc) = Activity::own()
             .resmng()
             .unwrap()
@@ -226,7 +226,7 @@ impl Tile {
         time: Option<TimeDuration>,
         pts: Option<usize>,
     ) -> Result<Rc<Self>, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
         syscalls::derive_tile(self.sel(), sel, eps, time, pts)?;
         Ok(Rc::new(Tile {
             cap: Capability::new(sel, CapFlags::empty()),
@@ -276,7 +276,7 @@ impl Tile {
     /// This call requires a non-derived tile capability.
     pub fn memory(&self) -> Result<MemGate, Error> {
         if self.desc.has_memory() {
-            let sel = Activity::own().alloc_sel();
+            let sel = SelSpace::get().alloc_sel();
             syscalls::tile_mem(sel, self.sel())?;
             Ok(MemGate::new_owned_bind(sel))
         }

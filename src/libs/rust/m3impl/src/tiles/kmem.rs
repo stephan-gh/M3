@@ -16,12 +16,11 @@
  * General Public License version 2 for more details.
  */
 
-use crate::cap::{CapFlags, Capability, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::errors::Error;
 use crate::quota::Quota;
 use crate::rc::Rc;
 use crate::syscalls;
-use crate::tiles::Activity;
 
 /// Represents a certain amount of kernel memory
 ///
@@ -59,7 +58,7 @@ impl KMem {
 
     /// Creates a new kernel memory object and transfers `quota` to the new object.
     pub fn derive(&self, quota: usize) -> Result<Rc<Self>, Error> {
-        let sel = Activity::own().alloc_sel();
+        let sel = SelSpace::get().alloc_sel();
 
         syscalls::derive_kmem(self.sel(), sel, quota)?;
         Ok(Rc::new(KMem {

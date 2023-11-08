@@ -19,5 +19,11 @@
 //! Contains the capability abstractions
 
 mod capability;
+mod selspace;
 
 pub use self::capability::{CapFlags, Capability, Selector};
+pub use self::selspace::SelSpace;
+
+pub(crate) fn init() {
+    self::selspace::init();
+}

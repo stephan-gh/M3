@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use m3::cap::SelSpace;
 use m3::col::Vec;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
@@ -20,7 +21,6 @@ use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
-use m3::tiles::Activity;
 
 use crate::chan::{ChanType, Channel};
 use crate::meta::Meta;
@@ -227,7 +227,7 @@ impl PipesSession {
                     return Err(Error::new(Code::InvArgs));
                 }
 
-                let sel = Activity::own().alloc_sel();
+                let sel = SelSpace::get().alloc_sel();
                 p.set_mem(sel);
 
                 log!(LogFlags::PipeReqs, "[{}] pipes::set_mem(sel={})", sid, sel);
@@ -249,7 +249,7 @@ impl PipesSession {
         let sess = Self::get_sess(cli, sid)?;
         match &mut sess.data_mut() {
             SessionData::Chan(ref mut c) => {
-                let sel = Activity::own().alloc_sel();
+                let sel = SelSpace::get().alloc_sel();
                 c.set_ep(sel);
 
                 log!(LogFlags::PipeReqs, "[{}] pipes::set_dest(sel={})", sid, sel);
@@ -272,7 +272,7 @@ impl PipesSession {
         let sess = Self::get_sess(cli, sid)?;
         match &mut sess.data_mut() {
             SessionData::Chan(ref mut c) => {
-                let sel = Activity::own().alloc_sel();
+                let sel = SelSpace::get().alloc_sel();
                 log!(
                     LogFlags::PipeReqs,
                     "[{}] pipes::enable_notify(sel={})",

@@ -23,12 +23,12 @@ use meta_session::FileLimit;
 pub use meta_session::MetaSession;
 pub use open_files::OpenFiles;
 
+use m3::cap::SelSpace;
 use m3::col::Vec;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
-use m3::tiles::Activity;
 
 #[allow(clippy::large_enum_variant)]
 pub enum FSSession {
@@ -138,7 +138,7 @@ impl FSSession {
     ) -> Result<(), Error> {
         match Self::get_sess(cli, sid)? {
             FSSession::Meta(m) => {
-                let new_sel = Activity::own().alloc_sel();
+                let new_sel = SelSpace::get().alloc_sel();
                 let id = m.add_ep(new_sel);
                 log!(
                     LogFlags::FSSess,
@@ -180,7 +180,7 @@ impl FSSession {
     ) -> Result<(), Error> {
         match Self::get_sess(cli, sid)? {
             FSSession::File(fs) => {
-                let new_sel = Activity::own().alloc_sel();
+                let new_sel = SelSpace::get().alloc_sel();
                 log!(LogFlags::FSSess, "[{}] fs::set_dest(sel={})", sid, new_sel);
                 fs.set_ep(new_sel);
                 xchg.out_caps(m3::kif::CapRngDesc::new(
