@@ -20,7 +20,7 @@
 
 use m3::cap::Selector;
 use m3::cell::StaticRefCell;
-use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
+use m3::com::{recv_msg, RecvCap, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::mem::{size_of, AlignedBuf};
 use m3::tcu;
@@ -44,8 +44,7 @@ pub fn main() -> Result<(), Error> {
     const WARMUP: u64 = 100;
     const MAX_MSG_SIZE: usize = 2048 - size_of::<tcu::Header>();
 
-    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
-    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
+    let rgate = wv_assert_ok!(RecvCap::new(MSG_ORD, MSG_ORD));
 
     wv_assert_ok!(act.delegate_obj(rgate.sel()));
 
@@ -54,7 +53,7 @@ pub fn main() -> Result<(), Error> {
 
     let act = wv_assert_ok!(act.run(|| {
         let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
-        let rgate = RecvGate::new_bind(rgate_sel);
+        let rgate = RecvGate::new_bind(rgate_sel).unwrap();
 
         for i in 0..=MSG_ORD {
             let size = (1 << i).min(MAX_MSG_SIZE);
@@ -66,6 +65,7 @@ pub fn main() -> Result<(), Error> {
         Ok(())
     }));
 
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
     let reply_gate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
 
     for i in 0..=MSG_ORD {

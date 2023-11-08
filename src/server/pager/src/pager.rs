@@ -25,9 +25,9 @@ use core::ops::DerefMut;
 
 use m3::boxed::Box;
 use m3::cell::LazyStaticRefCell;
-use m3::client::{ClientSession, Pager, ResMng, M3FS};
+use m3::client::{ClientSession, Pager, M3FS};
 use m3::col::{String, ToString, Vec};
-use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendGate};
+use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendCap};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::kif::syscalls::MuxType;
@@ -82,7 +82,7 @@ impl subsys::ChildStarter for PagedChildStarter {
         child: &mut OwnChild,
     ) -> Result<(), VerboseError> {
         // send gate for resmng
-        let resmng_sgate = SendGate::new_with(
+        let resmng_scap = SendCap::new_with(
             SGateArgs::new(reqs.recv_gate())
                 .credits(1)
                 .label(Label::from(child.id())),
@@ -103,7 +103,7 @@ impl subsys::ChildStarter for PagedChildStarter {
         let mut act = ChildActivity::new_with(
             tile.clone(),
             ActivityArgs::new(child.name())
-                .resmng(ResMng::new(resmng_sgate))
+                .resmng(resmng_scap)
                 .pager(Pager::new(child_sess, pager_sgate, child_sgate)?)
                 .kmem(child.kmem().unwrap()),
         )?;
@@ -245,12 +245,6 @@ pub fn main() -> Result<(), Error> {
         math::next_log2(256),
     )
     .expect("Unable to create resmng RecvGate");
-    // manually activate the RecvGate here, because it requires quite a lot of EPs and we are
-    // potentially moving (<EPs left> - 16) EPs to a child activity. therefore, we should allocate
-    // all EPs before starting childs.
-    req_rgate
-        .activate()
-        .expect("Unable to activate resmng RecvGate");
     let reqs = requests::Requests::new(req_rgate);
 
     let squeue_rgate = RecvGate::new(
@@ -258,9 +252,6 @@ pub fn main() -> Result<(), Error> {
         math::next_log2(sendqueue::RBUF_MSG_SIZE),
     )
     .expect("Unable to create sendqueue RecvGate");
-    squeue_rgate
-        .activate()
-        .expect("Unable to activate sendqueue RecvGate");
     sendqueue::init(squeue_rgate);
 
     let mut childs = childs::ChildManager::default();

@@ -18,7 +18,7 @@
 
 use crate::cap::Selector;
 use crate::col::Vec;
-use crate::com::{RecvGate, SGateArgs, SendGate};
+use crate::com::{RecvGate, SGateArgs, SendCap};
 use crate::errors::{Code, Error};
 use crate::tcu::Label;
 
@@ -29,7 +29,7 @@ pub type SessId = usize;
 
 struct Creator {
     // the creator's `SendGate` to communicate with us
-    _sgate: SendGate,
+    _scap: SendCap,
     // the remaining number of sessions that can be created
     sessions: u32,
     // keep a bitmask of sessions belonging to this creator
@@ -81,15 +81,15 @@ impl<S> SessionContainer<S> {
         sessions: u32,
     ) -> Result<(usize, Selector), Error> {
         let nid = self.creators.len();
-        let _sgate = SendGate::new_with(SGateArgs::new(rgate).credits(1).label(nid as Label))?;
-        let sgate_sel = _sgate.sel();
+        let _scap = SendCap::new_with(SGateArgs::new(rgate).credits(1).label(nid as Label))?;
+        let scap_sel = _scap.sel();
         let ncrt = Creator {
-            _sgate,
+            _scap,
             sessions,
             sids: 0,
         };
         self.creators.push(ncrt);
-        Ok((nid, sgate_sel))
+        Ok((nid, scap_sel))
     }
 
     /// Derives a new creator from `crt` with the given amount of sessions

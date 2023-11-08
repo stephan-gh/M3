@@ -20,9 +20,8 @@ mod loader;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cfg;
-use m3::client::ResMng;
 use m3::col::{ToString, Vec};
-use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
+use m3::com::{MemGate, RGateArgs, RecvCap, RecvGate, SGateArgs, SendCap};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::io::LogFlags;
@@ -134,7 +133,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             None
         };
 
-        let sgate = SendGate::new_with(
+        let resmng_scap = SendCap::new_with(
             SGateArgs::new(reqs.recv_gate())
                 .credits(1)
                 .label(tcu::Label::from(child.id())),
@@ -143,7 +142,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         let mut act = ChildActivity::new_with(
             tile,
             ActivityArgs::new(child.name())
-                .resmng(ResMng::new(sgate))
+                .resmng(resmng_scap)
                 .kmem(child.kmem().unwrap()),
         )
         .map_err(|e| VerboseError::new(e.code(), "Unable to create Activity".to_string()))?;
@@ -241,13 +240,12 @@ fn create_rgate(
     rbuf_off: GlobOff,
     rbuf_addr: VirtAddr,
 ) -> Result<RecvGate, Error> {
-    let rgate = RecvGate::new_with(
+    let rgate = RecvCap::new_with(
         RGateArgs::default()
             .order(math::next_log2(buf_size))
             .msg_order(math::next_log2(msg_size)),
     )?;
-    rgate.activate_with(rbuf_mem, rbuf_off, rbuf_addr)?;
-    Ok(rgate)
+    rgate.activate_with(rbuf_mem, rbuf_off, rbuf_addr)
 }
 
 #[allow(clippy::vec_box)]

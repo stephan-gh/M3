@@ -62,7 +62,7 @@ pub fn get() -> RefMut<'static, Vec<u8>> {
 pub fn receive_acks(cli: &mut ClientManager<VTermSession>) {
     cli.for_each(|s| match &mut s.data {
         SessionData::Chan(c) => {
-            if let Some((rg, _sg)) = c.notify_gates() {
+            if let Some(rg) = c.notify_rgate() {
                 if let Ok(msg) = rg.fetch() {
                     rg.ack_msg(msg).unwrap();
                     // try again to send events, if there are some

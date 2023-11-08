@@ -20,7 +20,7 @@ use crate::cap::Selector;
 use crate::cell::StaticRefCell;
 use crate::col::String;
 use crate::col::ToString;
-use crate::com::{opcodes, GateIStream, RecvGate, SendGate};
+use crate::com::{opcodes, GateCap, GateIStream, RecvGate, SendCap, SendGate};
 use crate::errors::{Code, Error};
 use crate::kif;
 use crate::mem::{GlobOff, MsgBuf};
@@ -154,16 +154,12 @@ pub enum ActInfoResult {
 /// directory for examples.
 pub struct ResMng {
     sgate: SendGate,
-    act_sel: Selector,
 }
 
 impl ResMng {
     /// Creates a new `ResMng` with given [`SendGate`] to send requests to the server.
     pub fn new(sgate: SendGate) -> Self {
-        ResMng {
-            sgate,
-            act_sel: kif::INVALID_SEL,
-        }
+        ResMng { sgate }
     }
 
     /// Returns the capability selector of the [`SendGate`] used for requests.
@@ -173,17 +169,19 @@ impl ResMng {
 
     /// Clones this connection to be used by the given activity as well. `name` specifies the name of the
     /// activity.
-    pub fn clone(&self, act: &mut Activity, sgate: Selector, name: &str) -> Result<Self, Error> {
+    pub fn clone(
+        &self,
+        act: &mut Activity,
+        sgate: Selector,
+        name: &str,
+    ) -> Result<ResMngChild, Error> {
         Self::send_receive(&self.sgate, opcodes::ResMng::AddChild, AddChildReq {
             id: act.id(),
             sel: act.sel(),
             sgate,
             name: name.to_string(),
         })
-        .map(|_| ResMng {
-            sgate: SendGate::new_bind(sgate),
-            act_sel: act.sel(),
-        })
+        .map(|_| ResMngChild::new_clone(SendCap::new_bind(sgate), act.sel()))
     }
 
     /// Registers a service with given name at selector `dst`, using `sgate` for session creations.
@@ -304,7 +302,10 @@ impl ResMng {
         Self::send_receive(&self.sgate, opcodes::ResMng::GetSerial, GetSerialReq {
             dst,
         })
-        .map(|_| RecvGate::new_bind(dst))
+        .and_then(|is| {
+            drop(is);
+            RecvGate::new_bind(dst)
+        })
     }
 
     /// Gets the number of available activities for `get_activity_info` and the starting layer.
@@ -351,10 +352,44 @@ impl ResMng {
     }
 }
 
-impl Drop for ResMng {
+/// The resource manager for child activities
+pub struct ResMngChild {
+    scap: SendCap,
+    act_sel: Selector,
+}
+
+impl Default for ResMngChild {
+    fn default() -> Self {
+        Self {
+            scap: SendCap::new_bind(kif::INVALID_SEL),
+            act_sel: kif::INVALID_SEL,
+        }
+    }
+}
+
+impl ResMngChild {
+    fn new_clone(scap: SendCap, act_sel: Selector) -> Self {
+        Self { scap, act_sel }
+    }
+
+    /// Creates a new instance with given `SendCap` for a self-managed child
+    pub fn new(scap: SendCap) -> Self {
+        Self {
+            scap,
+            act_sel: kif::INVALID_SEL,
+        }
+    }
+
+    /// Returns the selector for the `SendCap` to communicate with the resource manager
+    pub fn sel(&self) -> Selector {
+        self.scap.sel()
+    }
+}
+
+impl Drop for ResMngChild {
     fn drop(&mut self) {
         if self.act_sel != kif::INVALID_SEL {
-            Self::send_receive(
+            ResMng::send_receive(
                 &Activity::own().resmng().unwrap().sgate,
                 opcodes::ResMng::RemChild,
                 FreeReq { sel: self.act_sel },

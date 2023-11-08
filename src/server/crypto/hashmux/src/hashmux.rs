@@ -242,8 +242,8 @@ impl HashMuxTimer {
             // Time expired, look for other clients to work on
             if !OPTIMIZE_SCHEDULING
                 || !QUEUE.borrow().is_empty()
-                || req_rgate.has_msgs().unwrap()
-                || srv_rgate.has_msgs().unwrap()
+                || req_rgate.has_msgs()
+                || srv_rgate.has_msgs()
             {
                 return Err(self.remaining_time(t));
             }

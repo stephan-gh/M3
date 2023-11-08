@@ -689,7 +689,7 @@ pub struct SubsystemBuilder {
     mods: Vec<(MemGate, String)>,
     mems: Vec<(MemGate, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
-    serv_objs: Vec<services::Service>,
+    serv_objs: Vec<services::DerivedService>,
     serial: bool,
 }
 
@@ -837,7 +837,7 @@ impl SubsystemBuilder {
             let boot_serv = boot::Service::new(name, sessions);
             mem.write_obj(&boot_serv, off)?;
 
-            act.delegate_to(CapRngDesc::new(CapType::Object, subserv.sel(), 1), sel)?;
+            act.delegate_to(CapRngDesc::new(CapType::Object, subserv.serv_sel(), 1), sel)?;
             act.delegate_to(
                 CapRngDesc::new(CapType::Object, subserv.sgate_sel(), 1),
                 sel + 1,

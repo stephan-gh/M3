@@ -20,7 +20,8 @@ use core::fmt;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::cap::{CapFlags, Selector};
-use crate::com::{RGateArgs, RecvGate, SGateArgs, SendGate};
+use crate::cell::RefCell;
+use crate::com::{LazyGate, RGateArgs, RecvCap, RecvGate, SGateArgs, SendCap};
 use crate::errors::{Code, Error};
 use crate::kif::{CapRngDesc, CapType};
 use crate::mem::{self, MaybeUninit, MsgBuf};
@@ -149,7 +150,7 @@ pub struct NetEventChannel {
     side: NetEventSide,
     rgate: RecvGate,
     rpl_gate: RecvGate,
-    sgate: SendGate,
+    sgate: RefCell<LazyGate<SendCap>>,
 }
 
 impl NetEventChannel {
@@ -162,83 +163,79 @@ impl NetEventChannel {
                 .msg_order(math::next_log2(MSG_SIZE))
                 .order(math::next_log2(MSG_BUF_SIZE)),
         )?;
-        rgate.activate()?;
 
-        SendGate::new_with(
+        SendCap::new_with(
             SGateArgs::new(&rgate)
                 .sel(caps + 3)
                 .credits(MSG_CREDITS as u32)
                 .flags(CapFlags::KEEP_CAP),
         )?;
 
-        let rgate_cli = RecvGate::new_with(
+        let rgate_cli = RecvCap::new_with(
             RGateArgs::default()
                 .sel(caps + 2)
                 .msg_order(math::next_log2(MSG_SIZE))
                 .order(math::next_log2(MSG_BUF_SIZE))
                 .flags(CapFlags::KEEP_CAP),
         )?;
-        let sgate = SendGate::new_with(
+        let sgate = SendCap::new_with(
             SGateArgs::new(&rgate_cli)
                 .sel(caps + 1)
-                .credits(MSG_CREDITS as u32),
+                .credits(MSG_CREDITS as u32)
+                .flags(CapFlags::KEEP_CAP),
         )?;
 
         let rpl_gate = RecvGate::new(math::next_log2(REPLY_BUF_SIZE), math::next_log2(REPLY_SIZE))?;
-        rpl_gate.activate()?;
 
         Ok(Rc::new(Self {
             side: NetEventSide::Server,
             rgate,
             rpl_gate,
-            sgate,
+            sgate: RefCell::new(LazyGate::new(sgate.sel())),
         }))
     }
 
     /// Creates a new `NetEventChannel` for the client side with objects bound to the given
     /// selectors
     pub fn new_client(caps: Selector) -> Result<Rc<Self>, Error> {
-        let rgate = RecvGate::new_bind(caps + 0);
-        rgate.activate()?;
-
+        let rgate = RecvGate::new_bind(caps + 0)?;
         let rpl_gate = RecvGate::new(math::next_log2(REPLY_BUF_SIZE), math::next_log2(REPLY_SIZE))?;
-        rpl_gate.activate()?;
 
         Ok(Rc::new(Self {
             side: NetEventSide::Client,
             rgate,
             rpl_gate,
-            sgate: SendGate::new_bind(caps + 1),
+            sgate: RefCell::new(LazyGate::new(caps + 1)),
         }))
     }
 
     /// Wait until new messages have been received
     pub fn wait_for_events(&self) {
         // ignore errors
-        OwnActivity::wait_for(Some(self.rgate.ep().unwrap()), None, None).ok();
+        OwnActivity::wait_for(Some(self.rgate.ep()), None, None).ok();
     }
 
     /// Wait until new messages can be send
     pub fn wait_for_credits(&self) {
         // ignore errors
-        OwnActivity::wait_for(Some(self.rpl_gate.ep().unwrap()), None, None).ok();
+        OwnActivity::wait_for(Some(self.rpl_gate.ep()), None, None).ok();
     }
 
     /// Returns true if messages can be send
     pub fn can_send(&self) -> Result<bool, Error> {
-        self.sgate.can_send()
+        self.sgate.borrow_mut().get()?.can_send()
     }
 
     /// Returns true if there are any events to read
     pub fn has_events(&self) -> bool {
-        self.rgate.has_msgs().unwrap()
+        self.rgate.has_msgs()
     }
 
     /// Returns true if our [`SendGate`] has full credits
     ///
     /// This is the case if the server has replied to all previously send messages.
     pub fn has_all_credits(&self) -> bool {
-        self.sgate.credits().unwrap() == MSG_CREDITS as u32
+        self.sgate.borrow_mut().get().unwrap().credits().unwrap() == MSG_CREDITS as u32
     }
 
     /// Fetches the next event from the queue
@@ -254,7 +251,10 @@ impl NetEventChannel {
     pub fn send_event<E>(&self, event: E) -> Result<(), Error> {
         let mut msg_buf = MsgBuf::borrow_def();
         msg_buf.set(event);
-        self.sgate.send(&msg_buf, &self.rpl_gate)
+        self.sgate
+            .borrow_mut()
+            .get()?
+            .send(&msg_buf, &self.rpl_gate)
     }
 
     /// Builds a data message for sending
@@ -297,8 +297,11 @@ impl NetEventChannel {
             self.fetch_replies();
 
             let msg_size = 4 * mem::size_of::<u64>() + msg.size as usize;
-            self.sgate
-                .send_aligned(msg as *const _ as *const u8, msg_size, &self.rpl_gate)
+            self.sgate.borrow_mut().get()?.send_aligned(
+                msg as *const _ as *const u8,
+                msg_size,
+                &self.rpl_gate,
+            )
         }
         else {
             Err(Error::new(Code::NoCredits))

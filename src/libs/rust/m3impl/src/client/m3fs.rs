@@ -67,16 +67,16 @@ impl M3FS {
         let sels = SelSpace::get().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
         sess.connect_for(Activity::own(), sels + 1)?;
-        Ok(Self::create(id, sess, SendGate::new_bind(sels + 1)))
+        Ok(Self::create(id, sess, SendGate::new_bind(sels + 1)?))
     }
 
     /// Binds a new m3fs-session to selectors `sels`..`sels+1`.
-    pub fn new_bind(id: usize, sels: Selector) -> FSHandle {
-        Self::create(
+    pub fn new_bind(id: usize, sels: Selector) -> Result<FSHandle, Error> {
+        Ok(Self::create(
             id,
             ClientSession::new_bind(sels + 0),
-            SendGate::new_bind(sels + 1),
-        )
+            SendGate::new_bind(sels + 1)?,
+        ))
     }
 
     /// Returns a reference to the underlying [`ClientSession`]
@@ -293,7 +293,7 @@ impl M3FS {
     pub fn unserialize(s: &mut M3Deserializer<'_>) -> FSHandle {
         let sels: Selector = s.pop().unwrap();
         let id: usize = s.pop().unwrap();
-        M3FS::new_bind(id, sels)
+        M3FS::new_bind(id, sels).unwrap()
     }
 }
 

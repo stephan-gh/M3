@@ -16,7 +16,7 @@
 use m3::cap::{SelSpace, Selector};
 use m3::cell::{RefMut, StaticRefCell};
 use m3::col::Vec;
-use m3::com::{GateIStream, MemGate, RecvGate, SendGate, EP};
+use m3::com::{GateIStream, LazyGate, MemGate, RecvGate, SendCap, EP};
 use m3::errors::{Code, Error};
 use m3::io::{LogFlags, Serial, Write};
 use m3::kif;
@@ -42,7 +42,7 @@ pub struct Channel {
     writing: bool,
     ep: Option<Selector>,
     our_mem: Rc<MemGate>,
-    notify_gates: Option<(RecvGate, SendGate)>,
+    notify_gates: Option<(RecvGate, LazyGate<SendCap>)>,
     notify_events: FileEvent,
     pending_events: FileEvent,
     promised_events: FileEvent,
@@ -85,8 +85,8 @@ impl Channel {
         self.ep = Some(ep);
     }
 
-    pub fn notify_gates(&self) -> Option<&(RecvGate, SendGate)> {
-        self.notify_gates.as_ref()
+    pub fn notify_rgate(&self) -> Option<&RecvGate> {
+        self.notify_gates.as_ref().map(|(rg, _sg)| rg)
     }
 
     pub fn set_notify_gates(&mut self, rgate: RecvGate) -> Result<Selector, Error> {
@@ -95,7 +95,7 @@ impl Channel {
         }
 
         let sel = SelSpace::get().alloc_sel();
-        self.notify_gates = Some((rgate, SendGate::new_bind(sel)));
+        self.notify_gates = Some((rgate, LazyGate::new(sel)));
         Ok(sel)
     }
 
@@ -310,8 +310,9 @@ impl Channel {
 
     pub fn send_events(&mut self) {
         if !self.pending_events.is_empty() {
-            let (rg, sg) = self.notify_gates.as_ref().unwrap();
-            if sg.credits().unwrap() > 0 {
+            let (rg, sg) = self.notify_gates.as_mut().unwrap();
+
+            if sg.get().unwrap().credits().unwrap() > 0 {
                 log!(
                     LogFlags::VTEvents,
                     "[{}] vterm::sending_events({:?})",
@@ -319,7 +320,7 @@ impl Channel {
                     self.pending_events
                 );
                 // ignore errors
-                send_vmsg!(sg, rg, self.pending_events.bits()).ok();
+                send_vmsg!(sg.get().unwrap(), rg, self.pending_events.bits()).ok();
                 // we promise the client that these operations will not block on the next call
                 self.promised_events = self.pending_events;
                 self.notify_events &= !self.pending_events;

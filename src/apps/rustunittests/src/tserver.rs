@@ -22,7 +22,7 @@ use m3::build_vmsg;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::client::ClientSession;
-use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
+use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendCap, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif::{self, CapRngDesc, CapType};
 use m3::mem::MsgBuf;
@@ -144,7 +144,7 @@ fn testcliexit(t: &mut dyn WvTester) {
         RGateArgs::default().order(7).msg_order(6)
     ));
 
-    let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(2)));
+    let sg = wv_assert_ok!(SendCap::new_with(SGateArgs::new(&rg).credits(2)));
     wv_assert_ok!(client.delegate_obj(sg.sel()));
 
     let mut dst = client.data_sink();
@@ -161,7 +161,7 @@ fn testcliexit(t: &mut dyn WvTester) {
         };
 
         // first send to activate the gate
-        let sg = SendGate::new_bind(sg_sel);
+        let sg = wv_assert_ok!(SendGate::new_bind(sg_sel));
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
 
         // ensure that we drop MsgBuf before using send_vmsg below

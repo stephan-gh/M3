@@ -14,7 +14,7 @@
  */
 
 use m3::cap::Selector;
-use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
+use m3::com::{recv_msg, RecvCap, RecvGate, SGateArgs, SendGate};
 use m3::errors::Code;
 use m3::rc::Rc;
 use m3::test::{DefaultWvTester, WvTester};
@@ -56,8 +56,7 @@ fn pingpong_local(t: &mut dyn WvTester) {
 fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("sender")));
 
-    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
-    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
+    let rgate = wv_assert_ok!(RecvCap::new(MSG_ORD, MSG_ORD));
 
     wv_assert_ok!(act.delegate_obj(rgate.sel()));
 
@@ -67,7 +66,7 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
     let act = wv_assert_ok!(act.run(|| {
         let mut t = DefaultWvTester::default();
         let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
-        let rgate = RecvGate::new_bind(rgate_sel);
+        let rgate = RecvGate::new_bind(rgate_sel).unwrap();
         for _ in 0..RUNS + WARMUP {
             let mut msg = wv_assert_ok!(recv_msg(&rgate));
             wv_assert_eq!(t, msg.pop::<u64>(), Ok(0));
@@ -78,7 +77,9 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
 
     let prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
 
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
     let reply_gate = RecvGate::def();
+
     wv_perf!(
         format!("{} pingpong with (1 * u64) msgs", name),
         prof.run::<CycleInstant, _>(|| {
@@ -113,10 +114,8 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
     let mut act1 = wv_assert_ok!(ChildActivity::new_with(tile1, ActivityArgs::new("recv1")));
     let mut act2 = wv_assert_ok!(ChildActivity::new_with(tile2, ActivityArgs::new("recv2")));
 
-    let rgate1 = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
-    let rgate2 = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
-    let sgate1 = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate1).credits(1)));
-    let sgate2 = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate2).credits(1)));
+    let rgate1 = wv_assert_ok!(RecvCap::new(MSG_ORD, MSG_ORD));
+    let rgate2 = wv_assert_ok!(RecvCap::new(MSG_ORD, MSG_ORD));
 
     wv_assert_ok!(act1.delegate_obj(rgate1.sel()));
     wv_assert_ok!(act2.delegate_obj(rgate2.sel()));
@@ -127,7 +126,7 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
     let func = || {
         let mut t = DefaultWvTester::default();
         let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
-        let rgate = RecvGate::new_bind(rgate_sel);
+        let rgate = RecvGate::new_bind(rgate_sel).unwrap();
         for _ in 0..(RUNS + WARMUP) / 2 {
             let mut msg = wv_assert_ok!(recv_msg(&rgate));
             wv_assert_eq!(t, msg.pop::<u64>(), Ok(0));
@@ -141,8 +140,11 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
 
     let prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
 
-    let mut count = 0;
+    let sgate1 = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate1).credits(1)));
+    let sgate2 = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate2).credits(1)));
     let reply_gate = RecvGate::def();
+
+    let mut count = 0;
     wv_perf!(
         "remote multi pingpong with (1 * u64) msgs",
         prof.run::<CycleInstant, _>(|| {

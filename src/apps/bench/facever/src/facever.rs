@@ -155,14 +155,16 @@ fn frontend(args: &[&str]) {
 
     let node = Node::new("frontend".to_string(), ctrl_msg_size, 0);
 
-    let fs_sgate = SendGate::new_named("fs").expect("Unable to create named SendGate fs");
-    let storage_sgate =
-        SendGate::new_named("storage").expect("Unable to create named SendGate storage");
     let gpu_rgate = RecvGate::new_named("gpures").expect("Unable to create named RecvGate gpures");
 
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
 
     let req_rgate = RecvGate::new_named("req").expect("Unable to create named RecvGate req");
+
+    let fs_sgate = SendGate::new_named("fs").expect("Unable to create named SendGate fs");
+    let storage_sgate =
+        SendGate::new_named("storage").expect("Unable to create named SendGate storage");
+
     loop {
         let mut request = node
             .receive_request("client", &req_rgate)
@@ -225,11 +227,12 @@ fn gpu(args: &[&str]) {
 
     let node = Node::new("gpu".to_string(), ctrl_msg_size, 0);
 
-    let res_sgate = SendGate::new_named("gpures").expect("Unable to create named SendGate gpures");
-
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
 
     let req_rgate = RecvGate::new_named("gpu").expect("Unable to create named RecvGate gpu");
+
+    let res_sgate = SendGate::new_named("gpures").expect("Unable to create named SendGate gpures");
+
     loop {
         let mut request = node
             .receive_request("storage", &req_rgate)
@@ -268,12 +271,13 @@ fn storage(args: &[&str]) {
         None
     };
 
-    let gpu_sgate = SendGate::new_named("gpu").expect("Unable to create named SendGate gpures");
-
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
 
     let req_rgate =
         RecvGate::new_named("storage").expect("Unable to create named RecvGate storage");
+
+    let gpu_sgate = SendGate::new_named("gpu").expect("Unable to create named SendGate gpures");
+
     loop {
         let mut request = node
             .receive_request("frontend", &req_rgate)

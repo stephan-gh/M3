@@ -26,7 +26,55 @@ use crate::kif;
 use crate::mem::GlobOff;
 use crate::syscalls;
 use crate::tcu::EpId;
-use crate::tiles::Activity;
+
+/// Represents a gate capability that can be turned into a usable gate (e.g., `SendCap` to
+/// `SendGate`).
+pub trait GateCap {
+    /// The target type for `activate` (e.g., `SendGate`)
+    type Target;
+
+    /// Creates a new instance for the given selector
+    fn new_bind(sel: Selector) -> Self;
+
+    /// Activates this `GateCap` and thereby turns it into a usable gate
+    fn activate(self) -> Result<Self::Target, Error>;
+}
+
+/// A lazily activated gate
+///
+/// This type exists in two states: unactivated and activated. It can be used via `LazyGate::get`,
+/// which will first activate it if not already done and return a usable gate.
+///
+/// Lazy activation is normally not necessary and also not desired as it comes with some overhead.
+/// However, in some cases a gate needs to be activated lazily, i.e., on first use. For example, if
+/// the gate is obtained from somebody else we cannot activate it immediately as the capability does
+/// not exist until the obtain operation is finished.
+#[derive(Debug)]
+pub enum LazyGate<T: GateCap> {
+    Unact(Selector),
+    Act(T::Target),
+}
+
+impl<T: GateCap> LazyGate<T> {
+    /// Creates a new `LazyGate` with given selector
+    pub fn new(sel: Selector) -> Self {
+        Self::Unact(sel)
+    }
+
+    /// Requests access to the gate and returns a reference to it
+    ///
+    /// If not already done, this call will activate the gate.
+    pub fn get(&mut self) -> Result<&T::Target, Error> {
+        if let Self::Unact(sel) = *self {
+            *self = Self::Act(T::new_bind(sel).activate()?);
+        }
+
+        match self {
+            Self::Act(sg) => Ok(sg),
+            _ => unreachable!(),
+        }
+    }
+}
 
 /// A gate is one side of a TCU-based communication channel and exists in the variants
 /// [`MemGate`](`crate::com::MemGate`), [`SendGate`](`crate::com::SendGate`), and

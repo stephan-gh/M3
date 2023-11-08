@@ -17,7 +17,7 @@ use bitflags::bitflags;
 use m3::cap::Selector;
 use m3::cell::{Cell, RefCell};
 use m3::col::{VarRingBuf, Vec};
-use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SendGate, EP};
+use m3::com::{GateIStream, LazyGate, MemGate, RGateArgs, RecvGate, SendCap, EP};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif;
@@ -41,7 +41,7 @@ macro_rules! reply_vmsg_late {
 pub struct NotifyGate {
     sess: SessId,
     rgate: RecvGate,
-    sgate: SendGate,
+    sgate: LazyGate<SendCap>,
     notify_events: FileEvent,
     pending_events: FileEvent,
     promised_events: Rc<Cell<FileEvent>>,
@@ -51,7 +51,7 @@ impl NotifyGate {
     fn new(
         sess: SessId,
         rgate: RecvGate,
-        sgate: SendGate,
+        sgate: LazyGate<SendCap>,
         promised_events: Rc<Cell<FileEvent>>,
     ) -> Self {
         Self {
@@ -65,7 +65,8 @@ impl NotifyGate {
     }
 
     pub fn send_events(&mut self) {
-        if !self.pending_events.is_empty() && self.sgate.credits().unwrap() > 0 {
+        let sg = self.sgate.get().unwrap();
+        if !self.pending_events.is_empty() && sg.credits().unwrap() > 0 {
             log!(
                 LogFlags::PipeData,
                 "[{}] pipes::notify({:?})",
@@ -73,7 +74,7 @@ impl NotifyGate {
                 self.pending_events
             );
             // ignore errors
-            send_vmsg!(&self.sgate, &self.rgate, self.pending_events.bits()).ok();
+            send_vmsg!(sg, &self.rgate, self.pending_events.bits()).ok();
             // we promise the client that these operations will not block on the next call
             self.promised_events.set(self.pending_events);
             self.notify_events &= !self.pending_events;
@@ -188,12 +189,11 @@ impl State {
         promised_events: Rc<Cell<FileEvent>>,
     ) -> Result<(), Error> {
         let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
-        rgate.activate()?;
 
         self.notify_gates.push(NotifyGate::new(
             id,
             rgate,
-            SendGate::new_bind(sgate),
+            LazyGate::new(sgate),
             promised_events,
         ));
         Ok(())

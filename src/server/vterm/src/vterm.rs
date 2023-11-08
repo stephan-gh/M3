@@ -178,7 +178,6 @@ impl VTermSession {
         match &mut sess.data {
             SessionData::Chan(c) => {
                 let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
-                rgate.activate()?;
                 let sgate = c.set_notify_gates(rgate)?;
 
                 xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sgate, 1));

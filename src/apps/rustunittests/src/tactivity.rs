@@ -18,7 +18,7 @@
 
 use m3::cap::Selector;
 use m3::com::chan;
-use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
+use m3::com::{recv_msg, RecvCap, RecvGate, SGateArgs, SendCap, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::test::{DefaultWvTester, WvTester};
@@ -57,7 +57,7 @@ fn run_stop(_t: &mut dyn WvTester) {
         ));
 
         // pass sendgate to child
-        let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(1)));
+        let sg = wv_assert_ok!(SendCap::new_with(SGateArgs::new(&rg).credits(1)));
         wv_assert_ok!(act.delegate_obj(sg.sel()));
 
         // pass root fs to child
@@ -71,7 +71,7 @@ fn run_stop(_t: &mut dyn WvTester) {
             let sg_sel: Selector = src.pop().unwrap();
 
             // notify parent that we're running
-            let sg = SendGate::new_bind(sg_sel);
+            let sg = wv_assert_ok!(SendGate::new_bind(sg_sel));
             wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
             let mut _n = 0;
             loop {
@@ -112,8 +112,7 @@ fn run_send_receive(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
-    let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
-    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
+    let rgate = wv_assert_ok!(RecvCap::new(math::next_log2(256), math::next_log2(256)));
 
     wv_assert_ok!(act.delegate_obj(rgate.sel()));
 
@@ -125,7 +124,7 @@ fn run_send_receive(t: &mut dyn WvTester) {
         let mut src = Activity::own().data_source();
         let rg_sel: Selector = src.pop().unwrap();
 
-        let rgate = RecvGate::new_bind(rg_sel);
+        let rgate = wv_assert_ok!(RecvGate::new_bind(rg_sel));
         let mut res = wv_assert_ok!(recv_msg(&rgate));
         let i1 = wv_assert_ok!(res.pop::<u32>());
         let i2 = wv_assert_ok!(res.pop::<u32>());
@@ -133,6 +132,7 @@ fn run_send_receive(t: &mut dyn WvTester) {
         Err(Error::new(Code::NoFreeTile))
     }));
 
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
     wv_assert_ok!(send_vmsg!(&sgate, RecvGate::def(), 42, 23));
 
     wv_assert_eq!(t, act.wait(), Ok(Code::NoFreeTile));
@@ -154,8 +154,8 @@ fn run_send_receive_chan(t: &mut dyn WvTester) {
 
     let act = wv_assert_ok!(act.run(|| {
         let mut source = Activity::own().data_source();
-        let rx0 = chan::Receiver::new_bind(source.pop()?);
-        let res_tx0 = chan::Sender::new_bind(source.pop()?);
+        let rx0 = wv_assert_ok!(chan::Receiver::new_bind(source.pop()?));
+        let res_tx0 = wv_assert_ok!(chan::Sender::new_bind(source.pop()?));
 
         let i1 = rx0.recv::<u32>()?;
         let res = (i1 + 5) as i32;
@@ -166,6 +166,8 @@ fn run_send_receive_chan(t: &mut dyn WvTester) {
     // since there is no buffering inside the channels,
     // all communication needs to be done before we wait
     // for the activities to finish.
+    let tx = wv_assert_ok!(tx.activate());
+    let res_rx = wv_assert_ok!(res_rx.activate());
     wv_assert_ok!(tx.send::<u32>(42));
     let res: i32 = wv_assert_ok!(res_rx.recv());
     wv_assert_eq!(t, res, 42 + 5);
@@ -180,16 +182,18 @@ fn run_send_receive_chan_macro(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
-    let act = wv_assert_ok!(run_with_channels!(act, |
-        rx0: chan::Receiver,
-        res_tx0: chan::Sender,
-    | {
-        let i1 = rx0.recv::<u32>()?;
-        let res = (i1 + 5) as i32;
-        res_tx0.send(res)?;
-        Ok(())
-    }(rx, res_tx)));
+    let act = wv_assert_ok!(run_with_channels!(
+        act,
+        |rx0: chan::Receiver, res_tx0: chan::Sender| {
+            let i1 = rx0.recv::<u32>()?;
+            let res = (i1 + 5) as i32;
+            res_tx0.send(res)?;
+            Ok(())
+        }(rx, res_tx)
+    ));
 
+    let tx = wv_assert_ok!(tx.activate());
+    let res_rx = wv_assert_ok!(res_rx.activate());
     wv_assert_ok!(tx.send::<u32>(42));
     let res: i32 = wv_assert_ok!(res_rx.recv());
     wv_assert_eq!(t, res, 42 + 5);

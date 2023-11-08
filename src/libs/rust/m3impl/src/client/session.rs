@@ -88,7 +88,7 @@ impl ClientSession {
     pub fn connect(&self) -> Result<SendGate, Error> {
         let sel = SelSpace::get().alloc_sel();
         self.connect_for(Activity::own(), sel)?;
-        Ok(SendGate::new_bind(sel))
+        SendGate::new_bind(sel)
     }
 
     /// Creates a connection for requests to the server for given activity

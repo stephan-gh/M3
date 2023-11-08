@@ -21,7 +21,7 @@ use core::fmt;
 
 use crate::cap;
 use crate::client::ClientSession;
-use crate::com::{opcodes, MemGate, RGateArgs, RecvGate, SendGate};
+use crate::com::{opcodes, MemGate, RGateArgs, RecvCap, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::kif;
 use crate::mem::VirtAddr;
@@ -35,9 +35,9 @@ use crate::tiles::ChildActivity;
 /// faults when this memory is accessed.
 pub struct Pager {
     sess: ClientSession,
-    req_sgate: SendGate,
+    req_sgate: Option<SendGate>,
     child_sgate: cap::Selector,
-    pf_rgate: RecvGate,
+    pf_rgate: Option<RecvCap>,
     pf_sgate: cap::Selector,
 }
 
@@ -64,11 +64,13 @@ impl Pager {
         pf_sgate: cap::Selector,
         child_sgate: cap::Selector,
     ) -> Result<Self, Error> {
-        let pf_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+        let pf_rgate = Some(RecvCap::new_with(
+            RGateArgs::default().order(6).msg_order(6),
+        )?);
 
         Ok(Pager {
             sess,
-            req_sgate: SendGate::new_bind(kif::INVALID_SEL),
+            req_sgate: None,
             child_sgate,
             pf_rgate,
             pf_sgate,
@@ -78,12 +80,12 @@ impl Pager {
     /// Binds a new pager-session to given selector (for childs).
     pub(crate) fn new_bind(sess_sel: cap::Selector, sgate_sel: cap::Selector) -> Self {
         let sess = ClientSession::new_bind(sess_sel);
-        let sgate = SendGate::new_bind(sgate_sel);
+        let sgate = SendGate::new_bind(sgate_sel).unwrap();
         Pager {
             sess,
-            req_sgate: sgate,
+            req_sgate: Some(sgate),
             child_sgate: kif::INVALID_SEL,
-            pf_rgate: RecvGate::new_bind(kif::INVALID_SEL),
+            pf_rgate: None,
             pf_sgate: kif::INVALID_SEL,
         }
     }
@@ -98,9 +100,11 @@ impl Pager {
         // get send gates for us and our child
         let child_sgate = sess.connect()?.sel();
         let pf_sgate = sess.connect()?.sel();
-        let req_sgate = sess.connect()?;
+        let req_sgate = Some(sess.connect()?);
 
-        let pf_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+        let pf_rgate = Some(RecvCap::new_with(
+            RGateArgs::default().order(6).msg_order(6),
+        )?);
         Ok(Pager {
             sess,
             child_sgate,
@@ -114,7 +118,12 @@ impl Pager {
     pub(crate) fn init(&mut self, act: &ChildActivity) -> Result<(), Error> {
         // activate send and receive gate for page faults
         syscalls::activate(act.sel() + 1, self.pf_sgate, kif::INVALID_SEL, 0)?;
-        syscalls::activate(act.sel() + 2, self.pf_rgate.sel(), kif::INVALID_SEL, 0)?;
+        syscalls::activate(
+            act.sel() + 2,
+            self.pf_rgate.as_ref().unwrap().sel(),
+            kif::INVALID_SEL,
+            0,
+        )?;
 
         // delegate session and sgate caps to child
         act.delegate_obj(self.sel())?;
@@ -144,7 +153,12 @@ impl Pager {
     /// Performs the clone-operation on server-side using copy-on-write.
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Result<(), Error> {
-        send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::Clone).map(|_| ())
+        send_recv_res!(
+            self.req_sgate.as_ref().unwrap(),
+            RecvGate::def(),
+            opcodes::Pager::Clone
+        )
+        .map(|_| ())
     }
 
     /// Sends a page fault for the virtual address `virt` for given access type to the server.
@@ -154,7 +168,7 @@ impl Pager {
     /// resolve a page fault for a particular address.
     pub fn pagefault(&self, virt: VirtAddr, access: kif::Perm) -> Result<(), Error> {
         send_recv_res!(
-            &self.req_sgate,
+            self.req_sgate.as_ref().unwrap(),
             RecvGate::def(),
             opcodes::Pager::Pagefault,
             virt,
@@ -172,7 +186,7 @@ impl Pager {
         flags: MapFlags,
     ) -> Result<VirtAddr, Error> {
         let mut reply = send_recv_res!(
-            &self.req_sgate,
+            self.req_sgate.as_ref().unwrap(),
             RecvGate::def(),
             opcodes::Pager::MapAnon,
             virt,
@@ -248,7 +262,7 @@ impl Pager {
     /// Unaps the mapping at virtual address `virt`.
     pub fn unmap(&self, virt: VirtAddr) -> Result<(), Error> {
         send_recv_res!(
-            &self.req_sgate,
+            self.req_sgate.as_ref().unwrap(),
             RecvGate::def(),
             opcodes::Pager::Unmap,
             virt

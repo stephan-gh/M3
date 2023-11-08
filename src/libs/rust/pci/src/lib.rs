@@ -22,7 +22,7 @@ use bitflags::bitflags;
 use num_enum::IntoPrimitive;
 
 use m3::cfg;
-use m3::com::{EpMng, MemGate, RecvGate, SendGate, EP};
+use m3::com::{EpMng, MemGate, RecvGate, SendCap, EP};
 use m3::errors::Error;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
 use m3::mem::{GlobOff, VirtAddr};
@@ -86,7 +86,7 @@ pub struct Device {
     _sep: EP,
     mep: EP,
     rgate: RecvGate,
-    _sgate: SendGate,
+    _scap: SendCap,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -266,9 +266,8 @@ impl Device {
         let sep = EpMng::acquire_for(act_sel, EP_INT, 0)?;
         let mep = EpMng::acquire_for(act_sel, EP_DMA, 0)?;
         let rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
-        let sgate = SendGate::new(&rgate)?;
-        rgate.activate()?;
-        sep.configure(sgate.sel())?;
+        let scap = SendCap::new(&rgate)?;
+        sep.configure(scap.sel())?;
 
         Ok(Self {
             _activity: act.start()?,
@@ -276,7 +275,7 @@ impl Device {
             _sep: sep,
             mep,
             rgate,
-            _sgate: sgate,
+            _scap: scap,
         })
     }
 

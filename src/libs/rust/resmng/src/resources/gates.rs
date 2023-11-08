@@ -14,7 +14,7 @@
  */
 
 use m3::col::{String, Vec};
-use m3::com::{RGateArgs, RecvGate};
+use m3::com::{RGateArgs, RecvCap};
 use m3::errors::Error;
 use m3::io::LogFlags;
 use m3::log;
@@ -22,7 +22,7 @@ use m3::util::math;
 
 #[derive(Default)]
 pub struct GateManager {
-    gates: Vec<(String, RecvGate)>,
+    gates: Vec<(String, RecvCap)>,
 }
 
 impl GateManager {
@@ -33,7 +33,7 @@ impl GateManager {
     pub fn add_rgate(&mut self, name: String, msg_size: usize, slots: usize) -> Result<(), Error> {
         let msg_order = math::next_log2(msg_size);
         let order = msg_order + math::next_log2(slots);
-        let rgate = RecvGate::new_with(RGateArgs::default().order(order).msg_order(msg_order))?;
+        let rgate = RecvCap::new_with(RGateArgs::default().order(order).msg_order(msg_order))?;
 
         log!(
             LogFlags::ResMngGate,
@@ -45,7 +45,7 @@ impl GateManager {
         Ok(())
     }
 
-    pub fn get(&self, name: &str) -> Option<&RecvGate> {
+    pub fn get(&self, name: &str) -> Option<&RecvCap> {
         self.gates
             .iter()
             .find(|(gname, _gate)| gname == name)

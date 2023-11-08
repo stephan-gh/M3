@@ -33,6 +33,28 @@ use crate::sendqueue::SendQueue;
 
 pub type Id = u32;
 
+pub struct DerivedService {
+    srv: Capability,
+    sgate: Capability,
+}
+
+impl DerivedService {
+    fn new(sels: Selector) -> Self {
+        Self {
+            srv: Capability::new(sels + 0, CapFlags::empty()),
+            sgate: Capability::new(sels + 1, CapFlags::empty()),
+        }
+    }
+
+    pub fn serv_sel(&self) -> Selector {
+        self.srv.sel()
+    }
+
+    pub fn sgate_sel(&self) -> Selector {
+        self.sgate.sel()
+    }
+}
+
 pub struct Service {
     id: Id,
     child: childs::Id,
@@ -52,18 +74,18 @@ impl Service {
         name: String,
         sessions: u32,
         owned: bool,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         log!(LogFlags::ResMngServ, "Creating service {}:{}", id, name);
 
-        Service {
+        Ok(Service {
             id,
             child,
             cap: Capability::new(srv_sel, CapFlags::empty()),
-            queue: SendQueue::new(id, SendGate::new_bind(sgate_sel)),
+            queue: SendQueue::new(id, SendGate::new_bind(sgate_sel)?),
             name,
             sessions,
             owned,
-        }
+        })
     }
 
     pub fn sel(&self) -> Selector {
@@ -86,11 +108,9 @@ impl Service {
         self.sessions
     }
 
-    pub fn derive_async(&self, child: childs::Id, sessions: u32) -> Result<Self, Error> {
+    pub fn derive_async(&self, child: childs::Id, sessions: u32) -> Result<DerivedService, Error> {
         let dst = SelSpace::get().alloc_sels(2);
         let event = events::alloc_event();
-        let id = self.id;
-        let name = self.name.clone();
         syscalls::derive_srv(
             self.sel(),
             kif::CapRngDesc::new(kif::CapType::Object, dst, 2),
@@ -104,7 +124,7 @@ impl Service {
         let reply = de.pop::<kif::upcalls::DeriveSrv>()?;
         Result::from(reply.error)?;
 
-        Ok(Self::new(id, child, dst, dst + 1, name, sessions, false))
+        Ok(DerivedService::new(dst))
     }
 
     fn shutdown_async(&mut self) {
@@ -257,7 +277,7 @@ impl ServiceManager {
             name,
             sessions,
             owned,
-        );
+        )?;
         self.servs.push(serv);
         self.next_id += 1;
 

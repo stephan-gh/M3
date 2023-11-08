@@ -26,7 +26,7 @@ use crate::client::{ClientSession, HashInput, HashOutput, HashSession, MapFlags,
 use crate::col::{String, ToString};
 use crate::com::recv_result;
 use crate::com::GateIStream;
-use crate::com::{opcodes, MemGate, RecvGate, SendGate, EP};
+use crate::com::{opcodes, MemGate, RecvGate, SendCap, SendGate, EP};
 use crate::errors::{Code, Error};
 use crate::io::{LogFlags, Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
@@ -43,7 +43,7 @@ const NOTIFY_MSG_SIZE: usize = 64;
 
 struct NonBlocking {
     notify_rgate: Box<RecvGate>,
-    _notify_sgate: Box<SendGate>,
+    _notify_sgate: Box<SendCap>,
     notify_received: FileEvent,
     notify_requested: FileEvent,
 }
@@ -131,7 +131,7 @@ impl GenericFile {
             fd: filetable::INV_FD,
             flags,
             sess: ClientSession::new_owned_bind(sel),
-            sgate: Rc::new(SendGate::new_bind(sel + 1)),
+            sgate: Rc::new(SendGate::new_bind(sel + 1).unwrap()),
             mgate: MemGate::new_bind(INVALID_SEL),
             delegated_ep: INVALID_SEL,
             blocking: true,
@@ -297,8 +297,7 @@ impl GenericFile {
             math::next_log2(NOTIFY_MSG_SIZE),
             math::next_log2(NOTIFY_MSG_SIZE),
         )?);
-        notify_rgate.activate()?;
-        let _notify_sgate = Box::new(SendGate::new(&notify_rgate)?);
+        let _notify_sgate = Box::new(SendCap::new(&*notify_rgate)?);
 
         let crd = CapRngDesc::new(CapType::Object, _notify_sgate.sel(), 1);
         self.sess

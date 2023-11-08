@@ -27,11 +27,39 @@
 
 use crate::cap::Selector;
 use crate::com::stream::recv_msg;
-use crate::com::{RecvGate, SGateArgs, SendGate};
+use crate::com::{rgate::ReceivingGate, GateCap, RecvCap, RecvGate, SGateArgs, SendCap, SendGate};
 use crate::errors::{Code, Error};
 use crate::serialize::{Deserialize, Serialize};
-use crate::tcu;
+
 use crate::util::math;
+
+/// Represents the capability for sender part of the channel, which needs to be turned into a
+/// `Sender` before it can be used.
+pub struct SenderCap {
+    scap: SendCap,
+}
+
+impl SenderCap {
+    fn new<R: ReceivingGate>(rgate: &R) -> Result<Self, Error> {
+        let scap = SendCap::new_with(SGateArgs::new(rgate).credits(1))?;
+        Ok(Self { scap })
+    }
+
+    /// Returns the selector of the underlying [`SendCap`](crate::com::SendCap).
+    ///
+    /// This method is used to delegate the sending part of the channel to another activity.
+    pub fn sel(&self) -> Selector {
+        self.scap.sel()
+    }
+
+    /// Activates the underyling [`SendCap`](crate::com::SendCap) and thereby turns this `SenderCap`
+    /// into a `Sender`.
+    pub fn activate(self) -> Result<Sender, Error> {
+        Ok(Sender {
+            sgate: self.scap.activate()?,
+        })
+    }
+}
 
 /// Represents the sender part of the channel created with [`sync_channel`].
 pub struct Sender {
@@ -39,39 +67,46 @@ pub struct Sender {
 }
 
 impl Sender {
-    fn new(rgate: &RecvGate) -> Result<Self, Error> {
-        let sgate = SendGate::new_with(SGateArgs::new(rgate).credits(1))?;
-        Ok(Self { sgate })
-    }
-
     /// Creates a new [`Sender`] that is bound to given selector.
     ///
     /// This function is intended to be used by the communication partner that did not create the
     /// channel, but wants to connect to the sending part of it.
-    pub fn new_bind(sel: Selector) -> Self {
-        let sgate = SendGate::new_bind(sel);
-        Self { sgate }
-    }
-
-    /// Returns the selector of the underlying [`SendGate`](crate::com::SendGate).
-    ///
-    /// This method is used to delegate the sending part of the channel to another activity.
-    pub fn sel(&self) -> Selector {
-        self.sgate.sel()
+    pub fn new_bind(sel: Selector) -> Result<Self, Error> {
+        let sgate = SendGate::new_bind(sel)?;
+        Ok(Self { sgate })
     }
 
     /// Sends the given item synchronously to the receiver
     pub fn send<T: Serialize>(&self, data: T) -> Result<(), Error> {
         send_recv_res!(&self.sgate, RecvGate::def(), data).map(|_| ())
     }
+}
 
-    /// Manually activates the underyling [`SendGate`](crate::com::SendGate).
+/// Represents the capability for receiver part of the channel, which needs to be turned into a
+/// `Receiver` before it can be used.
+pub struct ReceiverCap {
+    rcap: RecvCap,
+}
+
+impl ReceiverCap {
+    fn new(msg_size: usize) -> Result<Self, Error> {
+        let rcap = RecvCap::new(math::next_log2(msg_size), math::next_log2(msg_size))?;
+        Ok(Self { rcap })
+    }
+
+    /// Returns the selector of the underlying [`RecvCap`](crate::com::RecvCap).
     ///
-    /// The [`SendGate`](crate::com::SendGate) is activated automatically on first use. In case
-    /// automatic activation is not possible (e.g., would cause a deadlock), manual activation can
-    /// be used.
-    pub fn activate(&self) -> Result<tcu::EpId, Error> {
-        self.sgate.activate()
+    /// This method is used to delegate the receiver part of the channel to another activity.
+    pub fn sel(&self) -> Selector {
+        self.rcap.sel()
+    }
+
+    /// Activates the underyling [`RecvCap`](crate::com::RecvCap) and thereby turns this
+    /// `ReceiverCap` into a `Receiver`.
+    pub fn activate(self) -> Result<Receiver, Error> {
+        Ok(Receiver {
+            rgate: self.rcap.activate()?,
+        })
     }
 }
 
@@ -81,25 +116,13 @@ pub struct Receiver {
 }
 
 impl Receiver {
-    fn new(msg_size: usize) -> Result<Self, Error> {
-        let rgate = RecvGate::new(math::next_log2(msg_size), math::next_log2(msg_size))?;
-        Ok(Self { rgate })
-    }
-
     /// Creates a new [`Receiver`] that is bound to given selector.
     ///
     /// This function is intended to be used by the communication partner that did not create the
     /// channel, but wants to connect to the receiver part of it.
-    pub fn new_bind(sel: Selector) -> Self {
-        let rgate = RecvGate::new_bind(sel);
-        Self { rgate }
-    }
-
-    /// Returns the selector of the underlying [`RecvGate`](crate::com::RecvGate).
-    ///
-    /// This method is used to delegate the receiver part of the channel to another activity.
-    pub fn sel(&self) -> Selector {
-        self.rgate.sel()
+    pub fn new_bind(sel: Selector) -> Result<Self, Error> {
+        let rgate = RecvGate::new_bind(sel)?;
+        Ok(Self { rgate })
     }
 
     /// Receives an item of given type from the sender
@@ -109,26 +132,17 @@ impl Receiver {
         reply_vmsg!(s, Code::Success)?;
         s.pop::<T>()
     }
-
-    /// Manually activates the underyling [`RecvGate`](crate::com::RecvGate).
-    ///
-    /// The [`RecvGate`](crate::com::RecvGate) is activated automatically on first use. In case
-    /// automatic activation is not possible (e.g., would cause a deadlock), manual activation can
-    /// be used.
-    pub fn activate(&self) -> Result<tcu::EpId, Error> {
-        self.rgate.activate()
-    }
 }
 
 /// Creates a new synchronous communication channel with default settings (256b message size)
-pub fn sync_channel() -> Result<(Sender, Receiver), Error> {
+pub fn sync_channel() -> Result<(SenderCap, ReceiverCap), Error> {
     sync_channel_with(256)
 }
 
 /// Creates a new synchronous communication channel with the given maximum message size
-pub fn sync_channel_with(msg_size: usize) -> Result<(Sender, Receiver), Error> {
-    let rx = Receiver::new(msg_size)?;
-    let tx = Sender::new(&rx.rgate)?;
+pub fn sync_channel_with(msg_size: usize) -> Result<(SenderCap, ReceiverCap), Error> {
+    let rx = ReceiverCap::new(msg_size)?;
+    let tx = SenderCap::new(&rx.rcap)?;
     Ok((tx, rx))
 }
 
@@ -150,7 +164,7 @@ macro_rules! run_with_channels {
 
             act.run(|| {
                 let mut source = Activity::own().data_source();
-                $( let $b_chans = <$b_types>::new_bind(source.pop()?); )+
+                $( let $b_chans = <$b_types>::new_bind(source.pop()?)?; )+
                 $b
             })
         })()

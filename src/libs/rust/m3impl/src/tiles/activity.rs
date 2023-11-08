@@ -22,7 +22,7 @@ use core::fmt;
 
 use crate::cap::{Capability, Selector};
 use crate::cell::LazyReadOnlyCell;
-use crate::client::{Pager, ResMng};
+use crate::client::Pager;
 use crate::col::Vec;
 use crate::com::MemGate;
 use crate::errors::Error;
@@ -48,7 +48,6 @@ use crate::tiles::{KMem, OwnActivity, Tile};
 pub struct Activity {
     pub(crate) id: ActId,
     pub(crate) cap: Capability,
-    pub(crate) rmng: Option<ResMng>, // close the connection resource manager at last
     pub(crate) tile: Rc<Tile>,
     pub(crate) kmem: Rc<KMem>,
     pub(crate) eps_start: EpId,
@@ -64,7 +63,6 @@ impl Activity {
             id: 0,
             cap,
             tile,
-            rmng: None,
             eps_start: 0,
             pager: None,
             kmem,

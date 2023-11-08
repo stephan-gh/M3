@@ -21,7 +21,7 @@ use crate::boxed::Box;
 use crate::cap::{SelSpace, Selector};
 use crate::cfg;
 use crate::col::{ToString, Vec};
-use crate::com::{opcodes, GateIStream, RecvGate, SGateArgs, SendGate};
+use crate::com::{opcodes, GateIStream, RecvGate, SGateArgs, SendCap};
 use crate::errors::{Code, Error};
 use crate::format;
 use crate::io::LogFlags;
@@ -128,7 +128,7 @@ pub struct ClientManager<S> {
     serv_sel: Selector,
     sessions: SessionContainer<S>,
     rgate: RecvGate,
-    sgates: Vec<(SessId, SendGate)>,
+    sgates: Vec<(SessId, SendCap)>,
     max_cli_cons: usize,
 }
 
@@ -140,7 +140,6 @@ impl<S: RequestSession + 'static> ClientManager<S> {
             math::next_log2(max_clients * msg_size),
             math::next_log2(msg_size),
         )?;
-        rgate.activate()?;
         Ok(Self {
             // will be initialized during the init call in the Handler trait
             serv_sel: 0,
@@ -200,7 +199,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         create_sess: F,
     ) -> Result<(Selector, SessId), Error>
     where
-        F: FnOnce(&mut Self, ServerSession, &SendGate) -> Result<S, Error>,
+        F: FnOnce(&mut Self, ServerSession, &SendCap) -> Result<S, Error>,
     {
         let sid = self.sessions.next_id()?;
         if !self.sessions.can_add(crt) {
@@ -208,7 +207,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         }
 
         let sels = SelSpace::get().alloc_sels(2);
-        let sgate = SendGate::new_with(
+        let sgate = SendCap::new_with(
             SGateArgs::new(&self.rgate)
                 .label(sid as Label)
                 .credits(1)
@@ -235,7 +234,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
             return Err(Error::new(Code::NoSpace));
         }
 
-        let sgate = SendGate::new_with(SGateArgs::new(&self.rgate).label(sid as Label).credits(1))?;
+        let sgate = SendCap::new_with(SGateArgs::new(&self.rgate).label(sid as Label).credits(1))?;
         let sel = sgate.sel();
         self.sgates.push((sid, sgate));
 
@@ -288,7 +287,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
                 sess.close(self, id, &mut sids);
 
                 // ignore all potentially outstanding messages of this session
-                self.recv_gate().drop_msgs_with(id as Label).unwrap();
+                self.recv_gate().drop_msgs_with(id as Label);
             }
         }
     }

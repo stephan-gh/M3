@@ -27,8 +27,9 @@ use base::kif::syscalls::MuxType;
 use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::cell::Cell;
 use crate::cfg;
-use crate::client::{Pager, ResMng};
+use crate::client::{Pager, ResMngChild};
 use crate::col::{String, ToString, Vec};
+use crate::com::SendCap;
 use crate::env::{self, Env};
 use crate::errors::Error;
 use crate::kif::{self, CapRngDesc, CapType};
@@ -79,6 +80,7 @@ use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 pub struct ChildActivity {
     base: Activity,
     child_sel: Cell<Selector>,
+    rmng: ResMngChild,
     files: Vec<(Fd, Fd)>,
     mounts: Vec<(String, String)>,
 }
@@ -88,7 +90,7 @@ pub struct ActivityArgs<'n> {
     name: &'n str,
     pager: Option<Pager>,
     kmem: Option<Rc<KMem>>,
-    rmng: Option<ResMng>,
+    rmng: Option<SendCap>,
     first_sel: Selector,
 }
 
@@ -104,9 +106,9 @@ impl<'n> ActivityArgs<'n> {
         }
     }
 
-    /// Sets the resource manager to `rmng`. Otherwise and by default, the resource manager of the
-    /// own activity will be cloned.
-    pub fn resmng(mut self, rmng: ResMng) -> Self {
+    /// Sets the `SendCap` used to communicate with the resource manager to `rmng`. Otherwise and by
+    /// default, the resource manager of the own activity will be cloned.
+    pub fn resmng(mut self, rmng: SendCap) -> Self {
         self.rmng = Some(rmng);
         self
     }
@@ -149,6 +151,8 @@ impl ChildActivity {
 
         // create child activity struct
         let mut act = ChildActivity {
+            // use an invalid cap temporary until we set the actual SendCap
+            rmng: ResMngChild::default(),
             base: Activity::new_act(
                 Capability::new(sel, CapFlags::empty()),
                 tile.clone(),
@@ -194,20 +198,18 @@ impl ChildActivity {
             .set(cmp::max(act.kmem().sel() + 1, act.child_sel.get()));
 
         // determine resource manager
-        act.rmng = if let Some(rmng) = args.rmng {
-            act.delegate_obj(rmng.sel())?;
-            Some(rmng)
+        act.rmng = if let Some(rmng_scap) = args.rmng {
+            act.delegate_obj(rmng_scap.sel())?;
+            ResMngChild::new(rmng_scap)
         }
         else {
             let sgate_sel = act.child_sel.get();
             act.child_sel.set(sgate_sel + 1);
 
-            Some(
-                Activity::own()
-                    .resmng()
-                    .unwrap()
-                    .clone(&mut act, sgate_sel, args.name)?,
-            )
+            Activity::own()
+                .resmng()
+                .unwrap()
+                .clone(&mut act, sgate_sel, args.name)?
         };
 
         // ensure that the child's cap space is not further ahead than ours
@@ -220,8 +222,8 @@ impl ChildActivity {
     }
 
     /// Returns the selector of the resource manager
-    pub fn resmng_sel(&self) -> Option<Selector> {
-        self.rmng.as_ref().map(|r| r.sel())
+    pub fn resmng_sel(&self) -> Selector {
+        self.rmng.sel()
     }
 
     /// Returns the map of files (destination fd, source fd) that are going to be delegated to this
@@ -429,7 +431,7 @@ impl ChildActivity {
         cenv.set_sp(self.tile_desc().stack_top());
         cenv.set_entry(entry);
         cenv.set_first_std_ep(self.eps_start);
-        cenv.set_rmng(self.resmng_sel().unwrap());
+        cenv.set_rmng(self.resmng_sel());
         cenv.set_first_sel(self.child_sel.get());
         cenv.set_pedesc(self.tile_desc());
         cenv.set_activity_id(self.id());

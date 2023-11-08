@@ -243,7 +243,6 @@ fn create_srv(_t: &mut dyn WvTester) {
         fn pre(&mut self) {
             if self.0.is_none() {
                 self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
-                self.0.as_mut().unwrap().activate().unwrap();
             }
         }
 

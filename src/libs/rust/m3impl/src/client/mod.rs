@@ -43,6 +43,6 @@ pub use self::m3fs::M3FS;
 pub use self::network::Network;
 pub use self::pager::{MapFlags, Pager};
 pub use self::pipe::{Pipe, Pipes};
-pub use self::resmng::ResMng;
+pub use self::resmng::{ResMng, ResMngChild};
 pub use self::session::ClientSession;
 pub use self::vterm::VTerm;

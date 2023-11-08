@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{RGateArgs, RecvGate};
+use m3::com::{RGateArgs, RecvGate, SendCap};
 use m3::errors::Code;
 use m3::test::WvTester;
 use m3::{wv_assert_err, wv_run_test};
@@ -50,7 +50,7 @@ fn destroy(t: &mut dyn WvTester) {
         ));
         // TODO actually, we could create it in the child, but this is not possible in rust atm
         // because we would need to move rg to the child *and* use it in the parent
-        let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(1)));
+        let sg = wv_assert_ok!(SendCap::new_with(SGateArgs::new(&rg).credits(1)));
 
         wv_assert_ok!(child.delegate_obj(sg.sel()));
 
@@ -60,7 +60,7 @@ fn destroy(t: &mut dyn WvTester) {
         let act = wv_assert_ok!(child.run(|| {
             let mut t = m3::test::DefaultWvTester::default();
             let sg_sel: Selector = Activity::own().data_source().pop().unwrap();
-            let sg = SendGate::new_bind(sg_sel);
+            let sg = wv_assert_ok!(SendGate::new_bind(sg_sel));
 
             let mut i = 0;
             for _ in 0..10 {

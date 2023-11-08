@@ -20,7 +20,7 @@ use m3::cap::{SelSpace, Selector};
 use m3::cell::{Cell, RefCell};
 use m3::client::resmng;
 use m3::col::{String, ToString, Treap, Vec};
-use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
+use m3::com::{MemGate, RecvGate, SGateArgs, SendCap};
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::io::LogFlags;
@@ -103,7 +103,7 @@ pub struct ChildResources {
     mem: Vec<(Option<Selector>, Allocation)>,
     mods: Vec<MemGate>,
     tiles: Vec<(TileUsage, usize, Selector)>,
-    sgates: Vec<SendGate>,
+    scaps: Vec<SendCap>,
 }
 
 impl ChildResources {
@@ -131,8 +131,8 @@ impl ChildResources {
         &self.tiles
     }
 
-    pub fn send_gates(&self) -> &[SendGate] {
-        &self.sgates
+    pub fn send_caps(&self) -> &[SendCap] {
+        &self.scaps
     }
 }
 
@@ -462,7 +462,7 @@ pub trait Child {
 
         let rgate = res.gates().get(sdesc.name().global()).unwrap();
 
-        let sgate = SendGate::new_with(
+        let sgate = SendCap::new_with(
             SGateArgs::new(rgate)
                 .credits(sdesc.credits())
                 .label(sdesc.label()),
@@ -470,7 +470,7 @@ pub trait Child {
         self.delegate(sgate.sel(), sel)?;
 
         sdesc.mark_used();
-        self.res_mut().sgates.push(sgate);
+        self.res_mut().scaps.push(sgate);
         Ok(())
     }
     fn use_sem(&mut self, res: &Resources, name: &str, sel: Selector) -> Result<(), Error> {
@@ -803,12 +803,7 @@ impl Child for OwnChild {
     }
 
     fn resmng_sgate_sel(&self) -> Selector {
-        self.activity
-            .as_ref()
-            .unwrap()
-            .activity()
-            .resmng_sel()
-            .unwrap()
+        self.activity.as_ref().unwrap().activity().resmng_sel()
     }
 
     fn mem(&self) -> &Rc<ChildMem> {
@@ -857,7 +852,7 @@ pub struct ForeignChild {
     mem: Rc<ChildMem>,
     res: ChildResources,
     act_sel: Selector,
-    _sgate: SendGate,
+    _scap: SendCap,
 }
 
 impl ForeignChild {
@@ -870,7 +865,7 @@ impl ForeignChild {
         parent_tile: TileUsage,
         act_id: tcu::ActId,
         act_sel: Selector,
-        sgate: SendGate,
+        scap: SendCap,
         cfg: Rc<AppConfig>,
         mem: Rc<ChildMem>,
     ) -> Self {
@@ -886,7 +881,7 @@ impl ForeignChild {
             res: ChildResources::default(),
             act_id,
             act_sel,
-            _sgate: sgate,
+            _scap: scap,
         }
     }
 }
@@ -940,7 +935,7 @@ impl Child for ForeignChild {
     }
 
     fn resmng_sgate_sel(&self) -> Selector {
-        self._sgate.sel()
+        self._scap.sel()
     }
 
     fn mem(&self) -> &Rc<ChildMem> {
@@ -1302,7 +1297,7 @@ impl ChildManager {
             return Err(Error::new(Code::Exists));
         }
 
-        let sgate = SendGate::new_with(
+        let sgate = SendCap::new_with(
             SGateArgs::new(rgate)
                 .credits(1)
                 .label(tcu::Label::from(nid)),
@@ -1385,7 +1380,7 @@ impl ChildManager {
             )
             .ok();
             // now remove all potentially pending messages from the child
-            reqs.recv_gate().drop_msgs_with(child.id().into()).unwrap();
+            reqs.recv_gate().drop_msgs_with(child.id().into());
 
             for csel in &child.res().childs {
                 self.remove_rec_async(reqs, res, csel.0);

@@ -46,6 +46,7 @@ use crate::vfs::{FileTable, MountTable};
 /// the own activity such as [`sleep`](`OwnActivity::sleep`), [`wait_for`](`OwnActivity::wait_for`),
 /// and [`exit`](`OwnActivity::exit`).
 pub struct OwnActivity {
+    pub(crate) rmng: Option<ResMng>, // close the connection resource manager at last
     base: Activity,
     files: RefCell<FileTable>,
     mounts: RefCell<MountTable>,
@@ -64,11 +65,11 @@ impl OwnActivity {
                     kif::SEL_TILE,
                 )),
                 eps_start: env.first_std_ep(),
-                rmng: env.load_rmng(),
                 pager: env.load_pager(),
                 data: env.load_data(),
                 kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             },
+            rmng: env.load_rmng(),
             // mounts first; files depend on mounts
             mounts: RefCell::new(env.load_mounts()),
             files: RefCell::new(env.load_fds()),

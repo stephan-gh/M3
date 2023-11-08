@@ -92,7 +92,6 @@ impl Disk {
             math::next_log2(MSG_SIZE * MSG_SLOTS),
             math::next_log2(MSG_SIZE),
         )?;
-        rgate.activate()?;
 
         // get send gate for our requests
         let sgate = sess.connect()?;

@@ -19,7 +19,7 @@
 use m3::cap::{SelSpace, Selector};
 use m3::cfg::PAGE_SIZE;
 use m3::client::M3FS;
-use m3::com::{EpMng, MemGate, RecvGate, SendGate};
+use m3::com::{EpMng, GateCap, MemGate, RecvCap, RecvGate, SendCap};
 use m3::cpu::{CPUOps, CPU};
 use m3::errors::{Code, Error};
 use m3::kif::syscalls::{ActivityOp, SemOp};
@@ -66,7 +66,7 @@ pub fn run(t: &mut dyn WvTester) {
 
 fn create_srv(t: &mut dyn WvTester) {
     let sel = SelSpace::get().alloc_sel();
-    let rgate = wv_assert_ok!(RecvGate::new(10, 10));
+    let rgate = wv_assert_ok!(RecvCap::new(10, 10));
 
     // invalid dest selector
     wv_assert_err!(
@@ -87,7 +87,7 @@ fn create_srv(t: &mut dyn WvTester) {
         syscalls::create_srv(sel, rgate.sel(), "test", 0),
         Code::InvArgs
     );
-    wv_assert_ok!(rgate.activate());
+    let rgate = wv_assert_ok!(rgate.activate());
 
     // invalid name
     wv_assert_err!(
@@ -230,7 +230,6 @@ fn create_rgate(t: &mut dyn WvTester) {
 fn create_sess(t: &mut dyn WvTester) {
     let srv = SelSpace::get().alloc_sel();
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
-    wv_assert_ok!(rgate.activate());
     wv_assert_ok!(syscalls::create_srv(srv, rgate.sel(), "test", 0,));
 
     let sel = SelSpace::get().alloc_sel();
@@ -501,8 +500,8 @@ fn activate(t: &mut dyn WvTester) {
     let ep4 = wv_assert_ok!(EpMng::get().acquire(2));
     let sel = SelSpace::get().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    let rgate = wv_assert_ok!(RecvGate::new(5, 5));
-    let sgate = wv_assert_ok!(SendGate::new(&rgate));
+    let rgate = wv_assert_ok!(RecvCap::new(5, 5));
+    let sgate = wv_assert_ok!(SendCap::new(&rgate));
 
     // invalid EP sel
     wv_assert_err!(
@@ -558,7 +557,7 @@ fn activate(t: &mut dyn WvTester) {
         Code::InvArgs
     );
     // already activated
-    wv_assert_ok!(rgate.activate());
+    let rgate = wv_assert_ok!(rgate.activate());
     wv_assert_err!(
         t,
         syscalls::activate(ep3.sel(), rgate.sel(), INVALID_SEL, 0),

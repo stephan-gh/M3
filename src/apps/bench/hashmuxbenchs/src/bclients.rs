@@ -18,7 +18,7 @@ use m3::cap::Selector;
 use m3::client::HashSession;
 use m3::col::Vec;
 use m3::com::{
-    recv_msg, recv_reply, GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate, EP,
+    recv_msg, recv_reply, GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendCap, SendGate, EP,
 };
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Error;
@@ -46,7 +46,7 @@ fn _create_rgate(max_clients: usize) -> RecvGate {
 }
 
 struct Client {
-    _sgate: SendGate,
+    _scap: SendCap,
     mgate: MemGate,
     act: RunningProgramActivity,
 }
@@ -73,7 +73,7 @@ fn _run_client_bench<F>(
 where
     F: FnMut(&HashSession) -> Result<(), Error>,
 {
-    let sgate = SendGate::new_bind(sgate_sel);
+    let sgate = wv_assert_ok!(SendGate::new_bind(sgate_sel));
 
     // Use a separate RecvGate for replies since this is used
     // in parallel with other requests later
@@ -155,12 +155,12 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
     let tile = wv_assert_ok!(Tile::new(Activity::own().tile_desc()));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, &format!("hash-c{}", params.num)));
 
-    let sgate = wv_assert_ok!(SendGate::new_with(
+    let scap = wv_assert_ok!(SendCap::new_with(
         SGateArgs::new(rgate)
             .credits(1)
             .label(params.num as tcu::Label)
     ));
-    wv_assert_ok!(act.delegate_obj(sgate.sel()));
+    wv_assert_ok!(act.delegate_obj(scap.sel()));
 
     let mgate = wv_assert_ok!(mgate.derive(0, params.size, Perm::R));
 
@@ -168,12 +168,12 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
     let slice = params.size / params.div;
 
     let mut dst = act.data_sink();
-    dst.push(sgate.sel());
+    dst.push(scap.sel());
     dst.push(slice);
     dst.push(params);
 
     Client {
-        _sgate: sgate,
+        _scap: scap,
         mgate,
         act: wv_assert_ok!(act.run(|| {
             let mut src = Activity::own().data_source();

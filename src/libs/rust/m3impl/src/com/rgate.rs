@@ -19,11 +19,12 @@
 use core::fmt;
 use core::ops;
 
+use crate::cap::Capability;
 use crate::cap::{CapFlags, SelSpace, Selector};
-use crate::cell::{Cell, LazyReadOnlyCell, RefCell};
+use crate::cell::{Cell, LazyReadOnlyCell};
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
-use crate::com::{gate::Gate, RecvBuf, SendGate};
+use crate::com::{gate::Gate, GateCap, RecvBuf, SendGate};
 use crate::env;
 use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
@@ -39,11 +40,201 @@ static SYS_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 static UPC_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 static DEF_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 
+/// The arguments for [`RecvGate`] creations
+pub struct RGateArgs {
+    order: u32,
+    msg_order: u32,
+    sel: Selector,
+    flags: CapFlags,
+}
+
+impl Default for RGateArgs {
+    fn default() -> Self {
+        RGateArgs {
+            order: DEF_MSG_ORD,
+            msg_order: DEF_MSG_ORD,
+            sel: INVALID_SEL,
+            flags: CapFlags::empty(),
+        }
+    }
+}
+
+impl RGateArgs {
+    /// Sets the size of the receive buffer as a power of two. That is, the size in bytes is
+    /// `2^order`. This overwrites the default size of 64 bytes.
+    pub fn order(mut self, order: u32) -> Self {
+        self.order = order;
+        self
+    }
+
+    /// Sets the size of message slots in the receive buffer as a power of two. That is, the size in
+    /// bytes is `2^order`. This overwrites the default size of 64 bytes.
+    pub fn msg_order(mut self, msg_order: u32) -> Self {
+        self.msg_order = msg_order;
+        self
+    }
+
+    /// Sets the capability selector to use for the `RecvGate`. Otherwise and by default,
+    /// [`SelSpace::get().alloc_sel`](crate::cap::SelSpace::alloc_sel) will be used.
+    pub fn sel(mut self, sel: Selector) -> Self {
+        self.sel = sel;
+        self
+    }
+
+    /// Sets the flags to `flags`.
+    pub fn flags(mut self, flags: CapFlags) -> Self {
+        self.flags = flags;
+        self
+    }
+}
+
+/// Represents a gate that can receive
+///
+/// This trait exists to support both `RecvCap` and `RecvGate` when creating `SendGate`s.
+pub trait ReceivingGate {
+    /// Returns the selector of the gate
+    fn sel(&self) -> Selector;
+}
+
+/// A receive capability is the precursor of a `RecvGate`
+///
+/// `RecvCap` implements `GateCap` and can therefore be turned into a `RecvGate` through activation.
+pub struct RecvCap {
+    cap: Capability,
+    order: Cell<Option<u32>>,
+    msg_order: Cell<Option<u32>>,
+}
+
+impl RecvCap {
+    /// Creates a new `RecvCap` with a `2^order` bytes receive buffer and `2^msg_order`
+    /// bytes message slots.
+    pub fn new(order: u32, msg_order: u32) -> Result<Self, Error> {
+        Self::new_with(RGateArgs::default().order(order).msg_order(msg_order))
+    }
+
+    /// Creates a new `RecvCap` with given arguments.
+    pub fn new_with(args: RGateArgs) -> Result<Self, Error> {
+        let sel = if args.sel == INVALID_SEL {
+            SelSpace::get().alloc_sel()
+        }
+        else {
+            args.sel
+        };
+
+        syscalls::create_rgate(sel, args.order, args.msg_order)?;
+        Ok(Self {
+            cap: Capability::new(sel, args.flags),
+            order: Cell::new(Some(args.order)),
+            msg_order: Cell::new(Some(args.msg_order)),
+        })
+    }
+
+    /// Creates the `RecvCap` with given name as defined in the application's configuration
+    pub fn new_named(name: &str) -> Result<Self, Error> {
+        let sel = SelSpace::get().alloc_sel();
+        let (order, msg_order) = Activity::own().resmng().unwrap().use_rgate(sel, name)?;
+        Ok(Self {
+            cap: Capability::new(sel, CapFlags::empty()),
+            order: Cell::new(Some(order)),
+            msg_order: Cell::new(Some(msg_order)),
+        })
+    }
+
+    fn fetch_buffer_size(&self) -> Result<(), Error> {
+        if self.msg_order.get().is_none() {
+            let (order, msg_order) = syscalls::rgate_buffer(self.sel())?;
+            self.order.replace(Some(order));
+            self.msg_order.replace(Some(msg_order));
+        }
+        Ok(())
+    }
+
+    pub fn sel(&self) -> Selector {
+        self.cap.sel()
+    }
+
+    /// Returns the size of the receive buffer in bytes
+    pub fn size(&self) -> Result<usize, Error> {
+        self.fetch_buffer_size()?;
+        Ok(1 << self.order.get().unwrap())
+    }
+
+    /// Returns the maximum message size
+    pub fn max_msg_size(&self) -> Result<usize, Error> {
+        self.fetch_buffer_size()?;
+        Ok(1 << self.msg_order.get().unwrap())
+    }
+
+    /// Activates this receive gate with given receive buffer
+    #[cold]
+    pub fn activate_with(
+        mut self,
+        mem: Option<Selector>,
+        off: GlobOff,
+        addr: VirtAddr,
+    ) -> Result<RecvGate, Error> {
+        self.fetch_buffer_size()?;
+
+        let gate = Gate::new(self.sel(), self.cap.flags());
+        let (order, msg_order) = (self.order.get().unwrap(), self.msg_order.get().unwrap());
+        let replies = 1 << (order - msg_order);
+        gate.activate_rgate(mem, off, replies)?;
+
+        // prevent that we revoke the cap
+        self.cap.set_flags(CapFlags::KEEP_CAP);
+
+        Ok(RecvGate {
+            gate,
+            buf: RGateBuf::Manual(addr),
+            order,
+            msg_order,
+        })
+    }
+}
+
+impl GateCap for RecvCap {
+    type Target = RecvGate;
+
+    fn new_bind(sel: Selector) -> Self {
+        Self {
+            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+            order: Cell::new(None),
+            msg_order: Cell::new(None),
+        }
+    }
+
+    #[cold]
+    fn activate(mut self) -> Result<Self::Target, Error> {
+        let size = self.size()?;
+        let buf = alloc_rbuf(size)?;
+
+        let gate = Gate::new(self.sel(), self.cap.flags());
+        let (order, msg_order) = (self.order.get().unwrap(), self.msg_order.get().unwrap());
+        let replies = 1 << (order - msg_order);
+        gate.activate_rgate(buf.mem(), buf.off(), replies)?;
+
+        // prevent that we revoke the cap
+        self.cap.set_flags(CapFlags::KEEP_CAP);
+
+        Ok(Self::Target {
+            gate,
+            buf: RGateBuf::Allocated(buf),
+            order,
+            msg_order,
+        })
+    }
+}
+
+impl ReceivingGate for RecvCap {
+    fn sel(&self) -> Selector {
+        self.cap.sel()
+    }
+}
+
 #[derive(Debug)]
 enum RGateBuf {
     Allocated(RecvBuf),
     Manual(VirtAddr),
-    Invalid,
 }
 
 /// A receive gate receives messages via TCU
@@ -96,71 +287,33 @@ enum RGateBuf {
 ///
 /// Messages are implicitly acknowledged when replying to the message (see [`RecvGate::reply`]), but
 /// need to be acknowledged explicitly otherwise (see [`RecvGate::ack_msg`]).
+///
+/// # Activation
+///
+/// Activation is the process of turning a receive capability into a usable receive gate for
+/// receiving messages via TCU. Thus, activation allocates and configures a TCU endpoint. A
+/// `RecvGate` is always activated from the start, whereas `RecvCap` is only the capability that can
+/// be turned into a `RecvGate` by activating it. If you want to receive messages yourself, you can
+/// simply create a new `RecvGate`. However, if you want someone else to receive messages, you
+/// should create a `RecvCap` and delegate it to the desired activity, which can then turn it into a
+/// `RecvGate`.
 pub struct RecvGate {
     gate: Gate,
-    buf: RefCell<RGateBuf>,
-    order: Cell<Option<u32>>,
-    msg_order: Cell<Option<u32>>,
+    buf: RGateBuf,
+    order: u32,
+    msg_order: u32,
 }
 
 impl fmt::Debug for RecvGate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "RecvGate[sel: {}, buf: {:?}, size: {:?}, ep: {:?}]",
+            "RecvGate[sel: {}, buf: {:?}, size: {}, ep: {}]",
             self.sel(),
             self.buf,
-            self.order.get().map(|v| 1 << v),
-            self.gate.epid()
+            1 << self.order,
+            self.ep()
         )
-    }
-}
-
-/// The arguments for [`RecvGate`] creations
-pub struct RGateArgs {
-    order: u32,
-    msg_order: u32,
-    sel: Selector,
-    flags: CapFlags,
-}
-
-impl Default for RGateArgs {
-    fn default() -> Self {
-        RGateArgs {
-            order: DEF_MSG_ORD,
-            msg_order: DEF_MSG_ORD,
-            sel: INVALID_SEL,
-            flags: CapFlags::empty(),
-        }
-    }
-}
-
-impl RGateArgs {
-    /// Sets the size of the receive buffer as a power of two. That is, the size in bytes is
-    /// `2^order`. This overwrites the default size of 64 bytes.
-    pub fn order(mut self, order: u32) -> Self {
-        self.order = order;
-        self
-    }
-
-    /// Sets the size of message slots in the receive buffer as a power of two. That is, the size in
-    /// bytes is `2^order`. This overwrites the default size of 64 bytes.
-    pub fn msg_order(mut self, msg_order: u32) -> Self {
-        self.msg_order = msg_order;
-        self
-    }
-
-    /// Sets the capability selector to use for the `RecvGate`. Otherwise and by default,
-    /// [`SelSpace::get().alloc_sel`](crate::cap::SelSpace::alloc_sel) will be used.
-    pub fn sel(mut self, sel: Selector) -> Self {
-        self.sel = sel;
-        self
-    }
-
-    /// Sets the flags to `flags`.
-    pub fn flags(mut self, flags: CapFlags) -> Self {
-        self.flags = flags;
-        self
     }
 }
 
@@ -183,9 +336,9 @@ impl RecvGate {
     const fn new_def(sel: Selector, ep: tcu::EpId, addr: VirtAddr, order: u32) -> Self {
         RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
-            buf: RefCell::new(RGateBuf::Manual(addr)),
-            order: Cell::new(Some(order)),
-            msg_order: Cell::new(Some(order)),
+            buf: RGateBuf::Manual(addr),
+            order,
+            msg_order: order,
         }
     }
 
@@ -197,159 +350,67 @@ impl RecvGate {
 
     /// Creates a new `RecvGate` with given arguments.
     pub fn new_with(args: RGateArgs) -> Result<Self, Error> {
-        let sel = if args.sel == INVALID_SEL {
-            SelSpace::get().alloc_sel()
-        }
-        else {
-            args.sel
-        };
-
-        syscalls::create_rgate(sel, args.order, args.msg_order)?;
-        Ok(RecvGate {
-            gate: Gate::new(sel, args.flags),
-            buf: RefCell::new(RGateBuf::Invalid),
-            order: Cell::new(Some(args.order)),
-            msg_order: Cell::new(Some(args.msg_order)),
-        })
+        RecvCap::new_with(args)?.activate()
     }
 
     /// Creates the `RecvGate` with given name as defined in the application's configuration
     pub fn new_named(name: &str) -> Result<Self, Error> {
-        let sel = SelSpace::get().alloc_sel();
-        let (order, msg_order) = Activity::own().resmng().unwrap().use_rgate(sel, name)?;
-        Ok(RecvGate {
-            gate: Gate::new(sel, CapFlags::empty()),
-            buf: RefCell::new(RGateBuf::Invalid),
-            order: Cell::new(Some(order)),
-            msg_order: Cell::new(Some(msg_order)),
-        })
+        RecvCap::new_named(name)?.activate()
     }
 
     /// Binds a new `RecvGate` to the given selector.
-    pub fn new_bind(sel: Selector) -> Self {
-        RecvGate {
-            gate: Gate::new(sel, CapFlags::KEEP_CAP),
-            buf: RefCell::new(RGateBuf::Invalid),
-            order: Cell::new(None),
-            msg_order: Cell::new(None),
-        }
+    pub fn new_bind(sel: Selector) -> Result<Self, Error> {
+        RecvCap::new_bind(sel).activate()
     }
 
-    /// Returns the selector of the gate
     pub fn sel(&self) -> Selector {
         self.gate.sel()
     }
 
-    /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub(crate) fn ep(&self) -> Option<tcu::EpId> {
-        self.gate.epid()
-    }
-
-    fn fetch_buffer_size(&self) -> Result<(), Error> {
-        if self.msg_order.get().is_none() {
-            let (order, msg_order) = syscalls::rgate_buffer(self.sel())?;
-            self.order.replace(Some(order));
-            self.msg_order.replace(Some(msg_order));
-        }
-        Ok(())
+    /// Returns the endpoint of the gate
+    pub(crate) fn ep(&self) -> tcu::EpId {
+        self.gate.epid().unwrap()
     }
 
     /// Returns the size of the receive buffer in bytes
-    #[inline(always)]
-    pub fn size(&self) -> Result<usize, Error> {
-        self.fetch_buffer_size()?;
-        Ok(1 << self.order.get().unwrap())
+    pub fn size(&self) -> usize {
+        1 << self.order
     }
 
     /// Returns the maximum message size
-    #[inline(always)]
-    pub fn max_msg_size(&self) -> Result<usize, Error> {
-        self.fetch_buffer_size()?;
-        Ok(1 << self.msg_order.get().unwrap())
+    pub fn max_msg_size(&self) -> usize {
+        1 << self.msg_order
     }
 
     /// Returns the address of the receive buffer
     #[inline(always)]
-    pub fn address(&self) -> Option<VirtAddr> {
-        match *self.buf.borrow() {
-            RGateBuf::Invalid => None,
-            RGateBuf::Manual(addr) => Some(addr),
-            RGateBuf::Allocated(ref buf) => Some(buf.addr()),
+    pub fn address(&self) -> VirtAddr {
+        match self.buf {
+            RGateBuf::Manual(addr) => addr,
+            RGateBuf::Allocated(ref buf) => buf.addr(),
         }
-    }
-
-    #[inline(always)]
-    pub(crate) fn ensure_activated(&self) -> Result<tcu::EpId, Error> {
-        match self.ep() {
-            Some(ep) => Ok(ep),
-            None => self.activate(),
-        }
-    }
-
-    /// Activates this receive gate. Activation is required before [`SendGate`]s connected to this
-    /// `RecvGate` can be activated.
-    #[cold]
-    pub fn activate(&self) -> Result<tcu::EpId, Error> {
-        match self.ep() {
-            Some(ep) => Ok(ep),
-            None => {
-                let size = self.size()?;
-                if matches!(*self.buf.borrow(), RGateBuf::Invalid) {
-                    let buf = alloc_rbuf(size)?;
-                    *self.buf.borrow_mut() = RGateBuf::Allocated(buf);
-                }
-
-                if let RGateBuf::Allocated(ref buf) = *self.buf.borrow() {
-                    let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());
-                    self.gate.activate_rgate(buf.mem(), buf.off(), replies)
-                }
-                else {
-                    panic!("Expected allocated buffer");
-                }
-            },
-        }
-    }
-
-    /// Activates this receive gate with given receive buffer
-    pub fn activate_with(
-        &self,
-        mem: Option<Selector>,
-        off: GlobOff,
-        addr: VirtAddr,
-    ) -> Result<tcu::EpId, Error> {
-        self.fetch_buffer_size()?;
-        let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());
-        self.gate.activate_rgate(mem, off, replies).map(|ep| {
-            *self.buf.borrow_mut() = RGateBuf::Manual(addr);
-            ep
-        })
-    }
-
-    /// Deactivates this gate.
-    pub fn deactivate(&mut self) {
-        self.gate.release(true);
     }
 
     /// Returns true if there are messages that can be fetched
     #[inline(always)]
-    pub fn has_msgs(&self) -> Result<bool, Error> {
-        Ok(tcu::TCU::has_msgs(self.ensure_activated()?))
+    pub fn has_msgs(&self) -> bool {
+        tcu::TCU::has_msgs(self.ep())
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
     /// a reference to the message. Otherwise it returns an error with [`Code::NotFound`].
     #[inline(always)]
     pub fn fetch(&self) -> Result<&'static tcu::Message, Error> {
-        tcu::TCU::fetch_msg(self.ensure_activated()?)
-            .map(|off| tcu::TCU::offset_to_msg(self.address().unwrap(), off))
+        tcu::TCU::fetch_msg(self.ep())
+            .map(|off| tcu::TCU::offset_to_msg(self.address(), off))
             .ok_or_else(|| Error::new(Code::NotFound))
     }
 
     /// Sends `reply` as a reply to the message `msg`.
     #[inline(always)]
     pub fn reply(&self, reply: &MsgBuf, msg: &'static tcu::Message) -> Result<(), Error> {
-        let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
-        tcu::TCU::reply(self.ep().unwrap(), reply, off)
+        let off = tcu::TCU::msg_to_offset(self.address(), msg);
+        tcu::TCU::reply(self.ep(), reply, off)
     }
 
     /// Sends `reply` as a reply to the message `msg`. The message address needs to be 16-byte
@@ -361,15 +422,15 @@ impl RecvGate {
         len: usize,
         msg: &'static tcu::Message,
     ) -> Result<(), Error> {
-        let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
-        tcu::TCU::reply_aligned(self.ep().unwrap(), reply, len, off)
+        let off = tcu::TCU::msg_to_offset(self.address(), msg);
+        tcu::TCU::reply_aligned(self.ep(), reply, len, off)
     }
 
     /// Marks the given message as 'read', allowing the TCU to overwrite it with a new message.
     #[inline(always)]
     pub fn ack_msg(&self, msg: &tcu::Message) -> Result<(), Error> {
-        let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
-        tcu::TCU::ack_msg(self.ep().unwrap(), off)
+        let off = tcu::TCU::msg_to_offset(self.address(), msg);
+        tcu::TCU::ack_msg(self.ep(), off)
     }
 
     /// Waits until a message arrives and returns a reference to the message.
@@ -386,15 +447,14 @@ impl RecvGate {
     /// assuming that the communication partner is no longer interested in the communication.
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<&'static tcu::Message, Error> {
-        let rep = self.ensure_activated()?;
         // if the tile is shared with someone else that wants to run, poll a couple of times to
         // prevent too frequent/unnecessary switches.
         let polling = if env::get().shared() { 200 } else { 1 };
         loop {
             for _ in 0..polling {
-                let msg_off = tcu::TCU::fetch_msg(rep);
+                let msg_off = tcu::TCU::fetch_msg(self.ep());
                 if let Some(off) = msg_off {
-                    let msg = tcu::TCU::offset_to_msg(self.address().unwrap(), off);
+                    let msg = tcu::TCU::offset_to_msg(self.address(), off);
                     return Ok(msg);
                 }
             }
@@ -405,7 +465,7 @@ impl RecvGate {
                 }
             }
 
-            OwnActivity::wait_for(Some(rep), None, None)?;
+            OwnActivity::wait_for(Some(self.ep()), None, None)?;
         }
     }
 
@@ -415,10 +475,14 @@ impl RecvGate {
     /// messages from that client are already stored in the receive buffer. Note that the send EP of
     /// the client has to be invalidated *before* calling this method to ensure that no further
     /// message of the client can arrive.
-    pub fn drop_msgs_with(&self, label: tcu::Label) -> Result<(), Error> {
-        let rep = self.ensure_activated()?;
-        tcu::TCU::drop_msgs_with(self.address().unwrap(), rep, label);
-        Ok(())
+    pub fn drop_msgs_with(&self, label: tcu::Label) {
+        tcu::TCU::drop_msgs_with(self.address(), self.ep(), label);
+    }
+}
+
+impl ReceivingGate for RecvGate {
+    fn sel(&self) -> Selector {
+        self.gate.sel()
     }
 }
 
@@ -452,8 +516,8 @@ pub(crate) fn pre_init() {
 
 impl ops::Drop for RecvGate {
     fn drop(&mut self) {
-        self.deactivate();
-        if let RGateBuf::Allocated(ref b) = *self.buf.borrow() {
+        self.gate.release(true);
+        if let RGateBuf::Allocated(ref b) = self.buf {
             free_rbuf(b);
         }
     }

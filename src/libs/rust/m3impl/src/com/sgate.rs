@@ -18,11 +18,11 @@
 
 use core::fmt;
 
-use crate::cap::{CapFlags, SelSpace, Selector};
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::cell::Ref;
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
-use crate::com::RecvGate;
+use crate::com::{GateCap, ReceivingGate, RecvGate};
 use crate::errors::Error;
 use crate::kif::{INVALID_SEL, UNLIM_CREDITS};
 use crate::mem::MsgBuf;
@@ -30,12 +30,68 @@ use crate::syscalls;
 use crate::tcu;
 use crate::tiles::Activity;
 
-/// A send gate sends message via TCU
+/// A send capability is the precursor of a `SendGate`
 ///
-/// The interaction of [`SendGate`]s and [`RecvGate`]s including the message-passing concept is
-/// explained [`here`](`RecvGate`).
-pub struct SendGate {
-    gate: Gate,
+/// `SendCap` implements `GateCap` and can therefore be turned into a `SendGate` through activation.
+#[derive(Debug)]
+pub struct SendCap {
+    cap: Capability,
+}
+
+impl SendCap {
+    /// Creates a new `SendCap` that can send messages to `rgate`.
+    pub fn new<R: ReceivingGate>(rgate: &R) -> Result<Self, Error> {
+        Self::new_with(SGateArgs::new(rgate))
+    }
+
+    /// Creates a new `SendCap` with given arguments.
+    pub fn new_with(args: SGateArgs) -> Result<Self, Error> {
+        let sel = if args.sel == INVALID_SEL {
+            SelSpace::get().alloc_sel()
+        }
+        else {
+            args.sel
+        };
+
+        syscalls::create_sgate(sel, args.rgate_sel, args.label, args.credits)?;
+        Ok(Self {
+            cap: Capability::new(sel, args.flags),
+        })
+    }
+
+    /// Creates the `SendCap` with given name as defined in the application's configuration
+    pub fn new_named(name: &str) -> Result<Self, Error> {
+        let sel = SelSpace::get().alloc_sel();
+        Activity::own().resmng().unwrap().use_sgate(sel, name)?;
+        Ok(Self {
+            cap: Capability::new(sel, CapFlags::empty()),
+        })
+    }
+
+    /// Returns the capability selector.
+    pub fn sel(&self) -> Selector {
+        self.cap.sel()
+    }
+}
+
+impl GateCap for SendCap {
+    type Target = SendGate;
+
+    fn new_bind(sel: Selector) -> Self {
+        Self {
+            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+        }
+    }
+
+    fn activate(mut self) -> Result<Self::Target, Error> {
+        let gate = Gate::new(self.sel(), self.cap.flags());
+        gate.activate()?;
+
+        // prevent that we revoke the cap
+        self.cap.set_flags(CapFlags::KEEP_CAP);
+
+        Ok(Self::Target { gate })
+    }
 }
 
 /// The arguments for [`SendGate`] creations.
@@ -49,7 +105,7 @@ pub struct SGateArgs {
 
 impl SGateArgs {
     /// Creates a new `SGateArgs` to send messages to `rgate` with default settings.
-    pub fn new(rgate: &RecvGate) -> Self {
+    pub fn new<R: ReceivingGate>(rgate: &R) -> Self {
         SGateArgs {
             rgate_sel: rgate.sel(),
             label: 0,
@@ -85,6 +141,14 @@ impl SGateArgs {
     }
 }
 
+/// A send gate sends message via TCU
+///
+/// The interaction of [`SendGate`]s and [`RecvGate`]s including the message-passing concept is
+/// explained [`here`](`RecvGate`).
+pub struct SendGate {
+    gate: Gate,
+}
+
 impl SendGate {
     pub(crate) const fn new_def(sel: Selector, ep: tcu::EpId) -> Self {
         SendGate {
@@ -93,39 +157,23 @@ impl SendGate {
     }
 
     /// Creates a new `SendGate` that can send messages to `rgate`.
-    pub fn new(rgate: &RecvGate) -> Result<Self, Error> {
+    pub fn new<R: ReceivingGate>(rgate: &R) -> Result<Self, Error> {
         Self::new_with(SGateArgs::new(rgate))
     }
 
     /// Creates a new `SendGate` with given arguments.
     pub fn new_with(args: SGateArgs) -> Result<Self, Error> {
-        let sel = if args.sel == INVALID_SEL {
-            SelSpace::get().alloc_sel()
-        }
-        else {
-            args.sel
-        };
-
-        syscalls::create_sgate(sel, args.rgate_sel, args.label, args.credits)?;
-        Ok(SendGate {
-            gate: Gate::new(sel, args.flags),
-        })
+        SendCap::new_with(args)?.activate()
     }
 
     /// Creates the `SendGate` with given name as defined in the application's configuration
     pub fn new_named(name: &str) -> Result<Self, Error> {
-        let sel = SelSpace::get().alloc_sel();
-        Activity::own().resmng().unwrap().use_sgate(sel, name)?;
-        Ok(SendGate {
-            gate: Gate::new(sel, CapFlags::empty()),
-        })
+        SendCap::new_named(name)?.activate()
     }
 
     /// Binds a new `SendGate` to the given capability selector.
-    pub fn new_bind(sel: Selector) -> Self {
-        SendGate {
-            gate: Gate::new(sel, CapFlags::KEEP_CAP),
-        }
+    pub fn new_bind(sel: Selector) -> Result<Self, Error> {
+        SendCap::new_bind(sel).activate()
     }
 
     /// Returns the capability selector.
@@ -135,34 +183,19 @@ impl SendGate {
 
     /// Returns whether the TCU EP has credits to send a message
     pub fn can_send(&self) -> Result<bool, Error> {
-        let ep = self.activate()?;
+        let ep = self.gate.epid().unwrap();
         Ok(tcu::TCU::credits(ep)? > 0)
     }
 
     /// Returns the number of available credits
     pub fn credits(&self) -> Result<u32, Error> {
-        let ep = self.activate()?;
+        let ep = self.gate.epid().unwrap();
         tcu::TCU::credits(ep)
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub(crate) fn ep(&self) -> Option<Ref<'_, EP>> {
         self.gate.ep()
-    }
-
-    /// Activites this `SendGate` in case it was not already activated.
-    ///
-    /// Note that the gate is automatically activated when used and does not need to be activated
-    /// explicitly.
-    ///
-    /// Returns the chosen endpoint number.
-    pub fn activate(&self) -> Result<tcu::EpId, Error> {
-        self.gate.activate()
-    }
-
-    /// Deactivates this `SendGate` in case it was already activated
-    pub fn deactivate(&mut self) {
-        self.gate.release(false);
     }
 
     /// Sends `msg` to the associated [`RecvGate`] and uses `reply_gate` to receive
@@ -181,8 +214,8 @@ impl SendGate {
         len: usize,
         reply_gate: &RecvGate,
     ) -> Result<(), Error> {
-        let ep = self.activate()?;
-        let rep = reply_gate.ensure_activated()?;
+        let ep = self.gate.epid().unwrap();
+        let rep = reply_gate.ep();
         tcu::TCU::send_aligned(ep, msg, len, 0, rep)
     }
 
@@ -195,8 +228,8 @@ impl SendGate {
         reply_gate: &RecvGate,
         rlabel: tcu::Label,
     ) -> Result<(), Error> {
-        let ep = self.activate()?;
-        let rep = reply_gate.ensure_activated()?;
+        let ep = self.gate.epid().unwrap();
+        let rep = reply_gate.ep();
         tcu::TCU::send(ep, msg, rlabel, rep)
     }
 
@@ -208,8 +241,8 @@ impl SendGate {
         msg: &MsgBuf,
         reply_gate: &RecvGate,
     ) -> Result<&'static tcu::Message, Error> {
-        let ep = self.activate()?;
-        let rep = reply_gate.ensure_activated()?;
+        let ep = self.gate.epid().unwrap();
+        let rep = reply_gate.ep();
         tcu::TCU::send(ep, msg, 0, rep)?;
         reply_gate.receive(Some(self))
     }

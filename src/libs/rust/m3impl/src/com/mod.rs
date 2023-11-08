@@ -57,12 +57,12 @@ mod sgate;
 
 pub use self::ep::{EPArgs, EP};
 pub use self::epmng::EpMng;
-pub use self::gate::Gate;
+pub use self::gate::{Gate, GateCap, LazyGate};
 pub use self::mgate::{MGateArgs, MemGate, Perm};
 pub use self::rbufs::RecvBuf;
-pub use self::rgate::{RGateArgs, RecvGate};
+pub use self::rgate::{RGateArgs, ReceivingGate, RecvCap, RecvGate};
 pub use self::sem::Semaphore;
-pub use self::sgate::{SGateArgs, SendGate};
+pub use self::sgate::{SGateArgs, SendCap, SendGate};
 pub use self::stream::*;
 pub use base::msgqueue::{MsgQueue, MsgSender};
 

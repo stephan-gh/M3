@@ -195,8 +195,6 @@ impl Server {
     {
         let sel = SelSpace::get().alloc_sel();
         let rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
-        rgate.activate()?;
-
         syscalls::create_srv(sel, rgate.sel(), name, 0)?;
 
         let max = hdl.sessions().capacity() as u32;
