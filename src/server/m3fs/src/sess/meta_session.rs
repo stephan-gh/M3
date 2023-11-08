@@ -22,7 +22,7 @@ use m3::{
     cap::Selector,
     cell::{RefCell, StaticCell},
     col::{Treap, Vec},
-    com::{GateIStream, SendGate},
+    com::GateIStream,
     errors::{Code, Error},
     io::LogFlags,
     kif::{CapRngDesc, CapType},
@@ -82,7 +82,6 @@ impl FileLimit {
 
 pub struct MetaSession {
     serv: ServerSession,
-    sgates: Vec<SendGate>,
     files: Vec<SessId>,
     priv_files: Treap<SessId, FileSession>,
     file_limit: Rc<RefCell<FileLimit>>,
@@ -93,7 +92,6 @@ impl MetaSession {
     pub fn new(serv: ServerSession, file_limit: Rc<RefCell<FileLimit>>) -> Self {
         MetaSession {
             serv,
-            sgates: Vec::new(),
             files: Vec::new(),
             priv_files: Treap::new(),
             file_limit,
@@ -244,14 +242,6 @@ impl MetaSession {
         match self.priv_files.get_mut(&fid) {
             Some(f) => func(f, stream),
             None => Err(Error::new(Code::InvArgs)),
-        }
-    }
-}
-
-impl Drop for MetaSession {
-    fn drop(&mut self) {
-        for g in self.sgates.iter_mut() {
-            g.deactivate();
         }
     }
 }
