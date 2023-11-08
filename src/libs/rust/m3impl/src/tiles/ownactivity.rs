@@ -22,9 +22,8 @@ use core::fmt;
 use core::ops::Deref;
 
 use crate::cap::{CapFlags, Capability};
-use crate::cell::{Ref, RefCell, RefMut};
+use crate::cell::{RefCell, RefMut};
 use crate::client::ResMng;
-use crate::com::EpMng;
 use crate::env;
 use crate::errors::{Code, Error};
 use crate::kif;
@@ -48,7 +47,6 @@ use crate::vfs::{FileTable, MountTable};
 /// and [`exit`](`OwnActivity::exit`).
 pub struct OwnActivity {
     base: Activity,
-    epmng: RefCell<EpMng>,
     files: RefCell<FileTable>,
     mounts: RefCell<MountTable>,
 }
@@ -71,7 +69,6 @@ impl OwnActivity {
                 data: env.load_data(),
                 kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             },
-            epmng: RefCell::new(EpMng::default()),
             // mounts first; files depend on mounts
             mounts: RefCell::new(env.load_mounts()),
             files: RefCell::new(env.load_fds()),
@@ -161,16 +158,6 @@ impl OwnActivity {
     /// [`ChildActivity::exec`](crate::tiles::ChildActivity::exec).
     pub fn data_source(&self) -> M3Deserializer<'_> {
         M3Deserializer::new(&self.data)
-    }
-
-    /// Returns a reference to the endpoint manager
-    pub fn epmng(&self) -> Ref<'_, EpMng> {
-        self.epmng.borrow()
-    }
-
-    /// Returns a mutable reference to the endpoint manager
-    pub fn epmng_mut(&self) -> RefMut<'_, EpMng> {
-        self.epmng.borrow_mut()
     }
 
     /// Returns a reference to the activity's resource manager.

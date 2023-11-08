@@ -19,7 +19,7 @@
 use m3::cap::{SelSpace, Selector};
 use m3::cfg::PAGE_SIZE;
 use m3::client::M3FS;
-use m3::com::{MemGate, RecvGate, SendGate};
+use m3::com::{EpMng, MemGate, RecvGate, SendGate};
 use m3::cpu::{CPUOps, CPU};
 use m3::errors::{Code, Error};
 use m3::kif::syscalls::{ActivityOp, SemOp};
@@ -495,10 +495,10 @@ fn alloc_ep(t: &mut dyn WvTester) {
 }
 
 fn activate(t: &mut dyn WvTester) {
-    let ep1 = wv_assert_ok!(Activity::own().epmng_mut().acquire(0));
-    let ep2 = wv_assert_ok!(Activity::own().epmng_mut().acquire(0));
-    let ep3 = wv_assert_ok!(Activity::own().epmng_mut().acquire(1));
-    let ep4 = wv_assert_ok!(Activity::own().epmng_mut().acquire(2));
+    let ep1 = wv_assert_ok!(EpMng::get().acquire(0));
+    let ep2 = wv_assert_ok!(EpMng::get().acquire(0));
+    let ep3 = wv_assert_ok!(EpMng::get().acquire(1));
+    let ep4 = wv_assert_ok!(EpMng::get().acquire(2));
     let sel = SelSpace::get().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
     let rgate = wv_assert_ok!(RecvGate::new(5, 5));
@@ -578,9 +578,9 @@ fn activate(t: &mut dyn WvTester) {
         Code::Exists
     );
 
-    Activity::own().epmng_mut().release(ep3, true);
-    Activity::own().epmng_mut().release(ep2, true);
-    Activity::own().epmng_mut().release(ep1, true);
+    EpMng::get().release(ep3, true);
+    EpMng::get().release(ep2, true);
+    EpMng::get().release(ep1, true);
 }
 
 fn derive_mem(t: &mut dyn WvTester) {

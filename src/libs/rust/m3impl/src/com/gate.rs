@@ -20,7 +20,7 @@ use core::ops;
 
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::{Cell, Ref, RefCell};
-use crate::com::EP;
+use crate::com::{EpMng, EP};
 use crate::errors::Error;
 use crate::kif;
 use crate::mem::GlobOff;
@@ -101,7 +101,7 @@ impl Gate {
         addr: GlobOff,
         replies: u32,
     ) -> Result<EpId, Error> {
-        let ep = Activity::own().epmng_mut().acquire(replies)?;
+        let ep = EpMng::get().acquire(replies)?;
         syscalls::activate(ep.sel(), self.sel(), mem.unwrap_or(kif::INVALID_SEL), addr)?;
         self.set_ep(Some(ep));
         Ok(self.epid().unwrap())
@@ -118,7 +118,7 @@ impl Gate {
     }
 
     fn do_activate(&self) -> Result<EpId, Error> {
-        let ep = Activity::own().epmng_mut().activate(self)?;
+        let ep = EpMng::get().activate(self)?;
         self.set_ep(Some(ep));
         Ok(self.epid().unwrap())
     }
@@ -126,7 +126,7 @@ impl Gate {
     /// Releases the EP that is used by this gate
     pub(crate) fn release(&mut self, force_inval: bool) {
         if let Some(ep) = self.ep.replace(None) {
-            Activity::own().epmng_mut().release(
+            EpMng::get().release(
                 ep,
                 force_inval || self.cap.flags().contains(CapFlags::KEEP_CAP),
             );

@@ -17,6 +17,7 @@
  */
 
 use crate::cap::Selector;
+use crate::cell::{RefMut, StaticRefCell};
 use crate::col::Vec;
 use crate::com::gate::Gate;
 use crate::com::{EPArgs, EP};
@@ -29,12 +30,18 @@ use crate::tcu::EpId;
 ///
 /// The `EpMng` is responsible for endpoint allocation and deallocation. It will also reuse already
 /// allocated, but no longer used endpoints for new allocations, if possible.
-#[derive(Default)]
 pub struct EpMng {
     eps: Vec<EP>,
 }
 
+static EPMNG: StaticRefCell<EpMng> = StaticRefCell::new(EpMng { eps: Vec::new() });
+
 impl EpMng {
+    /// Returns the `EpMng` instance
+    pub fn get() -> RefMut<'static, EpMng> {
+        EPMNG.borrow_mut()
+    }
+
     /// Allocates a specific endpoint for the given activity.
     pub fn acquire_for(act: Selector, ep: EpId, replies: u32) -> Result<EP, Error> {
         EP::new_with(EPArgs::default().epid(ep).activity(act).replies(replies))
