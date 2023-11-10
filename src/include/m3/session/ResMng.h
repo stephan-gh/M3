@@ -88,7 +88,7 @@ public:
 
     void reg_service(capsel_t dst, capsel_t sgate, const std::string_view &name, size_t sessions) {
         GateIStream reply =
-            send_receive_vmsg(_sgate, opcodes::ResMng::REG_SERV, dst, sgate, sessions, name);
+            send_receive_vmsg(_sgate, opcodes::ResMng::REG_SERV, dst, sgate, name, sessions);
         retrieve_result(opcodes::ResMng::REG_SERV, reply);
     }
 
