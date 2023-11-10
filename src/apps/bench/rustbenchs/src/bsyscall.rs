@@ -19,7 +19,7 @@
 use m3::cap::SelSpace;
 use m3::cell::StaticCell;
 use m3::cfg;
-use m3::com::{EpMng, MemGate, Perm, RecvGate};
+use m3::com::{EpMng, MemGate, Perm, RecvCap, RecvGate};
 use m3::kif;
 use m3::mem::{GlobOff, VirtAddr};
 use m3::rc::Rc;
@@ -414,11 +414,11 @@ fn revoke_send_gate(_t: &mut dyn WvTester) {
     let prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
-    struct Tester(Option<RecvGate>);
+    struct Tester(Option<RecvCap>);
 
     impl Runner for Tester {
         fn pre(&mut self) {
-            self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
+            self.0 = Some(wv_assert_ok!(RecvCap::new(10, 10)));
             wv_assert_ok!(syscalls::create_sgate(
                 SEL.get(),
                 self.0.as_ref().unwrap().sel(),
