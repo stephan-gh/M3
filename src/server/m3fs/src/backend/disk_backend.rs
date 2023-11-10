@@ -20,9 +20,8 @@ use crate::data::{BlockNo, BlockRange, Extent};
 
 use m3::cap::{SelSpace, Selector};
 use m3::client::Disk;
-use m3::com::{MemGate, Perm};
+use m3::com::{GateCap, MemCap, MemGate, Perm};
 use m3::errors::Error;
-use m3::kif::INVALID_SEL;
 use m3::mem::GlobOff;
 
 use thread::Event;
@@ -32,8 +31,8 @@ pub const PRDT_SIZE: usize = 8;
 pub struct DiskBackend {
     blocksize: usize,
     disk: Disk,
-    metabuf: MemGate,
-    metabuf_disk: MemGate,
+    metabuf: Option<MemGate>,
+    metabuf_disk: Option<MemCap>,
 }
 
 impl DiskBackend {
@@ -43,8 +42,8 @@ impl DiskBackend {
         Ok(DiskBackend {
             blocksize: 0, // gets initialized when loading superblock
             disk,
-            metabuf: MemGate::new_bind(INVALID_SEL), // gets replaced when loading superblock
-            metabuf_disk: MemGate::new_bind(INVALID_SEL), // same here
+            metabuf: None,      // gets replaced when loading superblock
+            metabuf_disk: None, // same here
         })
     }
 }
@@ -60,15 +59,18 @@ impl Backend for DiskBackend {
         let off = dst_off * (self.blocksize + PRDT_SIZE);
         self.disk
             .read(0, BlockRange::new(bno), self.blocksize, Some(off as u64))?;
-        self.metabuf
-            .read_bytes(dst.data_mut().as_mut_ptr(), self.blocksize, off as u64)?;
+        self.metabuf.as_ref().unwrap().read_bytes(
+            dst.data_mut().as_mut_ptr(),
+            self.blocksize,
+            off as u64,
+        )?;
         thread::notify(unlock, None);
         Ok(())
     }
 
     fn load_data(
         &self,
-        mem: &MemGate,
+        mem: &MemCap,
         blocks: BlockRange,
         init: bool,
         unlock: Event,
@@ -89,8 +91,11 @@ impl Backend for DiskBackend {
         unlock: Event,
     ) -> Result<(), Error> {
         let off = src_off * (self.blocksize + PRDT_SIZE);
-        self.metabuf
-            .write_bytes(src.data().as_ptr(), self.blocksize, off as u64)?;
+        self.metabuf.as_ref().unwrap().write_bytes(
+            src.data().as_ptr(),
+            self.blocksize,
+            off as u64,
+        )?;
         self.disk
             .write(0, BlockRange::new(bno), self.blocksize, Some(off as u64))?;
         thread::notify(unlock, None);
@@ -110,7 +115,7 @@ impl Backend for DiskBackend {
         crate::file_buffer_mut().get_extent(self, block.blockno(), 1, msel, Perm::RWX, None)?;
 
         // okay, so write it from metabuffer to filebuffer
-        let m = MemGate::new_bind(msel);
+        let m = MemGate::new_bind(msel)?;
         m.write_bytes(
             block.data().as_ptr(),
             crate::superblock().block_size as usize,
@@ -151,7 +156,7 @@ impl Backend for DiskBackend {
                 Perm::RW,
                 None,
             )?;
-            let mem = MemGate::new_bind(sel);
+            let mem = MemGate::new_bind(sel)?;
             let mut off = 0;
             while off < bytes {
                 let amount = (bytes - off).min(zeros.len());
@@ -164,29 +169,34 @@ impl Backend for DiskBackend {
     }
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
-        let tmp = MemGate::new(512 + PRDT_SIZE, Perm::RW)?;
+        let tmp = MemCap::new(512 + PRDT_SIZE, Perm::RW)?;
         // use a separate MemGate for the disk service, because both have to activate the gate,
         // which can only be done once per MemGate.
         let tmp_disk = tmp.derive(0, 512 + PRDT_SIZE, Perm::RW)?;
         self.disk.delegate_mem(&tmp_disk, BlockRange::new(0))?;
         self.disk.read(0, BlockRange::new(0), 512, None)?;
-        let super_block = tmp.read_obj::<SuperBlock>(0)?;
+        let super_block = tmp.activate()?.read_obj::<SuperBlock>(0)?;
 
         // use separate transfer buffer for each entry to allow parallel disk requests
         self.blocksize = super_block.block_size as usize;
         let size = (self.blocksize + PRDT_SIZE) * crate::buf::META_BUFFER_SIZE;
-        self.metabuf = MemGate::new(size, Perm::RW)?;
+        self.metabuf = Some(MemGate::new(size, Perm::RW)?);
         // separate MemGate for the same reason as above
-        self.metabuf_disk = self.metabuf.derive(0, size, Perm::RW)?;
+        self.metabuf_disk = Some(
+            self.metabuf
+                .as_ref()
+                .unwrap()
+                .derive_cap(0, size, Perm::RW)?,
+        );
 
         // store the MemCap as blockno 0, bc we won't load the superblock again
         self.disk
-            .delegate_mem(&self.metabuf_disk, BlockRange::new(0))?;
+            .delegate_mem(self.metabuf_disk.as_ref().unwrap(), BlockRange::new(0))?;
         Ok(super_block)
     }
 
     fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error> {
-        self.metabuf.write_obj(super_block, 0)?;
+        self.metabuf.as_ref().unwrap().write_obj(super_block, 0)?;
         self.disk.write(0, BlockRange::new(0), 512, None)
     }
 }

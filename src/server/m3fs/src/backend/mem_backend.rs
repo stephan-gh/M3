@@ -19,7 +19,7 @@ use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, BlockRange, Extent};
 
 use m3::cap::Selector;
-use m3::com::{MemGate, Perm};
+use m3::com::{MemCap, MemGate, Perm};
 use m3::errors::Error;
 use m3::mem::GlobOff;
 use m3::syscalls::derive_mem;
@@ -58,7 +58,7 @@ impl Backend for MemBackend {
 
     fn load_data(
         &self,
-        _mem: &MemGate,
+        _mem: &MemCap,
         _blocks: BlockRange,
         _init: bool,
         _unlock: Event,

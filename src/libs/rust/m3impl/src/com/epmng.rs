@@ -19,7 +19,6 @@
 use crate::cap::Selector;
 use crate::cell::{RefMut, StaticRefCell};
 use crate::col::Vec;
-use crate::com::gate::Gate;
 use crate::com::{EPArgs, EP};
 use crate::errors::Error;
 use crate::kif::INVALID_SEL;
@@ -76,8 +75,8 @@ impl EpMng {
     }
 
     /// Allocates a new endpoint for the given gate and activates the gate. Returns the endpoint.
-    pub(crate) fn activate(&mut self, gate: &Gate) -> Result<EP, Error> {
+    pub(crate) fn activate(&mut self, gate: Selector) -> Result<EP, Error> {
         let ep = self.acquire(0)?;
-        syscalls::activate(ep.sel(), gate.sel(), INVALID_SEL, 0).map(|_| ep)
+        syscalls::activate(ep.sel(), gate, INVALID_SEL, 0).map(|_| ep)
     }
 }

@@ -24,7 +24,7 @@ use crate::cap::{CapFlags, SelSpace, Selector};
 use crate::cell::{Cell, LazyReadOnlyCell};
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
-use crate::com::{gate::Gate, GateCap, RecvBuf, SendGate};
+use crate::com::{gate::Gate, GateCap, RecvBuf, SendGate, EP};
 use crate::env;
 use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
@@ -140,6 +140,15 @@ impl RecvCap {
         })
     }
 
+    /// Creates a `RecvCap` bound to given selector
+    pub fn new_bind(sel: Selector) -> Self {
+        Self {
+            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+            order: Cell::new(None),
+            msg_order: Cell::new(None),
+        }
+    }
+
     fn fetch_buffer_size(&self) -> Result<(), Error> {
         if self.msg_order.get().is_none() {
             let (order, msg_order) = syscalls::rgate_buffer(self.sel())?;
@@ -175,10 +184,9 @@ impl RecvCap {
     ) -> Result<RecvGate, Error> {
         self.fetch_buffer_size()?;
 
-        let gate = Gate::new(self.sel(), self.cap.flags());
         let (order, msg_order) = (self.order.get().unwrap(), self.msg_order.get().unwrap());
         let replies = 1 << (order - msg_order);
-        gate.activate_rgate(mem, off, replies)?;
+        let gate = Gate::new_rgate(self.sel(), self.cap.flags(), mem, off, replies)?;
 
         // prevent that we revoke the cap
         self.cap.set_flags(CapFlags::KEEP_CAP);
@@ -193,14 +201,11 @@ impl RecvCap {
 }
 
 impl GateCap for RecvCap {
+    type Source = Selector;
     type Target = RecvGate;
 
-    fn new_bind(sel: Selector) -> Self {
-        Self {
-            cap: Capability::new(sel, CapFlags::KEEP_CAP),
-            order: Cell::new(None),
-            msg_order: Cell::new(None),
-        }
+    fn new_from_cap(sel: Selector) -> Self {
+        Self::new_bind(sel)
     }
 
     #[cold]
@@ -208,10 +213,9 @@ impl GateCap for RecvCap {
         let size = self.size()?;
         let buf = alloc_rbuf(size)?;
 
-        let gate = Gate::new(self.sel(), self.cap.flags());
         let (order, msg_order) = (self.order.get().unwrap(), self.msg_order.get().unwrap());
         let replies = 1 << (order - msg_order);
-        gate.activate_rgate(buf.mem(), buf.off(), replies)?;
+        let gate = Gate::new_rgate(self.sel(), self.cap.flags(), buf.mem(), buf.off(), replies)?;
 
         // prevent that we revoke the cap
         self.cap.set_flags(CapFlags::KEEP_CAP);
@@ -335,7 +339,7 @@ impl RecvGate {
 
     const fn new_def(sel: Selector, ep: tcu::EpId, addr: VirtAddr, order: u32) -> Self {
         RecvGate {
-            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
+            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, EP::new_def_bind(ep)),
             buf: RGateBuf::Manual(addr),
             order,
             msg_order: order,
@@ -369,7 +373,7 @@ impl RecvGate {
 
     /// Returns the endpoint of the gate
     pub(crate) fn ep(&self) -> tcu::EpId {
-        self.gate.epid().unwrap()
+        self.gate.ep().id()
     }
 
     /// Returns the size of the receive buffer in bytes
@@ -460,7 +464,7 @@ impl RecvGate {
             }
 
             if let Some(sg) = sgate {
-                if !tcu::TCU::is_valid(sg.ep().unwrap().id()) {
+                if !tcu::TCU::is_valid(sg.ep().id()) {
                     return Err(Error::new(Code::NoSEP));
                 }
             }

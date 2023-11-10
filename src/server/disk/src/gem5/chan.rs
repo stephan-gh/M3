@@ -14,7 +14,7 @@
  */
 
 use m3::col::Vec;
-use m3::com::{opcodes, MemGate};
+use m3::com::{opcodes, MemCap, MemGate};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif::Perm;
@@ -162,14 +162,15 @@ impl Channel {
             lba,
         );
 
-        let dev_buf = buf.derive(buf_off as GlobOff, bytes + mem::size_of::<PRD>(), Perm::RW)?;
+        let dev_buf =
+            buf.derive_cap(buf_off as GlobOff, bytes + mem::size_of::<PRD>(), Perm::RW)?;
         self.set_dma_buffer(&dev_buf)?;
 
         dev.read_write(self, dev_op, buf, buf_off, lba, dev.sector_size(), count)
     }
 
-    pub fn set_dma_buffer(&self, mgate: &MemGate) -> Result<(), Error> {
-        self.pci_dev.set_dma_buffer(mgate)
+    pub fn set_dma_buffer(&self, buf: &MemCap) -> Result<(), Error> {
+        self.pci_dev.set_dma_buffer(buf)
     }
 
     pub fn select(&self, id: u8, extra: u8) -> Result<(), Error> {

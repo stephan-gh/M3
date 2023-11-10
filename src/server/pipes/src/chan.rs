@@ -16,7 +16,7 @@
 use m3::build_vmsg;
 use m3::cap::Selector;
 use m3::cell::{Cell, RefCell};
-use m3::com::{GateIStream, MemGate, RecvGate};
+use m3::com::{GateIStream, MemCap, RecvGate};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::log;
@@ -38,7 +38,7 @@ pub struct Channel {
     id: SessId,
     pipe: SessId,
     state: Rc<RefCell<State>>,
-    mem: Option<MemGate>,
+    mem: Option<MemCap>,
     ep_cap: Option<Selector>,
     promised_events: Rc<Cell<FileEvent>>,
 }

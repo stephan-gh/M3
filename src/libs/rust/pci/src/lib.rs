@@ -22,7 +22,7 @@ use bitflags::bitflags;
 use num_enum::IntoPrimitive;
 
 use m3::cfg;
-use m3::com::{EpMng, MemGate, RecvGate, SendCap, EP};
+use m3::com::{EpMng, MemCap, MemGate, RecvGate, SendCap, EP};
 use m3::errors::Error;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
 use m3::mem::{GlobOff, VirtAddr};
@@ -279,8 +279,8 @@ impl Device {
         })
     }
 
-    pub fn set_dma_buffer(&self, mgate: &MemGate) -> Result<(), Error> {
-        self.mep.configure(mgate.sel())
+    pub fn set_dma_buffer(&self, buf: &MemCap) -> Result<(), Error> {
+        self.mep.configure(buf.sel())
     }
 
     pub fn check_for_irq(&self) -> bool {

@@ -18,7 +18,8 @@ use m3::cap::Selector;
 use m3::client::HashSession;
 use m3::col::Vec;
 use m3::com::{
-    recv_msg, recv_reply, GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendCap, SendGate, EP,
+    recv_msg, recv_reply, GateIStream, MemCap, MemGate, Perm, RecvGate, SGateArgs, SendCap,
+    SendGate, EP,
 };
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Error;
@@ -47,7 +48,7 @@ fn _create_rgate(max_clients: usize) -> RecvGate {
 
 struct Client {
     _scap: SendCap,
-    mgate: MemGate,
+    mcap: MemCap,
     act: RunningProgramActivity,
 }
 
@@ -162,7 +163,7 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
     ));
     wv_assert_ok!(act.delegate_obj(scap.sel()));
 
-    let mgate = wv_assert_ok!(mgate.derive(0, params.size, Perm::R));
+    let mcap = wv_assert_ok!(mgate.derive_cap(0, params.size, Perm::R));
 
     assert_eq!(params.size % params.div, 0);
     let slice = params.size / params.div;
@@ -174,7 +175,7 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
 
     Client {
         _scap: scap,
-        mgate,
+        mcap,
         act: wv_assert_ok!(act.run(|| {
             let mut src = Activity::own().data_source();
             let sgate_sel: Selector = src.pop().unwrap();
@@ -239,7 +240,7 @@ fn _sync_and_wait_for_clients(rgate: &RecvGate, mut clients: Vec<Client>) {
                 // Obtain EP from activity and configure it with the MemGate
                 let sel = wv_assert_ok!(clients[i].act.activity_mut().obtain_obj(sel));
                 let ep = EP::new_bind(INVALID_EP, sel);
-                wv_assert_ok!(ep.configure(clients[i].mgate.sel()));
+                wv_assert_ok!(ep.configure(clients[i].mcap.sel()));
                 eps.push(ep);
             }
             true

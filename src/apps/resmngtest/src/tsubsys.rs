@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::MemGate;
+use m3::com::{MemCap, MemGate};
 use m3::errors::Code;
 use m3::kif::Perm;
 use m3::test::{DefaultWvTester, WvTester};
@@ -45,11 +45,9 @@ fn subsys_builder(t: &mut dyn WvTester) {
 
     let mut child_sub = SubsystemBuilder::default();
 
-    wv_assert_ok!(
-        child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW))
-    );
-    child_sub.add_mod(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)), "test");
-    child_sub.add_mem(wv_assert_ok!(MemGate::new(0x4000, Perm::R)), false);
+    wv_assert_ok!(child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW)));
+    child_sub.add_mod(wv_assert_ok!(MemCap::new(0x1000, Perm::RW)), "test");
+    child_sub.add_mem(wv_assert_ok!(MemCap::new(0x4000, Perm::R)), false);
     child_sub.add_tile(wv_assert_ok!(Tile::get("compat")));
 
     wv_assert_ok!(child_sub.finalize_async(&mut res, 0, &mut child));

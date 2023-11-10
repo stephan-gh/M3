@@ -21,7 +21,7 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::{GateCap, MemGate};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
@@ -31,6 +31,7 @@ use m3::rc::Rc;
 use m3::syscalls;
 use resmng::childs;
 
+use crate::physmem::clear_block;
 use crate::physmem::{copy_block, PhysMem};
 
 bitflags! {
@@ -166,7 +167,7 @@ impl Region {
                     .child_by_id_mut(self.child)
                     .ok_or_else(|| Error::new(Code::ActivityGone))?;
                 // TODO this memory is currently only free'd on child exit
-                let (mut ngate, _alloc) = child.alloc_local(self.size, Perm::RWX)?;
+                let (ncap, _alloc) = child.alloc_local(self.size, Perm::RWX)?;
 
                 log!(
                     LogFlags::PgMem,
@@ -187,21 +188,25 @@ impl Region {
                     },
                 );
 
-                if osel == INVALID_SEL {
-                    copy_block(mem.gate(), &ngate, off, self.size);
-                }
-                else {
-                    let omem = MemGate::new_foreign(osel, VirtAddr::new(off), self.size, Perm::R)?;
-                    copy_block(&omem, &ngate, 0, self.size);
-                }
+                let ncap = {
+                    let ngate = ncap.activate()?;
+                    if osel == INVALID_SEL {
+                        copy_block(&mem.request_gate()?, &ngate, off, self.size);
+                    }
+                    else {
+                        let omem =
+                            MemGate::new_foreign(osel, VirtAddr::new(off), self.size, Perm::R)?;
+                        copy_block(&omem, &ngate, 0, self.size);
+                    }
+
+                    // deactivate the MemGate, because we'll probably not need it again
+                    ngate.deactivate()
+                };
 
                 // are we the owner?
                 if self.owner == osel {
-                    // deactivate the MemGate, because we'll probably not need it again
-                    ngate.deactivate();
-
                     // give the others the new memory gate
-                    let old = mem.replace_gate(ngate);
+                    let old = mem.replace_mem(ncap);
                     let owner_virt = mem.owner_mem().unwrap().1;
                     // there is no owner anymore
                     mem.remove_owner();
@@ -215,13 +220,11 @@ impl Region {
                     // the others keep the old mem; we take the new one
                     Rc::new(RefCell::new(PhysMem::new_with_mem(
                         (self.owner, self.ds_off),
-                        ngate,
+                        ncap,
                     )))
                 }
             };
 
-            // it's not that likely that we'll use this gate again, so deactivate it
-            nmem.borrow_mut().deactivate();
             self.mem = Some(nmem);
         }
 
@@ -238,19 +241,22 @@ impl Region {
         }
     }
 
-    pub fn copy_from(&self, src: &MemGate) {
+    pub fn copy_from(&self, src: &MemGate) -> Result<(), Error> {
         if let Some(ref mem) = self.mem {
-            copy_block(src, mem.borrow().gate(), self.mem_off, self.size());
-            // see above
-            mem.borrow_mut().deactivate();
+            copy_block(
+                src,
+                &mem.borrow().request_gate()?,
+                self.mem_off,
+                self.size(),
+            );
         }
+        Ok(())
     }
 
-    pub fn clear(&self) {
+    pub fn clear(&self) -> Result<(), Error> {
         let mem = self.mem.as_ref().unwrap();
-        mem.borrow().clear(self.size);
-        // see above
-        mem.borrow_mut().deactivate();
+        clear_block(&mem.borrow().request_gate()?, self.size);
+        Ok(())
     }
 
     pub fn map(&mut self, perm: Perm) -> Result<(), Error> {
@@ -258,7 +264,7 @@ impl Region {
             syscalls::create_map(
                 self.virt(),
                 self.owner,
-                mem.borrow().gate().sel(),
+                mem.borrow().mem_sel(),
                 (self.mem_off >> cfg::PAGE_BITS as GlobOff) as Selector,
                 (self.size as usize >> cfg::PAGE_BITS) as Selector,
                 perm,

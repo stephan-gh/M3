@@ -22,7 +22,7 @@ pub fn prepare_shake_mem(size: usize) -> MemGate {
     let hash = wv_assert_ok!(HashSession::new("hash-prepare", &HashAlgorithm::SHAKE128));
 
     // Fill memory with pseudo-random data from SHAKE128
-    let mgated = wv_assert_ok!(mgate.derive(0, size, Perm::W));
+    let mgated = wv_assert_ok!(mgate.derive_cap(0, size, Perm::W));
     wv_assert_ok!(hash.ep().configure(mgated.sel()));
     wv_assert_ok!(hash.output(0, size));
     mgate

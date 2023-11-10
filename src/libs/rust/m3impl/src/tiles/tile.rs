@@ -278,7 +278,7 @@ impl Tile {
         if self.desc.has_memory() {
             let sel = SelSpace::get().alloc_sel();
             syscalls::tile_mem(sel, self.sel())?;
-            Ok(MemGate::new_owned_bind(sel))
+            MemGate::new_owned_bind(sel)
         }
         else {
             Err(Error::new(Code::InvArgs))

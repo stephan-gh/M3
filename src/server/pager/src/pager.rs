@@ -27,7 +27,7 @@ use m3::boxed::Box;
 use m3::cell::LazyStaticRefCell;
 use m3::client::{ClientSession, Pager, M3FS};
 use m3::col::{String, ToString, Vec};
-use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendCap};
+use m3::com::{opcodes, MemCap, RecvGate, SGateArgs, SendCap};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::kif::syscalls::MuxType;
@@ -156,7 +156,7 @@ impl subsys::ChildStarter for PagedChildStarter {
         tile: &mut tiles::TileUsage,
         _domain: &config::Domain,
     ) -> Result<(), VerboseError> {
-        let fs_mod = MemGate::new_bind_bootmod("fs")?;
+        let fs_mod = MemCap::new_bind_bootmod("fs")?;
         let fs_mod_size = fs_mod.region()?.1 as usize;
         // don't overwrite PMP EPs here, but use the next free one. this is required in case we
         // share our tile with this child and therefore need to add a PMP EP for ourself. Since our

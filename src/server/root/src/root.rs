@@ -21,7 +21,7 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::{ToString, Vec};
-use m3::com::{MemGate, RGateArgs, RecvCap, RecvGate, SGateArgs, SendCap};
+use m3::com::{GateCap, MemCap, MemGate, RGateArgs, RecvCap, RecvGate, SGateArgs, SendCap};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::io::LogFlags;
@@ -57,7 +57,7 @@ impl RootChildStarter {
         }
     }
 
-    fn fetch_mod(&mut self, name: &str, pmp: bool) -> Option<(MemGate, GlobAddr, GlobOff)> {
+    fn fetch_mod(&mut self, name: &str, pmp: bool) -> Option<(MemCap, GlobAddr, GlobOff)> {
         let RootChildStarter {
             bmods,
             loaded_bmods,
@@ -110,7 +110,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             .iter()
             .position(|m| m.name() == name)
             .ok_or_else(|| Error::new(Code::NotFound))?;
-        Ok(subsys::Subsystem::get_mod(idx))
+        subsys::Subsystem::get_mod(idx).activate()
     }
 
     fn start_async(
@@ -164,7 +164,8 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
                 act.tile_desc().has_virtmem(),
                 child.mem().pool().clone(),
             );
-            let bfile = loader::BootFile::new(bmod.0, bmod.2 as usize);
+            let bmod_gate = bmod.0.activate()?;
+            let bfile = loader::BootFile::new(bmod_gate, bmod.2 as usize);
             let fd = Activity::own().files().add(Box::new(bfile))?;
 
             let run = act

@@ -16,7 +16,7 @@
  */
 
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::{MemCap, MemGate};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif::{Perm, TileISA};
@@ -46,7 +46,7 @@ pub struct E1000 {
     cur_tx_buf: u32,
 
     bufs: MemGate,
-    devbufs: MemGate,
+    devbufs: MemCap,
 
     txd_context_proto: TxoProto,
 
@@ -60,7 +60,7 @@ impl E1000 {
         let nic = Device::new("nic", TileISA::NICDev)?;
 
         let bufs = MemGate::new(core::mem::size_of::<Buffers>(), Perm::RW)?;
-        let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;
+        let devbufs = bufs.derive_cap(0, core::mem::size_of::<Buffers>(), Perm::RW)?;
 
         let mut dev = E1000 {
             eeprom: EEPROM::new(&nic)?,

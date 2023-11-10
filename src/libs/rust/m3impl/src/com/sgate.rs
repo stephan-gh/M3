@@ -19,7 +19,6 @@
 use core::fmt;
 
 use crate::cap::{CapFlags, Capability, SelSpace, Selector};
-use crate::cell::Ref;
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
 use crate::com::{GateCap, ReceivingGate, RecvGate};
@@ -68,6 +67,13 @@ impl SendCap {
         })
     }
 
+    /// Creates a `SendCap` that is bound to given selector
+    pub fn new_bind(sel: Selector) -> Self {
+        Self {
+            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+        }
+    }
+
     /// Returns the capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()
@@ -75,17 +81,15 @@ impl SendCap {
 }
 
 impl GateCap for SendCap {
+    type Source = Selector;
     type Target = SendGate;
 
-    fn new_bind(sel: Selector) -> Self {
-        Self {
-            cap: Capability::new(sel, CapFlags::KEEP_CAP),
-        }
+    fn new_from_cap(src: Selector) -> Self {
+        Self::new_bind(src)
     }
 
     fn activate(mut self) -> Result<Self::Target, Error> {
-        let gate = Gate::new(self.sel(), self.cap.flags());
-        gate.activate()?;
+        let gate = Gate::new(self.sel(), self.cap.flags())?;
 
         // prevent that we revoke the cap
         self.cap.set_flags(CapFlags::KEEP_CAP);
@@ -152,7 +156,7 @@ pub struct SendGate {
 impl SendGate {
     pub(crate) const fn new_def(sel: Selector, ep: tcu::EpId) -> Self {
         SendGate {
-            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
+            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, EP::new_def_bind(ep)),
         }
     }
 
@@ -183,18 +187,18 @@ impl SendGate {
 
     /// Returns whether the TCU EP has credits to send a message
     pub fn can_send(&self) -> Result<bool, Error> {
-        let ep = self.gate.epid().unwrap();
+        let ep = self.gate.ep().id();
         Ok(tcu::TCU::credits(ep)? > 0)
     }
 
     /// Returns the number of available credits
     pub fn credits(&self) -> Result<u32, Error> {
-        let ep = self.gate.epid().unwrap();
+        let ep = self.gate.ep().id();
         tcu::TCU::credits(ep)
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub(crate) fn ep(&self) -> Option<Ref<'_, EP>> {
+    pub(crate) fn ep(&self) -> &EP {
         self.gate.ep()
     }
 
@@ -214,7 +218,7 @@ impl SendGate {
         len: usize,
         reply_gate: &RecvGate,
     ) -> Result<(), Error> {
-        let ep = self.gate.epid().unwrap();
+        let ep = self.gate.ep().id();
         let rep = reply_gate.ep();
         tcu::TCU::send_aligned(ep, msg, len, 0, rep)
     }
@@ -228,7 +232,7 @@ impl SendGate {
         reply_gate: &RecvGate,
         rlabel: tcu::Label,
     ) -> Result<(), Error> {
-        let ep = self.gate.epid().unwrap();
+        let ep = self.gate.ep().id();
         let rep = reply_gate.ep();
         tcu::TCU::send(ep, msg, rlabel, rep)
     }
@@ -241,7 +245,7 @@ impl SendGate {
         msg: &MsgBuf,
         reply_gate: &RecvGate,
     ) -> Result<&'static tcu::Message, Error> {
-        let ep = self.gate.epid().unwrap();
+        let ep = self.gate.ep().id();
         let rep = reply_gate.ep();
         tcu::TCU::send(ep, msg, 0, rep)?;
         reply_gate.receive(Some(self))
@@ -254,7 +258,7 @@ impl fmt::Debug for SendGate {
             f,
             "SendGate[sel: {}, ep: {:?}]",
             self.sel(),
-            self.gate.epid()
+            self.gate.ep().id()
         )
     }
 }

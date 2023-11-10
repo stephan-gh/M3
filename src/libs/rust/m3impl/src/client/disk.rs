@@ -16,7 +16,7 @@
  */
 
 use crate::client::ClientSession;
-use crate::com::{opcodes, MemGate, RecvGate, SendGate};
+use crate::com::{opcodes, MemCap, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::kif::{CapRngDesc, CapType};
 use crate::mem::GlobOff;
@@ -99,7 +99,7 @@ impl Disk {
         Ok(Disk { sess, rgate, sgate })
     }
 
-    pub fn delegate_mem(&self, mem: &MemGate, blocks: DiskBlockRange) -> Result<(), Error> {
+    pub fn delegate_mem(&self, mem: &MemCap, blocks: DiskBlockRange) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::Object, mem.sel(), 1);
         self.sess.delegate(
             crd,

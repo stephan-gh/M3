@@ -18,7 +18,7 @@ use core::fmt;
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::MemCap;
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif::Perm;
@@ -28,24 +28,24 @@ use m3::rc::Rc;
 use m3::util::math;
 
 pub struct MemMod {
-    gate: MemGate,
+    mcap: MemCap,
     addr: GlobAddr,
     size: GlobOff,
     reserved: bool,
 }
 
 impl MemMod {
-    pub fn new(gate: MemGate, addr: GlobAddr, size: GlobOff, reserved: bool) -> Self {
+    pub fn new(mcap: MemCap, addr: GlobAddr, size: GlobOff, reserved: bool) -> Self {
         MemMod {
-            gate,
+            mcap,
             addr,
             size,
             reserved,
         }
     }
 
-    pub fn mgate(&self) -> &MemGate {
-        &self.gate
+    pub fn mgate(&self) -> &MemCap {
+        &self.mcap
     }
 
     pub fn addr(&self) -> GlobAddr {
@@ -62,7 +62,7 @@ impl fmt::Debug for MemMod {
         write!(
             f,
             "MemMod[sel: {}, res: {}, addr: {}, size: {} MiB]",
-            self.gate.sel(),
+            self.mcap.sel(),
             self.reserved,
             self.addr,
             self.size / (1024 * 1024),
@@ -194,14 +194,14 @@ impl MemSlice {
         self.mem.reserved
     }
 
-    pub fn derive(&self) -> Result<MemGate, Error> {
+    pub fn derive(&self) -> Result<MemCap, Error> {
         self.mem
-            .gate
+            .mcap
             .derive(self.offset, self.size as usize, self.perm)
     }
 
-    pub fn derive_with(&self, off: GlobOff, size: usize) -> Result<MemGate, Error> {
-        self.mem.gate.derive(self.offset + off, size, self.perm)
+    pub fn derive_with(&self, off: GlobOff, size: usize) -> Result<MemCap, Error> {
+        self.mem.mcap.derive(self.offset + off, size, self.perm)
     }
 
     pub fn allocate(&mut self, size: GlobOff, align: GlobOff) -> Result<GlobOff, Error> {
@@ -217,7 +217,7 @@ impl MemSlice {
     }
 
     pub fn sel(&self) -> Selector {
-        self.mem.gate.sel()
+        self.mem.mcap.sel()
     }
 
     pub fn capacity(&self) -> GlobOff {
@@ -312,7 +312,7 @@ impl MemPool {
     }
 
     pub fn mem_cap(&self, idx: usize) -> Selector {
-        self.slices[idx].mem.gate.sel()
+        self.slices[idx].mem.mcap.sel()
     }
 
     fn add(&mut self, s: MemSlice) {

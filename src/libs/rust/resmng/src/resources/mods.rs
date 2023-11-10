@@ -14,7 +14,7 @@
  */
 
 use m3::col::{String, ToString, Vec};
-use m3::com::MemGate;
+use m3::com::MemCap;
 use m3::kif::boot;
 use m3::mem::{GlobAddr, GlobOff};
 
@@ -24,7 +24,7 @@ pub struct Mod {
     addr: GlobAddr,
     size: GlobOff,
     name: String,
-    mgate: MemGate,
+    mcap: MemCap,
 }
 
 impl Mod {
@@ -40,8 +40,8 @@ impl Mod {
         &self.name
     }
 
-    pub fn memory(&self) -> &MemGate {
-        &self.mgate
+    pub fn memory(&self) -> &MemCap {
+        &self.mcap
     }
 }
 
@@ -60,7 +60,7 @@ impl ModManager {
             addr: bmod.addr(),
             size: bmod.size,
             name: bmod.name().to_string(),
-            mgate: Subsystem::get_mod(idx),
+            mcap: Subsystem::get_mod(idx),
         });
     }
 

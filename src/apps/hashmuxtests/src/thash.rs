@@ -16,7 +16,7 @@ use hex_literal::hex;
 
 use m3::client::{HashInput, HashOutput, HashSession, Pipes};
 use m3::col::Vec;
-use m3::com::{MemGate, Perm};
+use m3::com::{MemCap, MemGate, Perm};
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::{Code, Error};
 use m3::io;
@@ -97,19 +97,17 @@ fn hash_mapped_mem(t: &mut dyn WvTester) {
 
     const ADDR: VirtAddr = VirtAddr::new(0x3000_0000);
     const SIZE: usize = 32 * 1024; // 32 KiB
-    let mgate = wv_assert_ok!(MemGate::new(SIZE, Perm::RW));
+    let mcap = wv_assert_ok!(MemCap::new(SIZE, Perm::RW));
 
     // Prepare hash session
     let hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
-    wv_assert_ok!(hash.ep().configure(mgate.sel()));
+    wv_assert_ok!(hash.ep().configure(mcap.sel()));
 
     // Map memory
-    wv_assert_ok!(
-        Activity::own()
-            .pager()
-            .unwrap()
-            .map_mem(ADDR, &mgate, SIZE, Perm::RW)
-    );
+    wv_assert_ok!(Activity::own()
+        .pager()
+        .unwrap()
+        .map_mem(ADDR, mcap.sel(), SIZE, Perm::RW));
 
     // Fill memory with some data
     let buf = unsafe { util::slice_for_mut(ADDR.as_mut_ptr(), SIZE) };
@@ -352,7 +350,7 @@ fn _shake_and_hash(
 fn shake_and_hash(t: &mut dyn WvTester) {
     let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHAKE128));
     let mgate = wv_assert_ok!(MemGate::new(SHAKE_SIZE, Perm::RW));
-    let mgate_derived = wv_assert_ok!(mgate.derive(0, SHAKE_SIZE, Perm::RW));
+    let mgate_derived = wv_assert_ok!(mgate.derive_cap(0, SHAKE_SIZE, Perm::RW));
     wv_assert_ok!(hash.ep().configure(mgate_derived.sel()));
 
     _shake_and_hash(

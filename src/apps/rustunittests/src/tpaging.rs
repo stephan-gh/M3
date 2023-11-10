@@ -29,7 +29,7 @@ fn large_pages(_t: &mut dyn WvTester) {
         const VIRT: VirtAddr = VirtAddr::new(0x3000_0000);
         const MEM_SIZE: usize = 6 * 1024 * 1024;
         let mem = wv_assert_ok!(MemGate::new(MEM_SIZE, Perm::RW));
-        wv_assert_ok!(pager.map_mem(VIRT, &mem, MEM_SIZE, Perm::RW));
+        wv_assert_ok!(pager.map_mem(VIRT, mem.sel(), MEM_SIZE, Perm::RW));
 
         let ptr = VIRT.as_mut_ptr::<u64>();
         unsafe {

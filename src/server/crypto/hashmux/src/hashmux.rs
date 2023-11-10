@@ -32,19 +32,18 @@ use core::sync::atomic;
 
 use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
 use m3::col::{Vec, VecDeque};
-use m3::com::{opcodes, GateIStream, MemGate, RecvGate};
+use m3::com::{opcodes, EpMng, GateIStream, RecvGate, EP};
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
-use m3::kif::{CapRngDesc, CapType, INVALID_SEL};
+use m3::kif::{CapRngDesc, CapType};
 use m3::log;
 use m3::mem::{size_of, AlignedBuf, MsgBuf, MsgBufRef};
 use m3::server::{
     server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
     ServerSession, SessId, DEF_MSG_SIZE,
 };
-use m3::tcu::Message;
-use m3::tiles::Activity;
+use m3::tcu::{EpId, Message, TCU};
 use m3::time::{TimeDuration, TimeInstant};
 
 use crate::kecacc::{KecAcc, KecAccState};
@@ -114,7 +113,7 @@ struct HashRequest {
 /// A session opened by a client, holds state and scheduling information.
 struct HashSession {
     serv: ServerSession,
-    mgate: MemGate,
+    mem: Option<EP>,
     algo: Option<&'static HashAlgorithm>,
     state_saved: bool,
     req: Option<HashRequest>,
@@ -141,7 +140,7 @@ impl RequestSession for HashSession {
 
         Ok(Self {
             serv,
-            mgate: MemGate::new_bind(INVALID_SEL),
+            mem: None,
             algo: None,
             state_saved: false,
             req: None,
@@ -163,13 +162,9 @@ impl RequestSession for HashSession {
         }
 
         // Revoke EP capability that was delegated for memory accesses
-        if let Some(ep) = self.mgate.ep() {
-            if let Err(e) =
-                Activity::own().revoke(CapRngDesc::new(CapType::Object, ep.sel(), 1), true)
-            {
-                log!(LogFlags::Error, "[{}] Failed to revoke EP cap: {}", sid, e)
-            }
-        };
+        if let Some(ep) = self.mem.take() {
+            EpMng::get().release(ep, true);
+        }
     }
 }
 
@@ -292,6 +287,10 @@ impl HashRequest {
 }
 
 impl HashSession {
+    fn epid(&self) -> EpId {
+        self.mem.as_ref().unwrap().id()
+    }
+
     /// Work on an input request by reading memory from the MemGate and
     /// letting the accelerator absorb it.
     fn work_input(
@@ -308,7 +307,7 @@ impl HashSession {
                 return Err(Error::new(Code::Success)); // Done
             }
 
-            self.mgate.read_bytes(buf.as_mut_ptr(), n, req.off as u64)?;
+            TCU::read(self.epid(), buf.as_mut_ptr(), n, req.off as u64)?;
 
             KECACC.start_absorb(&buf[..n]);
             if DISABLE_DOUBLE_BUFFER {
@@ -357,7 +356,7 @@ impl HashSession {
             if n == 0 {
                 // Still need to write back the last buffer
                 KECACC.poll_complete();
-                self.mgate.write_bytes(lbuf.as_ptr(), ln, req.off as u64)?;
+                TCU::write(self.epid(), lbuf.as_ptr(), ln, req.off as u64)?;
                 return Err(Error::new(Code::Success)); // Done
             }
 
@@ -367,14 +366,14 @@ impl HashSession {
                 KECACC.poll_complete();
             }
 
-            self.mgate.write_bytes(lbuf.as_ptr(), ln, req.off as u64)?;
+            TCU::write(self.epid(), lbuf.as_ptr(), ln, req.off as u64)?;
             req.complete_buffer(ln);
 
             if let Err(remaining_time) = timer.try_continue(req_rgate, srv_rgate) {
                 // Still need to write back the last buffer - this might take a bit
                 // so measure the time and subtract it from the remaining time.
                 let t = TimeInstant::now();
-                self.mgate.write_bytes(buf.as_ptr(), n, req.off as u64)?;
+                TCU::write(self.epid(), buf.as_ptr(), n, req.off as u64)?;
                 req.complete_buffer(n);
                 self.remaining_time = remaining_time - (TimeInstant::now() - t).as_nanos() as i64;
                 return Ok(false);
@@ -529,11 +528,16 @@ impl HashSession {
         log!(LogFlags::HMuxReqs, "[{}] hash::obtain()", sid);
         let hash = cli.get_mut(sid).ok_or_else(|| Error::new(Code::InvArgs))?;
 
+        if hash.mem.is_some() {
+            return Err(Error::new(Code::Exists));
+        }
+
         // FIXME: Let client obtain EP capability directly with first obtain() below
         // Right now this is not possible because mgate.activate() returns an EP
         // from the EpMng which does not allow binding it to a specified capability selector.
-        hash.mgate.activate()?;
-        let ep_sel = hash.mgate.ep().unwrap().sel();
+        let ep = EpMng::get().acquire(0)?;
+        let ep_sel = ep.sel();
+        hash.mem = Some(ep);
         xchg.out_caps(CapRngDesc::new(CapType::Object, ep_sel, 1));
 
         Ok(())

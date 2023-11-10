@@ -21,7 +21,7 @@ use core::fmt;
 
 use crate::cap;
 use crate::client::ClientSession;
-use crate::com::{opcodes, MemGate, RGateArgs, RecvCap, RecvGate, SendGate};
+use crate::com::{opcodes, RGateArgs, RecvCap, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::kif;
 use crate::mem::VirtAddr;
@@ -229,18 +229,18 @@ impl Pager {
         Ok(res)
     }
 
-    /// Maps `len` bytes of the given [`MemGate`] at the virtual address `virt` with permissions
+    /// Maps `len` bytes of the given memory (`mem`) at the virtual address `virt` with permissions
     /// `prot`.
     ///
-    /// As the [`MemGate`] already refers to allocated physical memory, no page faults will occur.
+    /// As `mem` already refers to allocated physical memory, no page faults will occur.
     pub fn map_mem(
         &self,
         virt: VirtAddr,
-        mem: &MemGate,
+        mem: cap::Selector,
         len: usize,
         prot: kif::Perm,
     ) -> Result<VirtAddr, Error> {
-        let crd = kif::CapRngDesc::new(kif::CapType::Object, mem.sel(), 1);
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, mem, 1);
         let mut res = VirtAddr::default();
         self.sess.delegate(
             crd,

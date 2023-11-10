@@ -20,11 +20,11 @@ use core::fmt;
 
 use base::mem::GlobAddr;
 
-use crate::cap::{CapFlags, SelSpace, Selector};
-use crate::cell::Ref;
+use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::col::Vec;
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
+use crate::com::GateCap;
 use crate::errors::Error;
 use crate::kif::INVALID_SEL;
 use crate::mem::{self, GlobOff, MaybeUninit, VirtAddr};
@@ -33,6 +33,158 @@ use crate::tcu;
 use crate::tiles::Activity;
 
 pub use crate::kif::Perm;
+
+/// A memory capability is the precursor of a `MemGate`
+///
+/// `MemCap` implements `GateCap` and can therefore be turned into a `MemGate` through activation.
+#[derive(Debug)]
+pub struct MemCap {
+    cap: Capability,
+    resmng: bool,
+}
+
+impl MemCap {
+    /// Creates a new `MemCap` that has access to a region of `size` bytes with permissions `perm`.
+    ///
+    /// This method will allocate `size` bytes with given permissions from the resource manager.
+    pub fn new(size: usize, perm: Perm) -> Result<Self, Error> {
+        Self::new_with(MGateArgs::new(size, perm))
+    }
+
+    /// Creates a new `MemCap` with given arguments.
+    ///
+    /// This method will allocate `size` bytes with given permissions from the resource manager.
+    pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
+        let sel = if args.sel == INVALID_SEL {
+            SelSpace::get().alloc_sel()
+        }
+        else {
+            args.sel
+        };
+
+        Activity::own()
+            .resmng()
+            .unwrap()
+            .alloc_mem(sel, args.size as GlobOff, args.perm)?;
+        Ok(Self {
+            cap: Capability::new(sel, CapFlags::empty()),
+            resmng: true,
+        })
+    }
+
+    /// Creates a new `MemCap` for the region `virt`..`virt`+`size` in the virtual address space of
+    /// the given activity.
+    ///
+    /// The given region in virtual memory must be physically contiguous and page aligned. Note that
+    /// the preferred interface for this functionality is [`Activity::get_mem`].
+    pub fn new_foreign(
+        act: Selector,
+        virt: VirtAddr,
+        size: GlobOff,
+        perm: Perm,
+    ) -> Result<Self, Error> {
+        let sel = SelSpace::get().alloc_sel();
+        syscalls::create_mgate(sel, act, virt, size, perm)?;
+        Ok(Self::new_owned_bind(sel))
+    }
+
+    /// Binds a new `MemCap` to the given selector.
+    pub fn new_bind(sel: Selector) -> Self {
+        Self {
+            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+            resmng: false,
+        }
+    }
+
+    /// Binds a new `MemCap` to the given selector and revokes the cap on drop.
+    pub fn new_owned_bind(sel: Selector) -> Self {
+        Self {
+            cap: Capability::new(sel, CapFlags::empty()),
+            resmng: false,
+        }
+    }
+
+    /// Binds a new `MemCap` to the boot module with given name.
+    pub fn new_bind_bootmod(name: &str) -> Result<Self, Error> {
+        let sel = SelSpace::get().alloc_sel();
+        Activity::own().resmng().unwrap().use_mod(sel, name)?;
+        Ok(Self {
+            cap: Capability::new(sel, CapFlags::empty()),
+            resmng: false,
+        })
+    }
+
+    /// Returns the selector of this `MemCap`
+    pub fn sel(&self) -> Selector {
+        self.cap.sel()
+    }
+
+    /// Returns the memory region (global address and size) this `MemCap` references.
+    pub fn region(&self) -> Result<(GlobAddr, GlobOff), Error> {
+        syscalls::mgate_region(self.sel())
+    }
+
+    /// Derives a new `MemCap` from `self` that has access to a subset of `self`'s the memory
+    /// region and has a subset of `self`'s permissions. The subset of the memory region is defined
+    /// by `offset` and `size` and the permissions by `perm`.
+    ///
+    /// Note that kernel makes sure that only owned permissions can be passed on to the derived
+    /// `MemCap`.
+    pub fn derive(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<Self, Error> {
+        let sel = SelSpace::get().alloc_sel();
+        self.derive_for(Activity::own().sel(), sel, offset, size, perm)
+    }
+
+    /// Like [`MemCap::derive`], but assigns the new `MemCap` to the given activity and uses given
+    /// selector.
+    pub fn derive_for(
+        &self,
+        act: Selector,
+        sel: Selector,
+        offset: GlobOff,
+        size: usize,
+        perm: Perm,
+    ) -> Result<Self, Error> {
+        syscalls::derive_mem(act, sel, self.sel(), offset, size as GlobOff, perm)?;
+        Ok(Self {
+            cap: Capability::new(sel, CapFlags::empty()),
+            resmng: false,
+        })
+    }
+}
+
+impl GateCap for MemCap {
+    type Source = (Selector, bool);
+    type Target = MemGate;
+
+    fn new_from_cap(src: Self::Source) -> Self {
+        Self {
+            cap: Capability::new(src.0, CapFlags::KEEP_CAP),
+            resmng: src.1,
+        }
+    }
+
+    fn activate(mut self) -> Result<Self::Target, Error> {
+        let gate = Gate::new(self.sel(), self.cap.flags())?;
+
+        // prevent that we revoke the cap
+        self.cap.set_flags(CapFlags::KEEP_CAP);
+
+        Ok(Self::Target {
+            gate,
+            resmng: self.resmng,
+        })
+    }
+}
+
+impl Drop for MemCap {
+    fn drop(&mut self) {
+        if !self.cap.flags().contains(CapFlags::KEEP_CAP) && self.resmng {
+            Activity::own().resmng().unwrap().free_mem(self.sel()).ok();
+            self.cap.set_flags(CapFlags::KEEP_CAP);
+        }
+    }
+}
 
 /// Represents a contiguous region of memory, accessible via TCU
 ///
@@ -83,7 +235,6 @@ pub use crate::kif::Perm;
 ///
 /// Independent of the creation, every `MemGate` allows to issue DMA requests to the associated
 /// memory region via [`MemGate::read`] and [`MemGate::write`].
-
 pub struct MemGate {
     gate: Gate,
     resmng: bool,
@@ -120,28 +271,14 @@ impl MemGate {
     ///
     /// This method will allocate `size` bytes with given permissions from the resource manager.
     pub fn new(size: usize, perm: Perm) -> Result<Self, Error> {
-        Self::new_with(MGateArgs::new(size, perm))
+        MemCap::new(size, perm)?.activate()
     }
 
     /// Creates a new `MemGate` with given arguments.
     ///
     /// This method will allocate `size` bytes with given permissions from the resource manager.
     pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
-        let sel = if args.sel == INVALID_SEL {
-            SelSpace::get().alloc_sel()
-        }
-        else {
-            args.sel
-        };
-
-        Activity::own()
-            .resmng()
-            .unwrap()
-            .alloc_mem(sel, args.size as GlobOff, args.perm)?;
-        Ok(MemGate {
-            gate: Gate::new(sel, CapFlags::empty()),
-            resmng: true,
-        })
+        MemCap::new_with(args)?.activate()
     }
 
     /// Creates a new `MemGate` for the region `virt`..`virt`+`size` in the virtual address space of
@@ -155,35 +292,22 @@ impl MemGate {
         size: GlobOff,
         perm: Perm,
     ) -> Result<Self, Error> {
-        let sel = SelSpace::get().alloc_sel();
-        syscalls::create_mgate(sel, act, virt, size, perm)?;
-        Ok(MemGate::new_owned_bind(sel))
+        MemCap::new_foreign(act, virt, size, perm)?.activate()
     }
 
     /// Binds a new `MemGate` to the given selector.
-    pub fn new_bind(sel: Selector) -> Self {
-        MemGate {
-            gate: Gate::new(sel, CapFlags::KEEP_CAP),
-            resmng: false,
-        }
+    pub fn new_bind(sel: Selector) -> Result<Self, Error> {
+        MemCap::new_bind(sel).activate()
     }
 
     /// Binds a new `MemGate` to the given selector and revokes the cap on drop.
-    pub fn new_owned_bind(sel: Selector) -> Self {
-        MemGate {
-            gate: Gate::new(sel, CapFlags::empty()),
-            resmng: false,
-        }
+    pub fn new_owned_bind(sel: Selector) -> Result<Self, Error> {
+        MemCap::new_owned_bind(sel).activate()
     }
 
     /// Binds a new `MemGate` to the boot module with given name.
     pub fn new_bind_bootmod(name: &str) -> Result<Self, Error> {
-        let sel = SelSpace::get().alloc_sel();
-        Activity::own().resmng().unwrap().use_mod(sel, name)?;
-        Ok(MemGate {
-            gate: Gate::new(sel, CapFlags::empty()),
-            resmng: false,
-        })
+        MemCap::new_bind_bootmod(name)?.activate()
     }
 
     /// Returns the selector of this gate
@@ -191,34 +315,28 @@ impl MemGate {
         self.gate.sel()
     }
 
-    /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub fn ep(&self) -> Option<Ref<'_, EP>> {
+    /// Returns the endpoint of the gate
+    pub fn ep(&self) -> &EP {
         self.gate.ep()
     }
 
-    /// Sets or unsets the endpoint.
-    pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
-        self.gate.set_ep(ep);
-    }
-
-    /// Returns the memory region (global address and size) this MemGate references.
+    /// Returns the memory region (global address and size) this `MemGate` references.
     pub fn region(&self) -> Result<(GlobAddr, GlobOff), Error> {
         syscalls::mgate_region(self.sel())
     }
 
-    /// Derives a new `MemGate` from `self` that has access to a subset of `self`'s the memory
-    /// region and has a subset of `self`'s permissions. The subset of the memory region is defined
-    /// by `offset` and `size` and the permissions by `perm`.
-    ///
-    /// Note that kernel makes sure that only owned permissions can be passed on to the derived
-    /// `MemGate`.
+    /// Like `MemCap::derive`, but creates a `MemGate`
     pub fn derive(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<Self, Error> {
         let sel = SelSpace::get().alloc_sel();
         self.derive_for(Activity::own().sel(), sel, offset, size, perm)
     }
 
-    /// Like [`MemGate::derive`], but assigns the new `MemGate` to the given activity and uses given
-    /// selector.
+    /// Derives a `MemCap` from this `MemGate`
+    pub fn derive_cap(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<MemCap, Error> {
+        MemCap::new_bind(self.sel()).derive(offset, size, perm)
+    }
+
+    /// Like `MemCap::derive_for`, but creates a `MemGate`
     pub fn derive_for(
         &self,
         act: Selector,
@@ -227,11 +345,9 @@ impl MemGate {
         size: usize,
         perm: Perm,
     ) -> Result<Self, Error> {
-        syscalls::derive_mem(act, sel, self.sel(), offset, size as GlobOff, perm)?;
-        Ok(MemGate {
-            gate: Gate::new(sel, CapFlags::empty()),
-            resmng: false,
-        })
+        MemCap::new_bind(self.sel())
+            .derive_for(act, sel, offset, size, perm)?
+            .activate()
     }
 
     /// Uses the TCU read command to read from the memory region at offset `off` and stores the read
@@ -242,9 +358,7 @@ impl MemGate {
         let mut vec = Vec::<T>::with_capacity(items);
         // we deliberately use uninitialize memory here, because it's performance critical
         // safety: this is okay, because the TCU does not read from `vec`
-        unsafe {
-            vec.set_len(items)
-        };
+        unsafe { vec.set_len(items) };
         self.read(&mut vec, off)?;
         Ok(vec)
     }
@@ -272,8 +386,7 @@ impl MemGate {
     /// Reads `size` bytes via the TCU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
     pub fn read_bytes(&self, data: *mut u8, size: usize, off: GlobOff) -> Result<(), Error> {
-        let ep = self.activate()?;
-        tcu::TCU::read(ep, data, size, off)
+        tcu::TCU::read(self.gate.ep().id(), data, size, off)
     }
 
     /// Writes `data` with the TCU write command to the memory region at offset `off`.
@@ -293,21 +406,24 @@ impl MemGate {
     /// Writes the `size` bytes at `data` via the TCU write command to the memory region at offset
     /// `off`.
     pub fn write_bytes(&self, data: *const u8, size: usize, off: GlobOff) -> Result<(), Error> {
-        let ep = self.activate()?;
-        tcu::TCU::write(ep, data, size, off)
+        tcu::TCU::write(self.gate.ep().id(), data, size, off)
     }
 
-    /// Activates the gate. Returns the chosen endpoint number.
-    /// The endpoint can be delegated to other services (e.g. M3FS) to let them
-    /// remotely configure it to point to memory in another tile.
-    #[inline(always)]
-    pub fn activate(&self) -> Result<tcu::EpId, Error> {
-        self.gate.activate()
-    }
+    // /// Deactivates this `MemGate` and thereby turns it back into a `MemCap`
+    pub fn deactivate(mut self) -> MemCap {
+        let (resmng, flags) = (self.resmng, self.gate.flags());
 
-    /// Deactivates this `MemGate` in case it was already activated
-    pub fn deactivate(&mut self) {
+        // invalidate and free the EP
         self.gate.release(true);
+
+        // prevent that we revoke the cap or free the memory
+        self.gate.set_flags(CapFlags::KEEP_CAP);
+        self.resmng = false;
+
+        MemCap {
+            cap: Capability::new(self.sel(), flags),
+            resmng,
+        }
     }
 }
 
@@ -326,7 +442,7 @@ impl fmt::Debug for MemGate {
             f,
             "MemGate[sel: {}, ep: {:?}]",
             self.sel(),
-            self.gate.epid()
+            self.gate.ep().id()
         )
     }
 }

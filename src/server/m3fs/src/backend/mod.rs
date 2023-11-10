@@ -24,7 +24,7 @@ use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, BlockRange, Extent, SuperBlock};
 
 use m3::cap::Selector;
-use m3::com::MemGate;
+use m3::com::MemCap;
 use m3::com::Perm;
 use m3::errors::Error;
 use thread::Event;
@@ -40,7 +40,7 @@ pub trait Backend {
 
     fn load_data(
         &self,
-        mem: &MemGate,
+        mem: &MemCap,
         blocks: BlockRange,
         init: bool,
         unlock: Event,

@@ -209,7 +209,7 @@ impl DataSpace {
 
                 // if it's writable and should not be shared, create a copy
                 if !self.flags.contains(MapFlags::SHARED) && self.perms.contains(kif::Perm::W) {
-                    let src = MemGate::new_owned_bind(sel);
+                    let src = MemGate::new_owned_bind(sel)?;
                     let child = childs
                         .child_by_id_mut(self.child)
                         .ok_or_else(|| Error::new(Code::ActivityGone))?;
@@ -217,7 +217,7 @@ impl DataSpace {
                     let (mgate, _alloc) = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                     let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
                     reg.set_mem(mem);
-                    reg.copy_from(&src);
+                    reg.copy_from(&src)?;
                     reg.set_mem_off(0);
                 }
                 else {
@@ -267,7 +267,7 @@ impl DataSpace {
 
                 if !self.flags.contains(MapFlags::UNINIT) {
                     // zero the memory
-                    reg.clear();
+                    reg.clear()?;
                 }
             }
         }

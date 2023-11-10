@@ -14,7 +14,7 @@
 
 use crate::util;
 use m3::client::{HashInput, HashOutput, HashSession};
-use m3::com::{MemGate, Perm};
+use m3::com::{MemCap, MemGate, Perm};
 use m3::crypto::HashAlgorithm;
 use m3::test::WvTester;
 use m3::time::{CycleInstant, Duration, Profiler};
@@ -61,9 +61,9 @@ fn hash_empty(_t: &mut dyn WvTester) {
     }
 }
 
-fn _prepare_hash_mem(size: usize) -> (MemGate, MemGate) {
+fn _prepare_hash_mem(size: usize) -> (MemGate, MemCap) {
     let mgate = util::prepare_shake_mem(size);
-    let mgated = wv_assert_ok!(mgate.derive(0, size, Perm::R));
+    let mgated = wv_assert_ok!(mgate.derive_cap(0, size, Perm::R));
     (mgate, mgated)
 }
 
@@ -159,9 +159,9 @@ fn hash_file(_t: &mut dyn WvTester) {
     }
 }
 
-fn _prepare_shake_mem(size: usize) -> (MemGate, MemGate) {
+fn _prepare_shake_mem(size: usize) -> (MemGate, MemCap) {
     let mgate = wv_assert_ok!(MemGate::new(size, Perm::RW));
-    let mgated = wv_assert_ok!(mgate.derive(0, size, Perm::W));
+    let mgated = wv_assert_ok!(mgate.derive_cap(0, size, Perm::W));
     (mgate, mgated)
 }
 

@@ -14,7 +14,7 @@
  */
 
 use m3::boxed::Box;
-use m3::com::{MemGate, RGateArgs, RecvGate};
+use m3::com::{MemCap, MemGate, RGateArgs, RecvGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::kif::Perm;
 use m3::test::WvTester;
@@ -81,7 +81,7 @@ pub fn run_subsys<F>(
         Some(tile_quota.page_tables().remaining() / 2)
     )));
     let mux = "tilemux";
-    let mux_mod = wv_assert_ok!(MemGate::new_bind_bootmod(mux));
+    let mux_mod = wv_assert_ok!(MemCap::new_bind_bootmod(mux));
     child_sub.add_mod(mux_mod, mux);
     let sub_mem = wv_assert_ok!(res.memory_mut().alloc_mem(64 * 1024 * 1024));
     child_sub.add_mem(wv_assert_ok!(sub_mem.derive()), false);

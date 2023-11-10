@@ -25,7 +25,7 @@ use core::ptr::NonNull;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::col::{BoxList, Treap};
-use m3::com::{MemGate, Perm};
+use m3::com::{MemCap, Perm};
 use m3::errors::Error;
 use m3::io::LogFlags;
 use m3::mem::GlobOff;
@@ -37,7 +37,7 @@ const MAX_BLKS_PER_ENTRY: usize = 1024;
 
 pub struct FileBufferEntry {
     blocks: BlockRange,
-    data: m3::com::MemGate,
+    data: MemCap,
 
     prev: Option<NonNull<Self>>,
     next: Option<NonNull<Self>>,
@@ -53,7 +53,7 @@ impl FileBufferEntry {
     fn new(blocks: BlockRange, blocksize: usize) -> Result<Self, Error> {
         Ok(FileBufferEntry {
             blocks,
-            data: MemGate::new(blocks.count as usize * blocksize + PRDT_SIZE, Perm::RWX)?,
+            data: MemCap::new(blocks.count as usize * blocksize + PRDT_SIZE, Perm::RWX)?,
 
             prev: None,
             next: None,

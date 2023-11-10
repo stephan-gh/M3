@@ -16,7 +16,7 @@
 use m3::cap::Selector;
 use m3::cell::StaticRefCell;
 use m3::cfg;
-use m3::com::MemGate;
+use m3::com::{MemCap, MemGate};
 use m3::errors::Error;
 use m3::mem::{self, GlobOff};
 
@@ -34,7 +34,7 @@ pub fn copy_block(src: &MemGate, dst: &MemGate, src_off: GlobOff, size: GlobOff)
     }
 }
 
-fn clear_block(mem: &MemGate, size: GlobOff) {
+pub fn clear_block(mem: &MemGate, size: GlobOff) {
     let pages = size / cfg::PAGE_SIZE as GlobOff;
     for i in 0..pages {
         mem.write(&ZEROS[..], i * cfg::PAGE_SIZE as GlobOff)
@@ -43,42 +43,42 @@ fn clear_block(mem: &MemGate, size: GlobOff) {
 }
 
 pub struct PhysMem {
-    mgate: MemGate,
+    mcap: MemCap,
     owner_mem: Option<(Selector, mem::VirtAddr)>,
 }
 
 impl PhysMem {
-    pub fn new(owner_mem: (Selector, mem::VirtAddr), mem: MemGate) -> Result<Self, Error> {
+    pub fn new(owner_mem: (Selector, mem::VirtAddr), mem: MemCap) -> Result<Self, Error> {
         Ok(PhysMem {
-            mgate: mem,
+            mcap: mem,
             owner_mem: Some(owner_mem),
         })
     }
 
-    pub fn new_with_mem(owner_mem: (Selector, mem::VirtAddr), mem: MemGate) -> Self {
+    pub fn new_with_mem(owner_mem: (Selector, mem::VirtAddr), mem: MemCap) -> Self {
         PhysMem {
-            mgate: mem,
+            mcap: mem,
             owner_mem: Some(owner_mem),
         }
     }
 
     pub fn new_bind(owner_mem: (Selector, mem::VirtAddr), sel: Selector) -> Self {
         PhysMem {
-            mgate: MemGate::new_bind(sel),
+            mcap: MemCap::new_bind(sel),
             owner_mem: Some(owner_mem),
         }
     }
 
-    pub fn gate(&self) -> &MemGate {
-        &self.mgate
+    pub fn mem_sel(&self) -> Selector {
+        self.mcap.sel()
     }
 
-    pub fn deactivate(&mut self) {
-        self.mgate.deactivate();
+    pub fn request_gate(&self) -> Result<MemGate, Error> {
+        MemGate::new_bind(self.mcap.sel())
     }
 
-    pub fn replace_gate(&mut self, mem: MemGate) -> MemGate {
-        mem::replace(&mut self.mgate, mem)
+    pub fn replace_mem(&mut self, mem: MemCap) -> MemCap {
+        mem::replace(&mut self.mcap, mem)
     }
 
     pub fn owner_mem(&self) -> Option<(Selector, mem::VirtAddr)> {
@@ -91,9 +91,5 @@ impl PhysMem {
 
     pub fn remove_owner(&mut self) {
         self.owner_mem = None;
-    }
-
-    pub fn clear(&self, size: GlobOff) {
-        clear_block(&self.mgate, size);
     }
 }

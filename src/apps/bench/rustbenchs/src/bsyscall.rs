@@ -19,7 +19,7 @@
 use m3::cap::SelSpace;
 use m3::cell::StaticCell;
 use m3::cfg;
-use m3::com::{EpMng, MemGate, Perm, RecvCap, RecvGate};
+use m3::com::{EpMng, MemCap, MemGate, Perm, RecvCap, RecvGate};
 use m3::kif;
 use m3::mem::{GlobOff, VirtAddr};
 use m3::rc::Rc;
@@ -61,7 +61,7 @@ fn noop(_t: &mut dyn WvTester) {
 }
 
 fn activate(_t: &mut dyn WvTester) {
-    let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
+    let mcap = wv_assert_ok!(MemCap::new(0x1000, Perm::RW));
     let ep = wv_assert_ok!(EpMng::get().acquire(0));
 
     let prof = Profiler::default();
@@ -71,7 +71,7 @@ fn activate(_t: &mut dyn WvTester) {
         prof.run::<CycleInstant, _>(|| {
             wv_assert_ok!(syscalls::activate(
                 ep.sel(),
-                mgate.sel(),
+                mcap.sel(),
                 kif::INVALID_SEL,
                 0
             ));

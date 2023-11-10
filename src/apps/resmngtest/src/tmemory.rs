@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::MemGate;
+use m3::com::MemCap;
 use m3::errors::Code;
 use m3::kif::Perm;
 use m3::mem::GlobAddr;
@@ -33,7 +33,7 @@ pub fn run(t: &mut dyn WvTester) {
 fn mng_basics(t: &mut dyn WvTester) {
     let mut mng = MemoryManager::default();
     mng.add(Rc::new(MemMod::new(
-        MemGate::new_bind(1),
+        MemCap::new_bind(1),
         GlobAddr::new_with(TileId::new(0, 0), 0x1000),
         0x4000,
         false,
@@ -80,13 +80,13 @@ fn mng_basics(t: &mut dyn WvTester) {
 fn mng_multi(t: &mut dyn WvTester) {
     let mut mng = MemoryManager::default();
     mng.add(Rc::new(MemMod::new(
-        MemGate::new_bind(1),
+        MemCap::new_bind(1),
         GlobAddr::new_with(TileId::new(1, 4), 0x10000),
         0x40000,
         false,
     )));
     mng.add(Rc::new(MemMod::new(
-        MemGate::new_bind(2),
+        MemCap::new_bind(2),
         GlobAddr::new_with(TileId::new(1, 5), 0x0),
         0x100000,
         false,
@@ -136,13 +136,13 @@ fn mng_multi(t: &mut dyn WvTester) {
 fn mng_pool(t: &mut dyn WvTester) {
     let mut mng = MemoryManager::default();
     mng.add(Rc::new(MemMod::new(
-        MemGate::new_bind(1),
+        MemCap::new_bind(1),
         GlobAddr::new_with(TileId::new(1, 4), 0x10000),
         0x40000,
         false,
     )));
     mng.add(Rc::new(MemMod::new(
-        MemGate::new_bind(2),
+        MemCap::new_bind(2),
         GlobAddr::new_with(TileId::new(1, 5), 0x0),
         0x100000,
         false,

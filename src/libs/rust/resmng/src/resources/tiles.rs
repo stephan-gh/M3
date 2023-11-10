@@ -16,7 +16,7 @@
 use m3::cell::{Cell, Ref, RefCell, RefMut};
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::{MemCap, MemGate};
 use m3::elf;
 use m3::env;
 use m3::errors::{Code, Error};
@@ -49,7 +49,7 @@ struct Mux {
 pub struct TileState {
     tile: Rc<Tile>,
     next_pmp_ep: EpId,
-    pmp_regions: Vec<(MemGate, usize)>,
+    pmp_regions: Vec<(MemCap, usize)>,
     mux: Option<Mux>,
 }
 
@@ -65,7 +65,7 @@ impl TileState {
 
     pub fn add_mem_region(
         &mut self,
-        mgate: MemGate,
+        mcap: MemCap,
         size: usize,
         set: bool,
         overwrite: bool,
@@ -74,7 +74,7 @@ impl TileState {
             loop {
                 match syscalls::tile_set_pmp(
                     self.tile.sel(),
-                    mgate.sel(),
+                    mcap.sel(),
                     self.next_pmp_ep,
                     overwrite,
                 ) {
@@ -85,7 +85,7 @@ impl TileState {
             }
             self.next_pmp_ep += 1;
         }
-        self.pmp_regions.push((mgate, size));
+        self.pmp_regions.push((mcap, size));
         Ok(())
     }
 

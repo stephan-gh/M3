@@ -19,7 +19,7 @@
 use m3::cap::{SelSpace, Selector};
 use m3::cfg::PAGE_SIZE;
 use m3::client::M3FS;
-use m3::com::{EpMng, GateCap, MemGate, RecvCap, RecvGate, SendCap};
+use m3::com::{EpMng, GateCap, MemCap, MemGate, RecvCap, RecvGate, SendCap};
 use m3::cpu::{CPUOps, CPU};
 use m3::errors::{Code, Error};
 use m3::kif::syscalls::{ActivityOp, SemOp};
@@ -499,7 +499,7 @@ fn activate(t: &mut dyn WvTester) {
     let ep3 = wv_assert_ok!(EpMng::get().acquire(1));
     let ep4 = wv_assert_ok!(EpMng::get().acquire(2));
     let sel = SelSpace::get().alloc_sel();
-    let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
+    let mgate = wv_assert_ok!(MemCap::new(0x1000, Perm::RW));
     let rgate = wv_assert_ok!(RecvCap::new(5, 5));
     let sgate = wv_assert_ok!(SendCap::new(&rgate));
 

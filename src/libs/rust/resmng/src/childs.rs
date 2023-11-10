@@ -20,7 +20,7 @@ use m3::cap::{SelSpace, Selector};
 use m3::cell::{Cell, RefCell};
 use m3::client::resmng;
 use m3::col::{String, ToString, Treap, Vec};
-use m3::com::{MemGate, RecvGate, SGateArgs, SendCap};
+use m3::com::{GateCap, MemCap, RecvGate, SGateArgs, SendCap};
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::io::LogFlags;
@@ -101,7 +101,7 @@ pub struct ChildResources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<(usize, Session)>,
     mem: Vec<(Option<Selector>, Allocation)>,
-    mods: Vec<MemGate>,
+    mods: Vec<MemCap>,
     tiles: Vec<(TileUsage, usize, Selector)>,
     scaps: Vec<SendCap>,
 }
@@ -123,7 +123,7 @@ impl ChildResources {
         &self.mem
     }
 
-    pub fn mods(&self) -> &[MemGate] {
+    pub fn mods(&self) -> &[MemCap] {
         &self.mods
     }
 
@@ -312,7 +312,7 @@ pub trait Child {
         sess.close_async(res, id)
     }
 
-    fn alloc_local(&mut self, size: GlobOff, perm: Perm) -> Result<(MemGate, Allocation), Error> {
+    fn alloc_local(&mut self, size: GlobOff, perm: Perm) -> Result<(MemCap, Allocation), Error> {
         log!(
             LogFlags::ResMngMem,
             "{}: allocate_local(size={:#x}, perm={:?})",
@@ -327,9 +327,9 @@ pub trait Child {
 
         let alloc = self.mem().pool.borrow_mut().allocate(size)?;
         let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
-        let mgate = MemGate::new_bind(mem_sel).derive(alloc.addr(), alloc.size() as usize, perm)?;
+        let mcap = MemCap::new_bind(mem_sel).derive(alloc.addr(), alloc.size() as usize, perm)?;
         self.add_mem(alloc, None);
-        Ok((mgate, alloc))
+        Ok((mcap, alloc))
     }
 
     fn alloc_mem(&mut self, dst_sel: Selector, size: GlobOff, perm: Perm) -> Result<(), Error> {
@@ -507,11 +507,11 @@ pub trait Child {
             .find(mdesc.name().global())
             .ok_or_else(|| Error::new(Code::NotFound))?;
 
-        let mgate = bmod
+        let mcap = bmod
             .memory()
             .derive(0, bmod.size() as usize, mdesc.perm())?;
-        let our_sel = mgate.sel();
-        self.res_mut().mods.push(mgate);
+        let our_sel = mcap.sel();
+        self.res_mut().mods.push(mcap);
         self.delegate(our_sel, sel)
     }
 
@@ -560,7 +560,7 @@ pub trait Child {
                 None,
                 None,
                 |size| match self.alloc_local(size as GlobOff, Perm::RWX) {
-                    Ok((mem, alloc)) => Ok((mem, Some(alloc))),
+                    Ok((mem, alloc)) => Ok((mem.activate()?, Some(alloc))),
                     Err(e) => {
                         log!(
                             LogFlags::Error,

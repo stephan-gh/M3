@@ -26,7 +26,7 @@ use crate::client::{ClientSession, HashInput, HashOutput, HashSession, MapFlags,
 use crate::col::{String, ToString};
 use crate::com::recv_result;
 use crate::com::GateIStream;
-use crate::com::{opcodes, MemGate, RecvGate, SendCap, SendGate, EP};
+use crate::com::{opcodes, EpMng, RecvGate, SendCap, SendGate, EP};
 use crate::errors::{Code, Error};
 use crate::io::{LogFlags, Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
@@ -35,6 +35,7 @@ use crate::mem::{GlobOff, VirtAddr};
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::tcu::EpId;
+use crate::tcu::TCU;
 use crate::tiles::{Activity, ChildActivity};
 use crate::util::math;
 use crate::vfs::{filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, TMode};
@@ -112,7 +113,7 @@ pub struct GenericFile {
     flags: OpenFlags,
     sess: ClientSession,
     sgate: Rc<SendGate>,
-    mgate: MemGate,
+    memep: Option<EP>,
     delegated_ep: Selector,
     blocking: bool,
     nb_state: Option<NonBlocking>,
@@ -132,7 +133,7 @@ impl GenericFile {
             flags,
             sess: ClientSession::new_owned_bind(sel),
             sgate: Rc::new(SendGate::new_bind(sel + 1).unwrap()),
-            mgate: MemGate::new_bind(INVALID_SEL),
+            memep: None,
             delegated_ep: INVALID_SEL,
             blocking: true,
             nb_state: None,
@@ -151,17 +152,15 @@ impl GenericFile {
         fs_id: usize,
         mep: EpId,
         sgate: Rc<SendGate>,
-    ) -> Self {
-        let mut mgate = MemGate::new_bind(INVALID_SEL);
-        mgate.set_ep(Some(EP::new_bind(mep, INVALID_SEL)));
-        GenericFile {
+    ) -> Result<Self, Error> {
+        Ok(GenericFile {
             id: Some(id),
             fs_id: Some(fs_id),
             fd: filetable::INV_FD,
             flags,
             sess: ClientSession::new_bind(sel),
             sgate,
-            mgate,
+            memep: Some(EP::new_bind(mep, INVALID_SEL)),
             delegated_ep: INVALID_SEL,
             blocking: true,
             nb_state: None,
@@ -170,7 +169,7 @@ impl GenericFile {
             pos: 0,
             len: 0,
             writing: false,
-        }
+        })
     }
 
     fn file_id(&self) -> usize {
@@ -228,9 +227,12 @@ impl GenericFile {
     }
 
     fn delegate_own_ep(&mut self) -> Result<(), Error> {
-        self.mgate.activate()?;
+        if self.memep.is_none() {
+            self.memep = Some(EpMng::get().acquire(0)?);
+        }
+
         let (ep_sel, ep_id) = {
-            let ep = self.mgate.ep().unwrap();
+            let ep = self.memep.as_ref().unwrap();
             (ep.sel(), ep.id())
         };
         self.delegate_ep(ep_sel, ep_id)
@@ -401,9 +403,13 @@ impl GenericFile {
 
 impl Drop for GenericFile {
     fn drop(&mut self) {
-        if !self.flags.contains(OpenFlags::NEW_SESS) {
-            // we never want to invalidate the EP
-            self.mgate.set_ep(None);
+        // without new session, there is nothing to do as we have gotten the EP from somewhere else
+        if self.flags.contains(OpenFlags::NEW_SESS) {
+            // with new session, we might have acquired a new EP from the EpMng, so we need to give
+            // it back (and invalidate it).
+            if let Some(ep) = self.memep.take() {
+                EpMng::get().release(ep, true);
+            }
         }
     }
 }
@@ -442,11 +448,9 @@ impl File for GenericFile {
             }
         }
         else {
-            // revoke EP cap
-            if let Some(ep) = self.mgate.ep() {
-                Activity::own()
-                    .revoke(CapRngDesc::new(CapType::Object, ep.sel(), 1), true)
-                    .ok();
+            // give EP back to EpMng if we have acquired one
+            if let Some(ep) = self.memep.take() {
+                EpMng::get().release(ep, true);
             }
         }
     }
@@ -615,8 +619,12 @@ impl Read for GenericFile {
 
         let amount = self.next_in(buf.len())?;
         if amount > 0 {
-            self.mgate
-                .read(&mut buf[0..amount], (self.off + self.pos) as GlobOff)?;
+            TCU::read(
+                self.memep.as_ref().unwrap().id(),
+                buf.as_mut_ptr(),
+                amount,
+                (self.off + self.pos) as GlobOff,
+            )?;
             self.pos += amount;
         }
         self.writing = false;
@@ -656,8 +664,12 @@ impl Write for GenericFile {
 
         let amount = self.next_out(buf.len())?;
         if amount > 0 {
-            self.mgate
-                .write(&buf[0..amount], (self.off + self.pos) as GlobOff)?;
+            TCU::write(
+                self.memep.as_ref().unwrap().id(),
+                buf.as_ptr(),
+                amount,
+                (self.off + self.pos) as GlobOff,
+            )?;
             self.pos += amount;
         }
         self.writing = true;

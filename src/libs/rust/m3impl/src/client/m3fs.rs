@@ -139,7 +139,7 @@ impl FileSystem for M3FS {
                 self.id(),
                 self.eps[ep_idx].ep.id(),
                 self.sgate.clone(),
-            )))
+            )?))
         }
         else {
             let crd = self.sess.obtain(

@@ -58,7 +58,7 @@ mod sgate;
 pub use self::ep::{EPArgs, EP};
 pub use self::epmng::EpMng;
 pub use self::gate::{Gate, GateCap, LazyGate};
-pub use self::mgate::{MGateArgs, MemGate, Perm};
+pub use self::mgate::{MGateArgs, MemCap, MemGate, Perm};
 pub use self::rbufs::RecvBuf;
 pub use self::rgate::{RGateArgs, ReceivingGate, RecvCap, RecvGate};
 pub use self::sem::Semaphore;

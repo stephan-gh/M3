@@ -17,7 +17,7 @@ use bitflags::bitflags;
 use m3::cap::Selector;
 use m3::cell::{Cell, RefCell};
 use m3::col::{VarRingBuf, Vec};
-use m3::com::{GateIStream, LazyGate, MemGate, RGateArgs, RecvGate, SendCap, EP};
+use m3::com::{GateIStream, LazyGate, MemCap, RGateArgs, RecvGate, SendCap, EP};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif;
@@ -104,7 +104,7 @@ impl PendingRequest {
 
 pub struct State {
     flags: Flags,
-    mem: Option<MemGate>,
+    mem: Option<MemCap>,
     mem_size: usize,
     pub rbuf: VarRingBuf,
     pub last_read: Option<(SessId, usize)>,
@@ -221,7 +221,7 @@ impl State {
         Ok(())
     }
 
-    pub fn get_mem(&self, id: SessId, ty: ChanType, ep: Selector) -> Result<MemGate, Error> {
+    pub fn get_mem(&self, id: SessId, ty: ChanType, ep: Selector) -> Result<MemCap, Error> {
         // did we get a memory cap from the client?
         if let Some(mem) = &self.mem {
             // derive read-only/write-only mem cap
@@ -394,7 +394,7 @@ impl Pipe {
     }
 
     pub fn set_mem(&mut self, sel: Selector) {
-        self.state.borrow_mut().mem = Some(MemGate::new_bind(sel));
+        self.state.borrow_mut().mem = Some(MemCap::new_bind(sel));
     }
 
     pub fn new_chan(&self, sid: SessId, ty: ChanType) -> Result<Channel, Error> {

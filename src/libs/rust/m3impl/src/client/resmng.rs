@@ -20,7 +20,7 @@ use crate::cap::Selector;
 use crate::cell::StaticRefCell;
 use crate::col::String;
 use crate::col::ToString;
-use crate::com::{opcodes, GateCap, GateIStream, RecvGate, SendCap, SendGate};
+use crate::com::{opcodes, GateIStream, RecvGate, SendCap, SendGate};
 use crate::errors::{Code, Error};
 use crate::kif;
 use crate::mem::{GlobOff, MsgBuf};

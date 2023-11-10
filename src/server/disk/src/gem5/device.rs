@@ -233,7 +233,7 @@ impl Device {
         let mut buffer = [0u8; 512];
         let size = mem::size_of_val(&buffer) + mem::size_of::<PRD>();
         let mg_buf = MemGate::new(size, Perm::RW)?;
-        let dev_buf = mg_buf.derive(0, size, Perm::RW)?;
+        let dev_buf = mg_buf.derive_cap(0, size, Perm::RW)?;
         chan.set_dma_buffer(&dev_buf)?;
         dev.read_write(chan, DevOp::READ, &mg_buf, 0, 0, dev.sec_size, 1)?;
 

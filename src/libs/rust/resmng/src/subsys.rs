@@ -18,7 +18,7 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::cfg::{self, PAGE_SIZE};
 use m3::col::{String, ToString, Vec};
-use m3::com::MemGate;
+use m3::com::{GateCap, MemCap, MemGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::io::LogFlags;
@@ -104,7 +104,7 @@ pub struct Subsystem {
 impl Subsystem {
     pub fn new() -> Result<(Self, Resources), Error> {
         let mut res = Resources::default();
-        let mgate = MemGate::new_bind(SUBSYS_SELS);
+        let mgate = MemGate::new_bind(SUBSYS_SELS)?;
         let mut off: GlobOff = 0;
 
         let info: boot::Info = mgate.read_obj(0)?;
@@ -217,7 +217,7 @@ impl Subsystem {
 
         // read boot config
         let cfg_mem = cfg_mem.unwrap();
-        let memgate = MemGate::new_bind(SUBSYS_SELS + 2 + cfg_mem.0 as Selector);
+        let memgate = MemGate::new_bind(SUBSYS_SELS + 2 + cfg_mem.0 as Selector)?;
         let xml = memgate.read_into_vec::<u8>(cfg_mem.1 as usize, 0)?;
 
         // parse boot config
@@ -269,8 +269,8 @@ impl Subsystem {
         &self.servs
     }
 
-    pub fn get_mod(idx: usize) -> MemGate {
-        MemGate::new_bind(SUBSYS_SELS + 2 + idx as Selector)
+    pub fn get_mod(idx: usize) -> MemCap {
+        MemCap::new_bind(SUBSYS_SELS + 2 + idx as Selector)
     }
 
     pub fn get_tile(&self, idx: usize) -> Rc<Tile> {
@@ -281,8 +281,8 @@ impl Subsystem {
         ))
     }
 
-    pub fn get_mem(&self, idx: usize) -> MemGate {
-        MemGate::new_bind(SUBSYS_SELS + 2 + (self.mods.len() + self.tiles.len() + idx) as Selector)
+    pub fn get_mem(&self, idx: usize) -> MemCap {
+        MemCap::new_bind(SUBSYS_SELS + 2 + (self.mods.len() + self.tiles.len() + idx) as Selector)
     }
 
     pub fn get_service(&self, idx: usize) -> Selector {
@@ -385,7 +385,7 @@ impl Subsystem {
                                 return Err(e);
                             },
                         };
-                        mux_mem_slice.derive().map(|m| (m, None))
+                        mux_mem_slice.derive()?.activate().map(|m| (m, None))
                     },
                     |name| match starter.get_bootmod(name) {
                         Ok(mem) => Ok(mem),
@@ -642,8 +642,7 @@ impl Subsystem {
         sub.add_config(cfg_str, |size| {
             let cfg_slice = res.memory_mut().alloc_mem(size as GlobOff)?;
             // alloc_mem gives us full pages; cut it down to the string size
-            let mgate = cfg_slice.derive_with(0, size)?;
-            Ok(mgate)
+            cfg_slice.derive_with(0, size)?.activate()
         })
         .map_err(|e| VerboseError::new(e.code(), "Unable to pass boot.xml to child".to_string()))?;
 
@@ -684,10 +683,10 @@ impl Subsystem {
 
 #[derive(Default)]
 pub struct SubsystemBuilder {
-    _desc: Option<MemGate>,
+    _desc: Option<MemCap>,
     tiles: Vec<Rc<Tile>>,
-    mods: Vec<(MemGate, String)>,
-    mems: Vec<(MemGate, bool)>,
+    mods: Vec<(MemCap, String)>,
+    mems: Vec<(MemCap, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::DerivedService>,
     serial: bool,
@@ -698,16 +697,16 @@ impl SubsystemBuilder {
     where
         F: FnOnce(usize) -> Result<MemGate, Error>,
     {
-        let mut cfg_mem = alloc(cfg.len())?;
+        let cfg_mem = alloc(cfg.len())?;
         cfg_mem.write(cfg.as_bytes(), 0)?;
-        // deactivate the memory gates so that the child can activate them for itself
-        cfg_mem.deactivate();
 
+        // deactivate the memory gates so that the child can activate them for itself
+        let cfg_mem = cfg_mem.deactivate();
         self.add_mod(cfg_mem, "boot.xml");
         Ok(())
     }
 
-    pub fn add_mod(&mut self, mem: MemGate, name: &str) {
+    pub fn add_mod(&mut self, mem: MemCap, name: &str) {
         self.mods.push((mem, name.to_string()));
     }
 
@@ -715,7 +714,7 @@ impl SubsystemBuilder {
         self.tiles.push(tile);
     }
 
-    pub fn add_mem(&mut self, mem: MemGate, reserved: bool) {
+    pub fn add_mem(&mut self, mem: MemCap, reserved: bool) {
         self.mems.push((mem, reserved));
     }
 
@@ -747,7 +746,7 @@ impl SubsystemBuilder {
         let mut sel = SUBSYS_SELS;
         let mut off: GlobOff = 0;
 
-        let mut mem = res
+        let mem = res
             .memory_mut()
             .alloc_mem(self.desc_size() as GlobOff)
             .map_err(|e| {
@@ -756,7 +755,8 @@ impl SubsystemBuilder {
                     format!("Unable to allocate {}b for subsys info", self.desc_size()),
                 )
             })?
-            .derive()?;
+            .derive()?
+            .activate()?;
 
         // boot info
         let info = boot::Info {
@@ -849,9 +849,7 @@ impl SubsystemBuilder {
             self.serv_objs.push(subserv);
         }
 
-        mem.deactivate();
-
-        self._desc = Some(mem);
+        self._desc = Some(mem.deactivate());
         Ok(())
     }
 }

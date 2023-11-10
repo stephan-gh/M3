@@ -108,6 +108,18 @@ impl EP {
         Self::create(kif::INVALID_SEL, ep, 0, CapFlags::KEEP_CAP, true)
     }
 
+    pub(crate) fn destructing_move(&mut self) -> Self {
+        let (ep, flags) = (self.ep, self.cap.flags());
+        self.cap.set_flags(CapFlags::KEEP_CAP);
+        self.ep = TOTAL_EPS;
+        Self {
+            cap: Capability::new(self.sel(), flags),
+            ep,
+            replies: self.replies,
+            std: self.std,
+        }
+    }
+
     /// Returns the endpoint id
     pub fn id(&self) -> EpId {
         self.ep

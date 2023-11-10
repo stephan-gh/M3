@@ -153,7 +153,7 @@ impl DiskSession {
             .blocks
             .get(&range)
             .ok_or_else(|| Error::new(Code::NoPerm))?;
-        let mgate = MemGate::new_bind(*mem_sel);
+        let mgate = MemGate::new_bind(*mem_sel)?;
 
         let mut start = start as usize * block_size;
         let mut len = len * block_size;
