@@ -41,7 +41,7 @@ struct App {
           tile(Tile::get("core")),
           act(tile, argv[0]),
           rgate(RecvGate::create(6, 6)),
-          sgate(SendGate::create(&rgate)) {
+          sgate(SendCap::create(&rgate)) {
         act.delegate_obj(rgate.sel());
     }
 
@@ -50,7 +50,7 @@ struct App {
     Reference<Tile> tile;
     ChildActivity act;
     RecvGate rgate;
-    SendGate sgate;
+    LazyGate<SendGate> sgate;
 };
 
 static void usage(const char *name) {
@@ -161,12 +161,12 @@ int main(int argc, char **argv) {
             println("Signaling activities..."_cf);
 
         for(size_t i = 0; i < instances * 2; ++i)
-            send_receive_vmsg(apps[i]->sgate, 1);
+            send_receive_vmsg(apps[i]->sgate.get(), 1);
 
         auto start = CycleInstant::now();
 
         for(size_t i = 0; i < instances * 2; ++i)
-            send_vmsg(apps[i]->sgate, 1);
+            send_vmsg(apps[i]->sgate.get(), 1);
 
         if(VERBOSE)
             println("Waiting for activities..."_cf);

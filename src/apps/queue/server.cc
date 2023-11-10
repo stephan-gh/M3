@@ -36,7 +36,7 @@ static void timer_irq(GateIStream &) {
         if(h.gate()) {
             MsgBuf msg;
             msg.cast<uint64_t>() = static_cast<uint64_t>(rng.get());
-            SendQueue::get().send(*h.gate(), msg);
+            SendQueue::get().send(h.gate()->get(), msg);
         }
     }
 }

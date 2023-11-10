@@ -34,8 +34,8 @@ int main() {
     WorkLoop wl;
 
     RecvGate rgate = RecvGate::create(nextlog2<4096>::val, nextlog2<512>::val);
-    SendGate sgate = SendGate::create(&rgate);
-    qtest.delegate_obj(sgate.sel());
+    SendCap scap = SendCap::create(&rgate);
+    qtest.delegate_obj(scap.sel());
     rgate.start(&wl, received_data);
 
     wl.run();

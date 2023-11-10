@@ -40,7 +40,7 @@ public:
     explicit LoadGenSession(RecvGate *rgate, size_t crt, capsel_t srv_sel)
         : m3::ServerSession(crt, srv_sel),
           rem_req(),
-          clisgate(SendGate::create(rgate, SendGateArgs().label(ptr_to_label(this)).credits(1))),
+          cliscap(SendCap::create(rgate, SendGateArgs().label(ptr_to_label(this)).credits(1))),
           sgate(),
           mgate() {
     }
@@ -55,7 +55,7 @@ public:
     }
 
     uint rem_req;
-    SendGate clisgate;
+    SendCap cliscap;
     std::unique_ptr<SendGate> sgate;
     std::unique_ptr<MemGate> mgate;
 };
@@ -92,7 +92,7 @@ public:
 
         LOG(LogFlags::Debug, "{:#x}: mem::get_sgate()"_cf, (word_t)sess);
 
-        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->clisgate.sel()));
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->cliscap.sel()));
         return Errors::SUCCESS;
     }
 

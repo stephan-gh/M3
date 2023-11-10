@@ -29,7 +29,7 @@ DirectPipeWriter::State::State(capsel_t caps, size_t size)
     : _mgate(MemGate::bind(caps + 0)),
       _rgate(RecvGate::create(nextlog2<DirectPipe::MSG_BUF_SIZE>::val,
                               nextlog2<DirectPipe::MSG_SIZE>::val)),
-      _sgate(SendGate::bind(caps + 1, &_rgate)),
+      _sgate(SendCap::bind(caps + 1, &_rgate)),
       _size(size),
       _free(_size),
       _rdpos(),
@@ -159,7 +159,7 @@ Option<size_t> DirectPipeWriter::write(const void *buffer, size_t count) {
         _state->_free -= amount;
         _state->_capacity--;
         try {
-            send_vmsg(_state->_sgate, mem_off, amount);
+            send_vmsg(_state->_sgate.get(), mem_off, amount);
         }
         catch(...) {
             // maybe the reader stopped

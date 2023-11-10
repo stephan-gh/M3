@@ -34,7 +34,7 @@ extern "C" void *_start;
 
 const size_t ChildActivity::BUF_SIZE = 4096;
 
-ActivityArgs::ActivityArgs() noexcept : _rmng(nullptr), _pager(), _kmem() {
+ActivityArgs::ActivityArgs() noexcept : _pager(), _kmem() {
 }
 
 ActivityArgs &ActivityArgs::pager(Reference<Pager> pager) noexcept {
@@ -45,7 +45,8 @@ ActivityArgs &ActivityArgs::pager(Reference<Pager> pager) noexcept {
 ChildActivity::ChildActivity(const Reference<class Tile> &tile, const std::string_view &name,
                              const ActivityArgs &args)
     : Activity(Activity::own().alloc_sels(3), 0, tile,
-               args._kmem ? args._kmem : Activity::own().kmem(), args._rmng),
+               args._kmem ? args._kmem : Activity::own().kmem()),
+      _resmng(),
       _files(),
       _mounts(),
       _exec() {
@@ -77,15 +78,11 @@ ChildActivity::ChildActivity(const Reference<class Tile> &tile, const std::strin
     }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
-    if(_resmng == nullptr) {
-        capsel_t sgate_sel = alloc_sel();
-        _resmng = Activity::own().resmng()->clone(*this, sgate_sel, name);
-        // ensure that the child's cap space is not further ahead than ours
-        // TODO improve that
-        Activity::own()._next_sel = Math::max(_next_sel, Activity::own()._next_sel);
-    }
-    else
-        delegate_obj(_resmng->sel());
+    capsel_t sgate_sel = alloc_sel();
+    _resmng = Activity::own().resmng()->clone(*this, sgate_sel, name);
+    // ensure that the child's cap space is not further ahead than ours
+    // TODO improve that
+    Activity::own()._next_sel = Math::max(_next_sel, Activity::own()._next_sel);
 }
 
 ChildActivity::~ChildActivity() {

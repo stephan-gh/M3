@@ -46,7 +46,7 @@ public:
 
         MemGate _mgate;
         RecvGate _rgate;
-        SendGate _sgate;
+        LazyGate<SendGate> _sgate;
         size_t _size;
         size_t _free;
         size_t _rdpos;

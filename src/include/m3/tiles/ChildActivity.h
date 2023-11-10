@@ -30,6 +30,7 @@ class MountTable;
 class ChildActivity;
 class ResMng;
 class FStream;
+class ResMngChild;
 
 class ActivityArgs {
     friend class ChildActivity;
@@ -38,17 +39,12 @@ public:
     explicit ActivityArgs() noexcept;
 
     ActivityArgs &pager(Reference<Pager> pager) noexcept;
-    ActivityArgs &resmng(ResMng *resmng) noexcept {
-        _rmng = resmng;
-        return *this;
-    }
     ActivityArgs &kmem(Reference<KMem> kmem) noexcept {
         _kmem = kmem;
         return *this;
     }
 
 private:
-    ResMng *_rmng;
     Reference<Pager> _pager;
     Reference<KMem> _kmem;
 };
@@ -243,6 +239,7 @@ private:
 
     uintptr_t get_entry();
 
+    std::unique_ptr<ResMngChild> _resmng;
     std::vector<std::pair<fd_t, fd_t>> _files;
     std::vector<std::pair<std::string, std::string>> _mounts;
     std::unique_ptr<FStream> _exec;

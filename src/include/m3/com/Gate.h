@@ -25,6 +25,7 @@
 #include <m3/ObjCap.h>
 #include <m3/com/EP.h>
 
+#include <memory>
 #include <utility>
 
 namespace m3 {
@@ -32,6 +33,46 @@ namespace m3 {
 class GenericFile;
 class Syscalls;
 class OwnActivity;
+
+/**
+ * A lazily activated gate
+ *
+ * This type exists in two states: unactivated and activated. It can be used via `LazyGate::get`,
+ * which will first activate it if not already done and return a usable gate.
+ *
+ * Lazy activation is normally not necessary and also not desired as it comes with some overhead.
+ * However, in some cases a gate needs to be activated lazily, i.e., on first use. For example, if
+ * the gate is obtained from somebody else we cannot activate it immediately as the capability does
+ * not exist until the obtain operation is finished.
+ */
+template<class G>
+class LazyGate {
+public:
+    /**
+     * Creates a new lazy gate with given capability
+     */
+    explicit LazyGate(G::Cap &&cap)
+        : cap(std::move(cap)),
+          gate() {
+    }
+
+    /**
+     * Requests access to the gate and returns a reference to it
+     *
+     * If not already done, this call will activate the gate.
+     *
+     * @return the gate
+     */
+    G &get() {
+        if(!gate)
+            gate = std::make_unique<G>(cap.activate());
+        return *gate;
+    }
+
+private:
+    G::Cap cap;
+    std::unique_ptr<G> gate;
+};
 
 /**
  * Gate is the base class of all gates. A gate is in general the software abstraction for TCU-based
@@ -57,6 +98,11 @@ public:
     static const epid_t UNBOUND = TOTAL_EPS;
 
 protected:
+    explicit Gate(uint type, capsel_t cap, unsigned capflags, EP *ep) noexcept
+        : ObjCap(type, cap, capflags),
+          _ep(ep) {
+    }
+
     explicit Gate(uint type, capsel_t cap, unsigned capflags, epid_t ep = UNBOUND) noexcept
         : ObjCap(type, cap, capflags),
           _ep(ep == UNBOUND ? nullptr : new EP(EP::bind(ep))) {

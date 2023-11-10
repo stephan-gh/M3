@@ -29,13 +29,13 @@ using namespace m3;
 
 struct Worker {
     MemGate submem;
-    SendGate sgate;
+    SendCap scap;
     Reference<Tile> tile;
     ChildActivity act;
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
-          sgate(SendGate::create(&rgate, SendGateArgs().credits(1))),
+          scap(SendCap::create(&rgate, SendGateArgs().credits(1))),
           tile(Tile::get("compat|own")),
           act(tile, "worker") {
         act.delegate_obj(submem.sel());
@@ -94,10 +94,10 @@ int main(int argc, char **argv) {
 
     // now build the checksum
     for(size_t i = 0; i < acts; ++i) {
-        worker[i]->act.delegate_obj(worker[i]->sgate.sel());
+        worker[i]->act.delegate_obj(worker[i]->scap.sel());
 
         worker[i]->act.data_sink()
-            << worker[i]->submem.sel() << worker[i]->sgate.sel() << SUBAREA_SIZE;
+            << worker[i]->submem.sel() << worker[i]->scap.sel() << SUBAREA_SIZE;
 
         worker[i]->act.run([] {
             capsel_t mem_sel, sgate_sel;

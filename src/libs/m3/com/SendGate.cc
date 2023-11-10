@@ -27,26 +27,39 @@
 
 namespace m3 {
 
-SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
-    auto replygate = args._replygate == nullptr ? &RecvGate::def() : args._replygate;
+SendCap SendCap::create(RecvGate *rgate, const SendGateArgs &args) {
     auto sel = args._sel == INVALID ? Activity::own().alloc_sel() : args._sel;
     Syscalls::create_sgate(sel, rgate->sel(), args._label, args._credits);
-    return SendGate(sel, args._flags, replygate);
+    return SendCap(sel, args._flags, args._reply_gate);
 }
 
-SendGate SendGate::create_named(const char *name, RecvGate *replygate) {
-    if(replygate == nullptr)
-        replygate = &RecvGate::def();
+SendCap SendCap::create_named(const char *name, RecvGate *reply_gate) {
     auto sel = Activity::own().alloc_sel();
     Activity::own().resmng()->use_sgate(sel, name);
-    return SendGate(sel, 0, replygate);
+    return SendCap(sel, 0, reply_gate);
+}
+
+SendGate SendCap::activate() {
+    auto org_flags = flags();
+
+    EP *ep = Activity::own().epmng().acquire();
+    activate_on(*ep);
+
+    // don't revoke the cap
+    flags(KEEP_CAP);
+
+    return SendGate(sel(), org_flags, _reply_gate, ep);
+}
+
+void SendCap::activate_on(const EP &ep) {
+    Syscalls::activate(ep.sel(), sel(), KIF::INV_SEL, 0);
 }
 
 uint SendGate::credits() {
-    const EP &sep = activate();
-    if(!TCU::get().is_valid(sep.id()))
+    const EP *sep = ep();
+    if(!TCU::get().is_valid(sep->id()))
         throw Exception(Errors::NO_SEP);
-    return TCU::get().credits(sep.id());
+    return TCU::get().credits(sep->id());
 }
 
 void SendGate::send(const MsgBuf &msg, label_t reply_label) {
@@ -66,14 +79,14 @@ Errors::Code SendGate::try_send(const MsgBuf &msg, label_t reply_label) {
 }
 
 Errors::Code SendGate::try_send_aligned(const void *msg, size_t len, label_t reply_label) {
-    const EP &sep = activate();
-    epid_t rep = _replygate->ep() ? _replygate->ep()->id() : TCU::NO_REPLIES;
-    return TCU::get().send_aligned(sep.id(), msg, len, reply_label, rep);
+    const EP *sep = ep();
+    epid_t rep = _reply_gate->ep() ? _reply_gate->ep()->id() : TCU::NO_REPLIES;
+    return TCU::get().send_aligned(sep->id(), msg, len, reply_label, rep);
 }
 
 const TCU::Message *SendGate::call(const MsgBuf &msg) {
     send(msg, 0);
-    return _replygate->receive(this);
+    return _reply_gate->receive(this);
 }
 
 }

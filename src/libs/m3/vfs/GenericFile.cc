@@ -327,7 +327,7 @@ NOINLINE void GenericFile::enable_notifications() {
         RecvGate::create(nextlog2<NOTIFY_MSG_SIZE>::val, nextlog2<NOTIFY_MSG_SIZE>::val)));
     notify_rgate->activate();
 
-    std::unique_ptr<SendGate> notify_sgate(new SendGate(SendGate::create(&*notify_rgate)));
+    std::unique_ptr<SendCap> notify_sgate(new SendCap(SendCap::create(&*notify_rgate)));
 
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);

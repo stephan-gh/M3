@@ -23,16 +23,14 @@
 
 namespace m3 {
 
-Activity::Activity(capsel_t sel, uint flags, Reference<class Tile> tile, Reference<KMem> kmem,
-                   ResMng *resmng)
+Activity::Activity(capsel_t sel, uint flags, Reference<class Tile> tile, Reference<KMem> kmem)
     : ObjCap(ACTIVITY, sel, flags),
       _id(),
       _next_sel(KIF::FIRST_FREE_SEL),
       _tile(tile),
       _kmem(kmem),
       _eps_start(),
-      _pager(),
-      _resmng(resmng) {
+      _pager() {
 }
 
 Activity::~Activity() {

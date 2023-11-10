@@ -43,12 +43,12 @@ public:
           _sgate() {
     }
 
-    std::unique_ptr<SendGate> &gate() noexcept {
+    std::unique_ptr<LazyGate<SendGate>> &gate() noexcept {
         return _sgate;
     }
 
 protected:
-    std::unique_ptr<SendGate> _sgate;
+    std::unique_ptr<LazyGate<SendGate>> _sgate;
 };
 
 template<class SESS = EventSessionData>
@@ -65,7 +65,7 @@ public:
         auto msg = create_vmsg(args...);
         for(auto &h : _sessions) {
             if(h.gate())
-                send_msg(*h.gate(), msg.finish());
+                send_msg(h.gate()->get(), msg.finish());
         }
     }
 
@@ -85,8 +85,9 @@ protected:
         if(sess->gate() || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
-        sess->_sgate = std::make_unique<SendGate>(SendGate::bind(Activity::own().alloc_sel(), 0));
-        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->gate()->sel()));
+        auto sel = Activity::own().alloc_sel();
+        sess->_sgate = std::make_unique<LazyGate<SendGate>>(SendCap::bind(sel));
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel));
         return Errors::SUCCESS;
     }
 

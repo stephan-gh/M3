@@ -32,7 +32,7 @@ DirectPipe::DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size)
                               nextlog2<MSG_SIZE>::val)),
       _rmem(mem.derive_for(Activity::own().sel(), _rgate.sel() + 1, 0, size, MemGate::R)),
       _wmem(mem.derive_for(Activity::own().sel(), _rgate.sel() + 2, 0, size, MemGate::W)),
-      _sgate(SendGate::create(&_rgate, SendGateArgs().credits(CREDITS).sel(_rgate.sel() + 3))),
+      _scap(SendCap::create(&_rgate, SendGateArgs().credits(CREDITS).sel(_rgate.sel() + 3))),
       _rdfd(),
       _wrfd() {
     std::unique_ptr<DirectPipeReader::State> rstate(

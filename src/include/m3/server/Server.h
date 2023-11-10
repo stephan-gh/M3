@@ -42,12 +42,12 @@ class Server : public ObjCap {
     static constexpr size_t BUF_SIZE = MSG_SIZE * (MAX_CREATORS + 1);
 
     struct Creator {
-        explicit Creator(SendGate &&_sgate, size_t _sessions)
-            : sgate(std::move(_sgate)),
+        explicit Creator(SendCap &&_scap, size_t _sessions)
+            : scap(std::move(_scap)),
               sessions(_sessions) {
         }
 
-        SendGate sgate;
+        SendCap scap;
         size_t sessions;
     };
 
@@ -65,7 +65,7 @@ public:
         LOG(LogFlags::LibServ, "create(name={})"_cf, name);
         size_t crt = add_creator(MAX_SESSIONS);
         Syscalls::create_srv(sel(), _rgate.sel(), name, crt);
-        Activity::own().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name,
+        Activity::own().resmng()->reg_service(sel(), _creators[crt]->scap.sel(), name,
                                               MAX_SESSIONS);
     }
 
@@ -172,7 +172,7 @@ private:
         else {
             size_t ncrt = add_creator(sessions);
             _creators[crt]->sessions -= sessions;
-            reply.sgate_sel = _creators[ncrt]->sgate.sel();
+            reply.sgate_sel = _creators[ncrt]->scap.sel();
             reply.creator = ncrt;
         }
 
@@ -247,7 +247,7 @@ private:
         for(size_t i = 0; i < MAX_CREATORS; ++i) {
             if(_creators[i] == nullptr) {
                 _creators[i] = std::make_unique<Creator>(
-                    SendGate::create(&_rgate, SendGateArgs().credits(1).label(i)), sessions);
+                    SendCap::create(&_rgate, SendGateArgs().credits(1).label(i)), sessions);
                 return i;
             }
         }

@@ -135,7 +135,7 @@ private:
     RecvGate _rgate;
     MemGate _rmem;
     MemGate _wmem;
-    SendGate _sgate;
+    SendCap _scap;
     fd_t _rdfd;
     fd_t _wrfd;
 };

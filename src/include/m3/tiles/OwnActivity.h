@@ -114,6 +114,7 @@ private:
     void init_fs();
 
     EPMng _epmng;
+    std::unique_ptr<ResMng> _resmng;
     std::unique_ptr<MountTable> _ms;
     std::unique_ptr<FileTable> _fds;
     static OwnActivity _self;

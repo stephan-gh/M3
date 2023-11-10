@@ -44,18 +44,18 @@ NOINLINE static void run() {
 
     auto rgate = RecvGate::create(nextlog2<256>::val, nextlog2<256>::val);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
+    auto scap = SendCap::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
 
     auto tile = Tile::get("compat|own");
     Results<CycleDuration> res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         ChildActivity act(tile, "hello");
 
-        capsel_t sgate_sel = sgate.sel();
-        act.delegate_obj(sgate_sel);
+        capsel_t scap_sel = scap.sel();
+        act.delegate_obj(scap_sel);
 
         auto start = CycleInstant::now();
-        act.data_sink() << start.as_cycles() << sgate_sel;
+        act.data_sink() << start.as_cycles() << scap_sel;
 
         act.run([]() {
             capsel_t sgate_sel;

@@ -21,6 +21,7 @@
 #include <m3/com/OpCodes.h>
 #include <m3/session/Pager.h>
 #include <m3/tiles/ChildActivity.h>
+#include <m3/tiles/OwnActivity.h>
 
 namespace m3 {
 
@@ -28,9 +29,9 @@ Pager::Pager(capsel_t sess)
     : RefCounted(),
       ClientSession(sess, 0),
       _req_sgate(connect()),
-      _child_sgate(connect().sel()),
+      _child_sgate(connect_for(Activity::own(), Activity::own().alloc_sel())),
       _pf_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
-      _pf_sgate(connect()) {
+      _pf_sgate(SendCap::bind(connect_for(Activity::own(), Activity::own().alloc_sel()))) {
 }
 
 Pager::Pager(capsel_t sess, capsel_t sgate)
@@ -39,7 +40,7 @@ Pager::Pager(capsel_t sess, capsel_t sgate)
       _req_sgate(SendGate::bind(sgate)),
       _child_sgate(ObjCap::INVALID),
       _pf_rgate(RecvGate::bind(ObjCap::INVALID)),
-      _pf_sgate(SendGate::bind(ObjCap::INVALID)) {
+      _pf_sgate(SendCap::bind(ObjCap::INVALID)) {
 }
 
 void Pager::pagefault(goff_t addr, uint access) {

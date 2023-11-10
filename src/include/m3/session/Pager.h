@@ -71,7 +71,7 @@ private:
     SendGate _req_sgate;
     capsel_t _child_sgate;
     RecvGate _pf_rgate;
-    SendGate _pf_sgate;
+    SendCap _pf_sgate;
 };
 
 }

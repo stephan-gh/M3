@@ -31,8 +31,8 @@ public:
                    uint msgord = nextlog2<64>::val)
         : ClientSession(service),
           _rgate(RecvGate::create(buford, msgord)),
-          _sgate(SendGate::create(&_rgate)) {
-        delegate_obj(_sgate.sel());
+          _scap(SendCap::create(&_rgate)) {
+        delegate_obj(_scap.sel());
     }
 
     RecvGate &rgate() noexcept {
@@ -41,7 +41,7 @@ public:
 
 private:
     RecvGate _rgate;
-    SendGate _sgate;
+    SendCap _scap;
 };
 
 }

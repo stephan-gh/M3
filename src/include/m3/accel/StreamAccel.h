@@ -89,8 +89,8 @@ public:
         file->connect(_in_sep, _in_mep);
     }
     void connect_input(StreamAccel *prev) {
-        _sgate_in = std::make_unique<SendGate>(
-            SendGate::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ).credits(1)));
+        _sgate_in = std::make_unique<SendCap>(
+            SendCap::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ).credits(1)));
         _sgate_in->activate_on(_in_sep);
     }
 
@@ -98,16 +98,16 @@ public:
         file->connect(_out_sep, _out_mep);
     }
     void connect_output(StreamAccel *next) {
-        _sgate_out = std::make_unique<SendGate>(
-            SendGate::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ).credits(1)));
+        _sgate_out = std::make_unique<SendCap>(
+            SendCap::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ).credits(1)));
         _sgate_out->activate_on(_out_sep);
         _mgate_out = std::make_unique<MemGate>(next->_mem.derive(BUF_ADDR - MEM_OFFSET, BUF_SIZE));
         _mgate_out->activate_on(_out_mep);
     }
 
 private:
-    std::unique_ptr<SendGate> _sgate_in;
-    std::unique_ptr<SendGate> _sgate_out;
+    std::unique_ptr<SendCap> _sgate_in;
+    std::unique_ptr<SendCap> _sgate_out;
     std::unique_ptr<MemGate> _mgate_out;
     RecvGate _rgate;
     EP _in_sep;

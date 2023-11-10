@@ -58,8 +58,7 @@ class Activity : public ObjCap {
     static constexpr size_t DATA_SIZE = 256;
 
 protected:
-    explicit Activity(capsel_t sel, uint flags, Reference<class Tile> tile, Reference<KMem> kmem,
-                      ResMng *resmng);
+    explicit Activity(capsel_t sel, uint flags, Reference<class Tile> tile, Reference<KMem> kmem);
 
 public:
     /**
@@ -149,7 +148,6 @@ protected:
     Reference<KMem> _kmem;
     epid_t _eps_start;
     Reference<Pager> _pager;
-    std::unique_ptr<ResMng> _resmng;
     unsigned char _data[DATA_SIZE];
 };
 

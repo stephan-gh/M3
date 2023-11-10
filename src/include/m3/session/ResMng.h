@@ -24,13 +24,15 @@
 #include <m3/tiles/ChildActivity.h>
 #include <m3/tiles/OwnActivity.h>
 
+#include <memory>
 #include <string_view>
 
 namespace m3 {
 
+class ResMngChild;
+
 class ResMng {
-    explicit ResMng(capsel_t resmng, capsel_t act) : _sgate(SendGate::bind(resmng)), _act(act) {
-    }
+    friend class ResMngChild;
 
 public:
     class ResMngException : public m3::Exception {
@@ -61,30 +63,14 @@ public:
     };
 
     explicit ResMng(capsel_t resmng) noexcept
-        : _sgate(SendGate::bind(resmng)),
-          _act(ObjCap::INVALID) {
-    }
-    ~ResMng() {
-        if(_act != ObjCap::INVALID) {
-            try {
-                send_receive_vmsg(Activity::own().resmng()->_sgate, opcodes::ResMng::REM_CHILD,
-                                  _act);
-            }
-            catch(...) {
-                // ignore
-            }
-        }
+        : _sgate(SendGate::bind(resmng)) {
     }
 
     capsel_t sel() const noexcept {
         return _sgate.sel();
     }
 
-    std::unique_ptr<ResMng> clone(ChildActivity &act, capsel_t sgate_sel,
-                                  const std::string_view &name) {
-        clone(act.id(), act.sel(), sgate_sel, name);
-        return std::unique_ptr<ResMng>(new ResMng(sgate_sel, act.sel()));
-    }
+    std::unique_ptr<ResMngChild> clone(ChildActivity &act, capsel_t sgate_sel, const std::string_view &name);
 
     void reg_service(capsel_t dst, capsel_t sgate, const std::string_view &name, size_t sessions) {
         GateIStream reply =
@@ -174,7 +160,37 @@ private:
     }
 
     SendGate _sgate;
-    capsel_t _act;
 };
+
+class ResMngChild {
+public:
+    explicit ResMngChild(capsel_t scap, capsel_t act_sel)
+        : scap(SendCap::bind(scap)),
+          act_sel(act_sel) {
+    }
+    ~ResMngChild() {
+        send_receive_vmsg(Activity::own().resmng()->_sgate, opcodes::ResMng::REM_CHILD,
+                          act_sel);
+    }
+
+    ResMngChild(ResMngChild &&r)
+        : scap(std::move(r.scap)),
+          act_sel(r.act_sel) {
+    }
+
+    capsel_t sel() const {
+        return scap.sel();
+    }
+
+private:
+    SendCap scap;
+    capsel_t act_sel;
+};
+
+inline std::unique_ptr<ResMngChild> ResMng::clone(ChildActivity &act, capsel_t sgate_sel,
+                                                  const std::string_view &name) {
+    clone(act.id(), act.sel(), sgate_sel, name);
+    return std::make_unique<ResMngChild>(sgate_sel, act.sel());
+}
 
 }

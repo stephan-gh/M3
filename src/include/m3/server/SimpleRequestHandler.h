@@ -30,10 +30,10 @@ namespace m3 {
 struct SimpleSession : public ServerSession {
     explicit SimpleSession(size_t crt, capsel_t srv_sel) noexcept
         : ServerSession(crt, srv_sel),
-          sgate() {
+          scap() {
     }
 
-    std::unique_ptr<SendGate> sgate;
+    std::unique_ptr<SendCap> scap;
 };
 
 template<typename CLS, typename OP, size_t OPCNT, size_t MSG_SIZE = 128>
@@ -55,14 +55,14 @@ public:
     }
 
     virtual Errors::Code obtain(SimpleSession *sess, size_t, CapExchange &xchg) override {
-        if(sess->sgate || xchg.in_caps() != 1)
+        if(sess->scap || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
         label_t label = ptr_to_label(sess);
-        sess->sgate = std::make_unique<SendGate>(
-            SendGate::create(&_rgate, SendGateArgs().label(label).credits(1)));
+        sess->scap = std::make_unique<SendCap>(
+            SendCap::create(&_rgate, SendGateArgs().label(label).credits(1)));
 
-        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()));
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->scap->sel()));
         return Errors::SUCCESS;
     }
 

@@ -123,7 +123,7 @@ private:
     mutable ClientSession _sess;
     mutable SendGate *_sg;
     std::unique_ptr<RecvGate> _notify_rgate;
-    std::unique_ptr<SendGate> _notify_sgate;
+    std::unique_ptr<SendCap> _notify_sgate;
     uint8_t _notify_received;
     uint8_t _notify_requested;
     MemGate _mg;
