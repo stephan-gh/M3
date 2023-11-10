@@ -16,7 +16,7 @@
 use m3::cap::{SelSpace, Selector};
 use m3::cell::{RefMut, StaticRefCell};
 use m3::col::Vec;
-use m3::com::{GateIStream, LazyGate, MemGate, RecvGate, SendCap, EP};
+use m3::com::{GateIStream, LazyGate, MemCap, MemGate, RecvGate, SendCap, EP};
 use m3::errors::{Code, Error};
 use m3::io::{LogFlags, Serial, Write};
 use m3::kif;
@@ -47,7 +47,7 @@ pub struct Channel {
     pending_events: FileEvent,
     promised_events: FileEvent,
     pending_nextin: Option<&'static Message>,
-    mem: MemGate,
+    mem: MemCap,
     pos: usize,
     len: usize,
 }
@@ -58,7 +58,7 @@ fn mem_off(id: SessId) -> GlobOff {
 
 impl Channel {
     pub fn new(id: SessId, mem: Rc<MemGate>, writing: bool) -> Result<Self, Error> {
-        let cmem = mem.derive(mem_off(id), BUF_SIZE, kif::Perm::RW)?;
+        let cmem = mem.derive_cap(mem_off(id), BUF_SIZE, kif::Perm::RW)?;
 
         Ok(Channel {
             id,
