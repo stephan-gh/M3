@@ -357,16 +357,16 @@ fn exchange(_t: &mut dyn WvTester) {
 fn revoke_mem_gate(_t: &mut dyn WvTester) {
     let prof = Profiler::default().repeats(100).warmup(10);
 
-    let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
+    let mcap = wv_assert_ok!(MemCap::new(0x1000, Perm::RW));
 
     struct Tester {
-        mgate: MemGate,
-        _derived: Option<MemGate>,
+        mcap: MemCap,
+        _derived: Option<MemCap>,
     }
 
     impl Runner for Tester {
         fn pre(&mut self) {
-            self._derived = Some(wv_assert_ok!(self.mgate.derive(0, 0x1000, Perm::RW)));
+            self._derived = Some(wv_assert_ok!(self.mcap.derive(0, 0x1000, Perm::RW)));
         }
 
         fn run(&mut self) {
@@ -375,7 +375,7 @@ fn revoke_mem_gate(_t: &mut dyn WvTester) {
     }
 
     let mut tester = Tester {
-        mgate,
+        mcap,
         _derived: None,
     };
     wv_perf!(
