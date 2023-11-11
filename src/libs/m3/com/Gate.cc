@@ -23,18 +23,18 @@
 namespace m3 {
 
 Gate::~Gate() {
-    release_ep(Activity::own());
+    release_ep();
 }
 
 const EP &Gate::acquire_ep() {
     if(!_ep)
-        _ep = Activity::own().epmng().acquire();
+        _ep = EPMng::get().acquire();
     return *_ep;
 }
 
 const EP &Gate::activate(capsel_t rbuf_mem, goff_t rbuf_off) {
     if(!_ep) {
-        _ep = Activity::own().epmng().acquire();
+        _ep = EPMng::get().acquire();
         activate_on(*_ep, rbuf_mem, rbuf_off);
     }
     return *_ep;
@@ -45,12 +45,12 @@ void Gate::activate_on(const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
 }
 
 void Gate::deactivate() {
-    release_ep(Activity::own(), true);
+    release_ep(true);
 }
 
-void Gate::release_ep(OwnActivity &act, bool force_inval) noexcept {
+void Gate::release_ep(bool force_inval) noexcept {
     if(_ep && !_ep->is_standard()) {
-        act.epmng().release(_ep, force_inval || (flags() & KEEP_CAP));
+        EPMng::get().release(_ep, force_inval || (flags() & KEEP_CAP));
         _ep = nullptr;
     }
 }

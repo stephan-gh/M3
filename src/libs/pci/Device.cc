@@ -29,8 +29,8 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, TileISA isa)
     : _tile(Tile::alloc(TileDesc(TileType::COMP, isa))),
       _act(_tile, name),
       _mem(_act.get_mem(0, PCI_CFG_ADDR + REG_ADDR + PAGE_SIZE, MemGate::RW)),
-      _sep(EP::alloc_for(_act, EP_INT)),
-      _mep(EP::alloc_for(_act, EP_DMA)),
+      _sep(EP::alloc_for(_act.sel(), EP_INT)),
+      _mep(EP::alloc_for(_act.sel(), EP_DMA)),
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),
       // TODO: Specify receive gate, grant it to nic tcu, send replies to give credits back
       _sintgate(SendGate::create(&_intgate)) {

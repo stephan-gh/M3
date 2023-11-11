@@ -51,9 +51,7 @@ public:
     /**
      * Creates a new lazy gate with given capability
      */
-    explicit LazyGate(G::Cap &&cap)
-        : cap(std::move(cap)),
-          gate() {
+    explicit LazyGate(G::Cap &&cap) : cap(std::move(cap)), gate() {
     }
 
     /**
@@ -127,7 +125,7 @@ protected:
     }
 
     const EP &acquire_ep();
-    void release_ep(OwnActivity &act, bool force_inval = false) noexcept;
+    void release_ep(bool force_inval = false) noexcept;
 
 private:
     EP *_ep;

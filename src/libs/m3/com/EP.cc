@@ -34,12 +34,12 @@ EP &EP::operator=(EP &&ep) noexcept {
 }
 
 EP EP::alloc(uint replies) {
-    return alloc_for(Activity::own(), TOTAL_EPS, replies);
+    return alloc_for(KIF::SEL_ACT, TOTAL_EPS, replies);
 }
 
-EP EP::alloc_for(const Activity &act, epid_t ep, uint replies) {
+EP EP::alloc_for(capsel_t act, epid_t ep, uint replies) {
     capsel_t sel = SelSpace::get().alloc_sel();
-    epid_t id = Syscalls::alloc_ep(sel, act.sel(), ep, replies);
+    epid_t id = Syscalls::alloc_ep(sel, act, ep, replies);
     return EP(sel, id, replies, 0);
 }
 

@@ -102,18 +102,10 @@ public:
         return Unmarshaller(_data, sizeof(_data));
     }
 
-    /**
-     * @return the endpoint manager for this activity
-     */
-    EPMng &epmng() {
-        return _epmng;
-    }
-
 private:
     void init_state();
     void init_fs();
 
-    EPMng _epmng;
     std::unique_ptr<ResMng> _resmng;
     std::unique_ptr<MountTable> _ms;
     std::unique_ptr<FileTable> _fds;

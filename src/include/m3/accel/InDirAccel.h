@@ -55,8 +55,8 @@ public:
         : _mgate(),
           _rgate(RecvGate::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
           _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1).reply_gate(&reply_gate))),
-          _rep(EP::alloc_for(*act, EP_RECV, _rgate.slots())),
-          _mep(EP::alloc_for(*act, EP_OUT)),
+          _rep(EP::alloc_for(act->sel(), EP_RECV, _rgate.slots())),
+          _mep(EP::alloc_for(act->sel(), EP_OUT)),
           _act(act),
           _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
         // activate EP

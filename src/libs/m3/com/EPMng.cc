@@ -13,18 +13,22 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Init.h>
+
 #include <m3/Syscalls.h>
 #include <m3/com/EPMng.h>
 #include <m3/tiles/Activity.h>
 
 namespace m3 {
 
+INIT_PRIO_EPMNG EPMng EPMng::_inst;
+
 EP *EPMng::acquire(epid_t ep, uint replies) {
     EP *e = nullptr;
     if(ep == TOTAL_EPS && replies == 0)
         e = _eps.remove_first();
     if(!e)
-        e = new EP(EP::alloc_for(_act, ep, replies));
+        e = new EP(EP::alloc_for(KIF::SEL_ACT, ep, replies));
     return e;
 }
 

@@ -26,7 +26,7 @@ namespace m3 {
 
 M3FS::CachedEP::~CachedEP() {
     if(ep != nullptr)
-        Activity::own().epmng().release(ep, false);
+        EPMng::get().release(ep, false);
 }
 
 std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
@@ -72,7 +72,7 @@ size_t M3FS::get_ep() {
             return i;
     }
 
-    auto ep = Activity::own().epmng().acquire();
+    auto ep = EPMng::get().acquire();
     size_t id = delegate_ep(ep->sel());
 
     _eps.push_back(CachedEP(id, ep));

@@ -118,7 +118,7 @@ void RecvGate::activate() {
             _buf_addr = _buf->addr();
         }
 
-        auto rep = Activity::own().epmng().acquire(TOTAL_EPS, slots());
+        auto rep = EPMng::get().acquire(TOTAL_EPS, slots());
         Gate::activate_on(*rep, _buf->mem(), _buf->off());
         Gate::set_ep(rep);
     }
@@ -129,7 +129,7 @@ void RecvGate::activate_on(const EP &ep, MemGate *mem, size_t off) {
 }
 
 void RecvGate::deactivate() noexcept {
-    release_ep(Activity::own(), true);
+    release_ep(true);
 
     stop();
 }

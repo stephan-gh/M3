@@ -38,8 +38,15 @@ class EPMng {
     friend class RecvGate;
     friend class Activity;
 
+    explicit EPMng() : _eps() {
+    }
+
 public:
-    explicit EPMng(Activity &act) : _act(act), _eps() {
+    /**
+     * @return the instance of the endpoint manager
+     */
+    static EPMng &get() {
+        return _inst;
     }
 
     /**
@@ -60,8 +67,8 @@ public:
     void release(EP *ep, bool invalidate) noexcept;
 
 private:
-    Activity &_act;
     SList<EP> _eps;
+    static EPMng _inst;
 };
 
 }

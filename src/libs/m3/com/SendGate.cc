@@ -42,7 +42,7 @@ SendCap SendCap::create_named(const char *name, RecvGate *reply_gate) {
 SendGate SendCap::activate() {
     auto org_flags = flags();
 
-    EP *ep = Activity::own().epmng().acquire();
+    EP *ep = EPMng::get().acquire();
     activate_on(*ep);
 
     // don't revoke the cap

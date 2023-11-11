@@ -36,7 +36,6 @@ INIT_PRIO_ACT OwnActivity OwnActivity::_self;
 OwnActivity::OwnActivity()
     : Activity(KIF::SEL_ACT, KEEP_CAP, Tile::bind(KIF::SEL_TILE, TileDesc(env()->tile_desc)),
                Reference<KMem>(new KMem(KIF::SEL_KMEM))),
-      _epmng(*this),
       _resmng(nullptr),
       _ms(),
       _fds() {

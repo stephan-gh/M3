@@ -74,11 +74,11 @@ public:
           _sgate_out(),
           _mgate_out(),
           _rgate(RecvGate::create(getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
-          _in_sep(EP::alloc_for(*act, EP_IN_SEND)),
-          _in_mep(EP::alloc_for(*act, EP_IN_MEM)),
-          _out_sep(EP::alloc_for(*act, EP_OUT_SEND)),
-          _out_mep(EP::alloc_for(*act, EP_OUT_MEM)),
-          _rep(EP::alloc_for(*act, EP_RECV, _rgate.slots())),
+          _in_sep(EP::alloc_for(act->sel(), EP_IN_SEND)),
+          _in_mep(EP::alloc_for(act->sel(), EP_IN_MEM)),
+          _out_sep(EP::alloc_for(act->sel(), EP_OUT_SEND)),
+          _out_mep(EP::alloc_for(act->sel(), EP_OUT_MEM)),
+          _rep(EP::alloc_for(act->sel(), EP_RECV, _rgate.slots())),
           _act(act),
           _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
         // activate EPs
