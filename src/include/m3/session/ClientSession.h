@@ -21,7 +21,7 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 
-#include <m3/ObjCap.h>
+#include <m3/cap/ObjCap.h>
 
 #include <string_view>
 #include <utility>

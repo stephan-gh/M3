@@ -22,7 +22,7 @@
 #include <base/col/SList.h>
 #include <base/util/Util.h>
 
-#include <m3/ObjCap.h>
+#include <m3/cap/ObjCap.h>
 #include <m3/com/EP.h>
 
 #include <memory>

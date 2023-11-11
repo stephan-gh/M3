@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <m3/ObjCap.h>
+#include <m3/cap/ObjCap.h>
 
 #include <utility>
 

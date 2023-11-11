@@ -21,7 +21,7 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 
-#include <m3/ObjCap.h>
+#include <m3/cap/ObjCap.h>
 #include <m3/Syscalls.h>
 #include <m3/server/Server.h>
 #include <m3/tiles/Activity.h>

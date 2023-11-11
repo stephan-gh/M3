@@ -28,7 +28,7 @@
 #include <base/util/Math.h>
 #include <base/util/Reference.h>
 
-#include <m3/ObjCap.h>
+#include <m3/cap/ObjCap.h>
 #include <m3/com/EPMng.h>
 #include <m3/com/Marshalling.h>
 #include <m3/com/MemGate.h>

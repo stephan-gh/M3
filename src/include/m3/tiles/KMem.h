@@ -21,7 +21,7 @@
 #include <base/Quota.h>
 #include <base/util/Reference.h>
 
-#include <m3/ObjCap.h>
+#include <m3/cap/ObjCap.h>
 
 namespace m3 {
 
