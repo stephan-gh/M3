@@ -182,15 +182,15 @@ fn run_send_receive_chan_macro(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
-    let act = wv_assert_ok!(run_with_channels!(
-        act,
-        |rx0: chan::Receiver, res_tx0: chan::Sender| {
-            let i1 = rx0.recv::<u32>()?;
-            let res = (i1 + 5) as i32;
-            res_tx0.send(res)?;
-            Ok(())
-        }(rx, res_tx)
-    ));
+    let act = wv_assert_ok!(run_with_channels!(act, |
+        rx0: chan::Receiver,
+        res_tx0: chan::Sender,
+    | {
+        let i1 = rx0.recv::<u32>()?;
+        let res = (i1 + 5) as i32;
+        res_tx0.send(res)?;
+        Ok(())
+    }(rx, res_tx)));
 
     let tx = wv_assert_ok!(tx.activate());
     let res_rx = wv_assert_ok!(res_rx.activate());

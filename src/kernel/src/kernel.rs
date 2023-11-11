@@ -167,7 +167,13 @@ pub extern "C" fn env_run() {
     crate::com::init_queues();
 
     let vers = ktcu::get_version(tile_id).unwrap();
-    log!(LogFlags::Info, "Found TCU version {}.{}.{}", vers.0, vers.1, vers.2);
+    log!(
+        LogFlags::Info,
+        "Found TCU version {}.{}.{}",
+        vers.0,
+        vers.1,
+        vers.2
+    );
     log!(LogFlags::Info, "Entered raw mode; Quit via Ctrl+]");
 
     args::parse();
