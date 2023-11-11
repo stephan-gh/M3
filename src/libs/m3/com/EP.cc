@@ -38,7 +38,7 @@ EP EP::alloc(uint replies) {
 }
 
 EP EP::alloc_for(const Activity &act, epid_t ep, uint replies) {
-    capsel_t sel = Activity::own().alloc_sel();
+    capsel_t sel = SelSpace::get().alloc_sel();
     epid_t id = Syscalls::alloc_ep(sel, act.sel(), ep, replies);
     return EP(sel, id, replies, 0);
 }

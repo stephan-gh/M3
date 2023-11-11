@@ -29,9 +29,9 @@ Pager::Pager(capsel_t sess)
     : RefCounted(),
       ClientSession(sess, 0),
       _req_sgate(connect()),
-      _child_sgate(connect_for(Activity::own(), Activity::own().alloc_sel())),
+      _child_sgate(connect_for(Activity::own(), SelSpace::get().alloc_sel())),
       _pf_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
-      _pf_sgate(SendCap::bind(connect_for(Activity::own(), Activity::own().alloc_sel()))) {
+      _pf_sgate(SendCap::bind(connect_for(Activity::own(), SelSpace::get().alloc_sel()))) {
 }
 
 Pager::Pager(capsel_t sess, capsel_t sgate)

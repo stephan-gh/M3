@@ -20,6 +20,7 @@
 
 #include <base/Compiler.h>
 
+#define INIT_PRIO_SELSPACE  INIT_PRIO(101)
 #define INIT_PRIO_LXDEV     INIT_PRIO(101)
 #define INIT_PRIO_LXWAIT    INIT_PRIO(102)
 

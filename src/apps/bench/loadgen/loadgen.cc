@@ -102,7 +102,7 @@ public:
 
         LOG(LogFlags::Debug, "{:#x}: mem::create_chan()"_cf, (word_t)sess);
 
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::own().alloc_sels(2), 2);
+        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, SelSpace::get().alloc_sels(2), 2);
 
         sess->sgate.reset(new SendGate(SendGate::bind(crd.start() + 0, &_rgate)));
         sess->mgate.reset(new MemGate(MemGate::bind(crd.start() + 1)));

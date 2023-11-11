@@ -26,7 +26,6 @@ namespace m3 {
 Activity::Activity(capsel_t sel, uint flags, Reference<class Tile> tile, Reference<KMem> kmem)
     : ObjCap(ACTIVITY, sel, flags),
       _id(),
-      _next_sel(KIF::FIRST_FREE_SEL),
       _tile(tile),
       _kmem(kmem),
       _eps_start(),
@@ -45,7 +44,7 @@ void Activity::revoke(const KIF::CapRngDesc &crd, bool delonly) {
 }
 
 MemGate Activity::get_mem(goff_t addr, size_t size, int perms) {
-    capsel_t nsel = Activity::own().alloc_sel();
+    capsel_t nsel = SelSpace::get().alloc_sel();
     Syscalls::create_mgate(nsel, sel(), addr, size, perms);
     return MemGate::bind(nsel, 0);
 }

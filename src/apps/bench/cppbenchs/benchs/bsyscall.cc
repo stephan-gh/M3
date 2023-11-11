@@ -223,7 +223,7 @@ NOINLINE static void revoke() {
 }
 
 void bsyscall() {
-    selector = Activity::own().alloc_sel();
+    selector = SelSpace::get().alloc_sel();
 
     RUN_BENCH(noop);
     RUN_BENCH(activate);

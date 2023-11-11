@@ -99,7 +99,7 @@ public:
     }
 
     Channel *create_channel(size_t memsize) {
-        capsel_t sels = Activity::own().alloc_sels(2);
+        capsel_t sels = SelSpace::get().alloc_sels(2);
         auto chan = new Channel(sels, memsize);
         delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2));
         return chan;

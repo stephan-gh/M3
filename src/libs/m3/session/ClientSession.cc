@@ -37,14 +37,14 @@ ClientSession::~ClientSession() {
 
 void ClientSession::open(const std::string_view &service, capsel_t selector) {
     if(selector == INVALID)
-        selector = Activity::own().alloc_sel();
+        selector = SelSpace::get().alloc_sel();
 
     Activity::own().resmng()->open_sess(selector, service);
     sel(selector);
 }
 
 SendGate ClientSession::connect() {
-    auto sel = Activity::own().alloc_sel();
+    auto sel = SelSpace::get().alloc_sel();
     return SendGate::bind(connect_for(Activity::own(), sel));
 }
 
@@ -71,13 +71,12 @@ KIF::CapRngDesc ClientSession::obtain(uint count, KIF::ExchangeArgs *args) {
 }
 
 KIF::CapRngDesc ClientSession::obtain_for(Activity &act, uint count, KIF::ExchangeArgs *args) {
-    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, act.alloc_sels(count), count);
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, SelSpace::get().alloc_sels(count), count);
     obtain_for(act, crd, args);
     return crd;
 }
 
 void ClientSession::obtain_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
-    act.mark_caps_allocated(crd.start(), crd.count());
     Syscalls::obtain(act.sel(), sel(), crd, args);
 }
 

@@ -29,6 +29,7 @@
 #include <base/util/Reference.h>
 
 #include <m3/cap/ObjCap.h>
+#include <m3/cap/SelSpace.h>
 #include <m3/com/EPMng.h>
 #include <m3/com/Marshalling.h>
 #include <m3/com/MemGate.h>
@@ -123,27 +124,8 @@ public:
      */
     MemGate get_mem(goff_t addr, size_t size, int perms);
 
-    /**
-     * Allocates capability selectors.
-     *
-     * @param count the number of selectors
-     * @return the first one
-     */
-    capsel_t alloc_sels(uint count) noexcept {
-        _next_sel += count;
-        return _next_sel - count;
-    }
-    capsel_t alloc_sel() noexcept {
-        return _next_sel++;
-    }
-
 protected:
-    void mark_caps_allocated(capsel_t sel, uint count) {
-        _next_sel = Math::max(_next_sel, sel + count);
-    }
-
     actid_t _id;
-    capsel_t _next_sel;
     Reference<class Tile> _tile;
     Reference<KMem> _kmem;
     epid_t _eps_start;

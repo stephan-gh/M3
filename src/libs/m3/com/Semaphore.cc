@@ -24,13 +24,13 @@
 namespace m3 {
 
 Semaphore Semaphore::attach(const char *name) {
-    capsel_t nsel = Activity::own().alloc_sel();
+    capsel_t nsel = SelSpace::get().alloc_sel();
     Activity::own().resmng()->use_sem(nsel, name);
     return Semaphore(nsel, KEEP_CAP);
 }
 
 Semaphore Semaphore::create(uint value) {
-    capsel_t nsel = Activity::own().alloc_sel();
+    capsel_t nsel = SelSpace::get().alloc_sel();
     Syscalls::create_sem(nsel, value);
     return Semaphore(nsel, 0);
 }

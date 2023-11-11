@@ -44,7 +44,7 @@ ActivityArgs &ActivityArgs::pager(Reference<Pager> pager) noexcept {
 
 ChildActivity::ChildActivity(const Reference<class Tile> &tile, const std::string_view &name,
                              const ActivityArgs &args)
-    : Activity(Activity::own().alloc_sels(3), 0, tile,
+    : Activity(SelSpace::get().alloc_sels(3), 0, tile,
                args._kmem ? args._kmem : Activity::own().kmem()),
       _resmng(),
       _files(),
@@ -76,13 +76,9 @@ ChildActivity::ChildActivity(const Reference<class Tile> &tile, const std::strin
         _eps_start = eps_start;
         _id = id;
     }
-    _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
-    capsel_t sgate_sel = alloc_sel();
+    capsel_t sgate_sel = SelSpace::get().alloc_sel();
     _resmng = Activity::own().resmng()->clone(*this, sgate_sel, name);
-    // ensure that the child's cap space is not further ahead than ours
-    // TODO improve that
-    Activity::own()._next_sel = Math::max(_next_sel, Activity::own()._next_sel);
 }
 
 ChildActivity::~ChildActivity() {
@@ -105,11 +101,10 @@ fd_t ChildActivity::get_file(fd_t child_fd) {
 
 void ChildActivity::delegate(const KIF::CapRngDesc &crd, capsel_t dest) {
     Syscalls::exchange(sel(), crd, dest, false);
-    _next_sel = Math::max(_next_sel, dest + crd.count());
 }
 
 void ChildActivity::obtain(const KIF::CapRngDesc &crd) {
-    obtain(crd, Activity::own().alloc_sels(crd.count()));
+    obtain(crd, SelSpace::get().alloc_sels(crd.count()));
 }
 
 void ChildActivity::obtain(const KIF::CapRngDesc &crd, capsel_t dest) {
@@ -204,7 +199,7 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
 
     senv.sp = _tile->desc().stack_top();
     senv.first_std_ep = _eps_start;
-    senv.first_sel = _next_sel;
+    senv.first_sel = SelSpace::get().next_sel();
     senv.act_id = _id;
 
     // copy tile ids unchanged to child

@@ -37,7 +37,7 @@ public:
     }
 
     FileRef<GenericFile> create_channel(bool read) {
-        capsel_t sels = Activity::own().alloc_sels(2);
+        capsel_t sels = SelSpace::get().alloc_sels(2);
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
         os << opcodes::File::CLONE_FILE << (read ? 0 : 1);

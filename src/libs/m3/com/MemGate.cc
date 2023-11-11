@@ -44,19 +44,19 @@ MemGate::~MemGate() {
 
 MemGate MemGate::create_global(size_t size, int perms, capsel_t sel, uint flags) {
     if(sel == INVALID)
-        sel = Activity::own().alloc_sel();
+        sel = SelSpace::get().alloc_sel();
     Activity::own().resmng()->alloc_mem(sel, size, perms);
     return MemGate(flags, sel, false);
 }
 
 MemGate MemGate::bind_bootmod(const std::string_view &name) {
-    auto sel = Activity::own().alloc_sel();
+    auto sel = SelSpace::get().alloc_sel();
     Activity::own().resmng()->use_mod(sel, name);
     return MemGate(0, sel, true);
 }
 
 MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
-    capsel_t nsel = Activity::own().alloc_sel();
+    capsel_t nsel = SelSpace::get().alloc_sel();
     Syscalls::derive_mem(Activity::own().sel(), nsel, sel(), offset, size, perms);
     return MemGate(0, nsel, true);
 }

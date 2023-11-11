@@ -53,7 +53,7 @@ public:
     friend class GenericFile;
 
     explicit M3FS(size_t id, const std::string_view &service)
-        : ClientSession(service, Activity::own().alloc_sels(2)),
+        : ClientSession(service, SelSpace::get().alloc_sels(2)),
           FileSystem(id),
           _gate(SendGate::bind(connect_for(Activity::own(), sel() + 1))),
           _eps() {

@@ -28,13 +28,13 @@
 namespace m3 {
 
 SendCap SendCap::create(RecvGate *rgate, const SendGateArgs &args) {
-    auto sel = args._sel == INVALID ? Activity::own().alloc_sel() : args._sel;
+    auto sel = args._sel == INVALID ? SelSpace::get().alloc_sel() : args._sel;
     Syscalls::create_sgate(sel, rgate->sel(), args._label, args._credits);
     return SendCap(sel, args._flags, args._reply_gate);
 }
 
 SendCap SendCap::create_named(const char *name, RecvGate *reply_gate) {
-    auto sel = Activity::own().alloc_sel();
+    auto sel = SelSpace::get().alloc_sel();
     Activity::own().resmng()->use_sgate(sel, name);
     return SendCap(sel, 0, reply_gate);
 }

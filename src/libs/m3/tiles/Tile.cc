@@ -77,7 +77,7 @@ Tile::~Tile() {
 }
 
 Reference<Tile> Tile::alloc(const TileDesc &desc, bool init) {
-    capsel_t sel = Activity::own().alloc_sel();
+    capsel_t sel = SelSpace::get().alloc_sel();
     TileDesc res = Activity::own().resmng()->alloc_tile(sel, desc, init);
     return Reference<Tile>(new Tile(sel, res, KEEP_CAP, true));
 }
@@ -136,7 +136,7 @@ Reference<Tile> Tile::get(const char *desc, bool init) {
 }
 
 Reference<Tile> Tile::derive(Option<uint> eps, Option<TimeDuration> time, Option<size_t> pts) {
-    capsel_t sel = Activity::own().alloc_sel();
+    capsel_t sel = SelSpace::get().alloc_sel();
     Syscalls::derive_tile(this->sel(), sel, eps, time, pts);
     return Reference<Tile>(new Tile(sel, desc(), 0, false));
 }

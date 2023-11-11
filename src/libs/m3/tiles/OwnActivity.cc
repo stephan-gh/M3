@@ -17,7 +17,7 @@
  */
 
 #if defined(__m3lx__)
-#   include <base/arch/linux/Init.h>
+#    include <base/arch/linux/Init.h>
 #endif
 #include <base/Init.h>
 
@@ -65,8 +65,6 @@ OwnActivity::~OwnActivity() {
 void OwnActivity::init_state() {
     _resmng.reset(new ResMng(env()->rmng_sel));
 
-    // it's initially 0. make sure it's at least the first usable selector
-    _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->first_sel);
     _eps_start = env()->first_std_ep;
     _id = env()->act_id;
 }

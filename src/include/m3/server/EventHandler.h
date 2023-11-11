@@ -85,7 +85,7 @@ protected:
         if(sess->gate() || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
-        auto sel = Activity::own().alloc_sel();
+        auto sel = SelSpace::get().alloc_sel();
         sess->_sgate = std::make_unique<LazyGate<SendGate>>(SendCap::bind(sel));
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel));
         return Errors::SUCCESS;

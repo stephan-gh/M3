@@ -376,7 +376,7 @@ FileRef<File> GenericFile::clone() const {
     if(!have_sess())
         throw Exception(Errors::NOT_SUP);
 
-    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::own().alloc_sels(2), 2);
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, SelSpace::get().alloc_sels(2), 2);
     do_clone(Activity::own(), crd);
     auto file = std::unique_ptr<File>(new GenericFile(flags(), crd.start(), _fs_id));
     return Activity::own().files()->alloc(std::move(file));
