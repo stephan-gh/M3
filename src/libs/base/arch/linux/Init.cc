@@ -13,15 +13,15 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/linux/Init.h>
-#include <base/arch/linux/MMap.h>
 #include <base/Env.h>
 #include <base/Init.h>
 #include <base/TCU.h>
 #include <base/TileDesc.h>
+#include <base/arch/linux/Init.h>
+#include <base/arch/linux/MMap.h>
 
-#include <sys/epoll.h>
 #include <fcntl.h>
+#include <sys/epoll.h>
 #include <unistd.h>
 
 namespace m3lx {
@@ -43,22 +43,12 @@ int tcu_fd() {
 
 LinuxInit::LinuxInit() : fd(init_dev()) {
     init_env(fd);
-    mmap_tcu(
-        fd,
-        reinterpret_cast<void*>(m3::TCU::MMIO_ADDR),
-        m3::TCU::MMIO_SIZE,
-        MemType::TCU,
-        m3::KIF::Perm::RW
-    );
+    mmap_tcu(fd, reinterpret_cast<void *>(m3::TCU::MMIO_ADDR), m3::TCU::MMIO_SIZE, MemType::TCU,
+             m3::KIF::Perm::RW);
 
     auto [rbuf_virt_addr, rbuf_size] = m3::TileDesc(m3::bootenv()->tile_desc).rbuf_std_space();
-    mmap_tcu(
-        fd,
-        reinterpret_cast<void*>(rbuf_virt_addr),
-        rbuf_size,
-        MemType::StdRecvBuf,
-        m3::KIF::Perm::R
-    );
+    mmap_tcu(fd, reinterpret_cast<void *>(rbuf_virt_addr), rbuf_size, MemType::StdRecvBuf,
+             m3::KIF::Perm::R);
 }
 
 int LinuxInit::init_dev() {
@@ -68,13 +58,8 @@ int LinuxInit::init_dev() {
 }
 
 void LinuxInit::init_env(int tcu_fd) {
-    mmap_tcu(
-        tcu_fd,
-        reinterpret_cast<void*>(ENV_START),
-        ENV_SIZE,
-        MemType::Environment,
-        m3::KIF::Perm::RW
-    );
+    mmap_tcu(tcu_fd, reinterpret_cast<void *>(ENV_START), ENV_SIZE, MemType::Environment,
+             m3::KIF::Perm::RW);
 }
 
 }

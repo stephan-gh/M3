@@ -16,8 +16,8 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/cap/ObjCap.h>
 #include <m3/Syscalls.h>
+#include <m3/cap/ObjCap.h>
 #include <m3/tiles/OwnActivity.h>
 
 namespace m3 {

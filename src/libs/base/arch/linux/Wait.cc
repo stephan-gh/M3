@@ -13,9 +13,9 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Init.h>
 #include <base/arch/linux/Init.h>
 #include <base/arch/linux/Wait.h>
-#include <base/Init.h>
 
 #include <sys/epoll.h>
 

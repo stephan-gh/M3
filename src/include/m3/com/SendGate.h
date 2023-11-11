@@ -132,9 +132,7 @@ public:
         return SendCap(sel, ObjCap::KEEP_CAP, reply_gate);
     }
 
-    SendCap(SendCap &&c) noexcept
-        : ObjCap(std::move(c)),
-          _reply_gate(c._reply_gate) {
+    SendCap(SendCap &&c) noexcept : ObjCap(std::move(c)), _reply_gate(c._reply_gate) {
     }
 
     /**

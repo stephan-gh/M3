@@ -13,8 +13,8 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/m3/Init.h>
 #include <base/Env.h>
+#include <base/arch/m3/Init.h>
 
 EXTERN_C NORETURN void __m3c_exit(m3::Errors::Code status, bool abort) {
     if(!abort)

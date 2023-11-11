@@ -13,8 +13,8 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/linux/MMap.h>
 #include <base/Panic.h>
+#include <base/arch/linux/MMap.h>
 
 #include <sys/mman.h>
 

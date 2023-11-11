@@ -14,9 +14,9 @@
  */
 
 #include <base/Common.h>
+#include <base/Init.h>
 #include <base/arch/linux/Init.h>
 #include <base/stream/Serial.h>
-#include <base/Init.h>
 
 #include <m3/Env.h>
 #include <m3/Exception.h>

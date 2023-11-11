@@ -14,7 +14,7 @@
  */
 
 #if defined(__m3lx__)
-#   include <base/arch/linux/MMap.h>
+#    include <base/arch/linux/MMap.h>
 #endif
 #include <base/Init.h>
 
@@ -47,7 +47,7 @@ RecvBuf *RecvBufs::alloc(size_t size) {
         try {
             Syscalls::create_map(dst, Activity::own().sel(), mgate->sel(), 0, pages, MemGate::R);
 #if defined(__m3lx__)
-            m3lx::mmap_tcu(m3lx::tcu_fd(), reinterpret_cast<void*>(addr), aligned_size,
+            m3lx::mmap_tcu(m3lx::tcu_fd(), reinterpret_cast<void *>(addr), aligned_size,
                            m3lx::MemType::Custom, KIF::Perm::R);
 #endif
         }
@@ -64,7 +64,7 @@ RecvBuf *RecvBufs::alloc(size_t size) {
 void RecvBufs::free(RecvBuf *rbuf) noexcept {
     _bufs.free(rbuf->addr(), rbuf->size());
 #if defined(__m3lx__)
-    m3lx::munmap_tcu(reinterpret_cast<void*>(rbuf->addr()), rbuf->size());
+    m3lx::munmap_tcu(reinterpret_cast<void *>(rbuf->addr()), rbuf->size());
 #endif
     delete rbuf;
 }

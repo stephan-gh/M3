@@ -13,9 +13,9 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/linux/IOCtl.h>
 #include <base/KIF.h>
 #include <base/Panic.h>
+#include <base/arch/linux/IOCtl.h>
 
 #include <sys/ioctl.h>
 
@@ -34,7 +34,7 @@ void tlb_insert_addr(uintptr_t addr, uint perm) {
     // touch the memory first to cause a page fault, because the TCU-TLB miss handler in the Linux
     // kernel cannot deal with the request if the page isn't mapped.
     UNUSED uint8_t dummy;
-    volatile uint8_t *virt_ptr = reinterpret_cast<uint8_t*>(addr);
+    volatile uint8_t *virt_ptr = reinterpret_cast<uint8_t *>(addr);
     if(perm & KIF::Perm::W)
         *virt_ptr = 0;
     else

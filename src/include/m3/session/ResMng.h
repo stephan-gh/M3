@@ -62,15 +62,15 @@ public:
         opcodes::ResMng::Operation _op;
     };
 
-    explicit ResMng(capsel_t resmng) noexcept
-        : _sgate(SendGate::bind(resmng)) {
+    explicit ResMng(capsel_t resmng) noexcept : _sgate(SendGate::bind(resmng)) {
     }
 
     capsel_t sel() const noexcept {
         return _sgate.sel();
     }
 
-    std::unique_ptr<ResMngChild> clone(ChildActivity &act, capsel_t sgate_sel, const std::string_view &name);
+    std::unique_ptr<ResMngChild> clone(ChildActivity &act, capsel_t sgate_sel,
+                                       const std::string_view &name);
 
     void reg_service(capsel_t dst, capsel_t sgate, const std::string_view &name, size_t sessions) {
         GateIStream reply =
@@ -169,13 +169,10 @@ public:
           act_sel(act_sel) {
     }
     ~ResMngChild() {
-        send_receive_vmsg(Activity::own().resmng()->_sgate, opcodes::ResMng::REM_CHILD,
-                          act_sel);
+        send_receive_vmsg(Activity::own().resmng()->_sgate, opcodes::ResMng::REM_CHILD, act_sel);
     }
 
-    ResMngChild(ResMngChild &&r)
-        : scap(std::move(r.scap)),
-          act_sel(r.act_sel) {
+    ResMngChild(ResMngChild &&r) : scap(std::move(r.scap)), act_sel(r.act_sel) {
     }
 
     capsel_t sel() const {

@@ -19,7 +19,7 @@
 #pragma once
 
 #if defined(__m3lx__)
-#   include <base/arch/linux/Init.h>
+#    include <base/arch/linux/Init.h>
 #endif
 #include <base/Common.h>
 #include <base/Config.h>
