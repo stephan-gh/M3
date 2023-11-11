@@ -37,7 +37,7 @@ class GenericFile : public File {
 
 public:
     explicit GenericFile(int flags, capsel_t caps, size_t fs_id, size_t id = 0,
-                         epid_t mep = TCU::INVALID_EP, SendGate *sg = nullptr);
+                         epid_t mep = TCU::INVALID_EP, LazyGate<SendGate> *sg = nullptr);
     virtual ~GenericFile();
 
     /**
@@ -78,7 +78,7 @@ public:
     }
 
     void connect(EP &sep, EP &mep) const {
-        _sg->activate_on(sep);
+        _sg->cap().activate_on(sep);
         do_delegate_ep(mep);
     }
 
@@ -121,7 +121,7 @@ private:
     size_t _fs_id;
     size_t _id;
     mutable ClientSession _sess;
-    mutable SendGate *_sg;
+    mutable LazyGate<SendGate> *_sg;
     std::unique_ptr<RecvGate> _notify_rgate;
     std::unique_ptr<SendCap> _notify_sgate;
     uint8_t _notify_received;

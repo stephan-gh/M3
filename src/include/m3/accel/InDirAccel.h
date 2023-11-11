@@ -53,14 +53,12 @@ public:
 
     explicit InDirAccel(std::unique_ptr<ChildActivity> &act, RecvGate &reply_gate)
         : _mgate(),
-          _rgate(RecvGate::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
-          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1).reply_gate(&reply_gate))),
-          _rep(EP::alloc_for(act->sel(), EP_RECV, _rgate.slots())),
-          _mep(EP::alloc_for(act->sel(), EP_OUT)),
           _act(act),
+          _rep(EP::alloc_for(act->sel(), EP_RECV, 1)),
+          _mep(EP::alloc_for(act->sel(), EP_OUT)),
+          _rgate(create_rgate(_rep)),
+          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1).reply_gate(&reply_gate))),
           _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
-        // activate EP
-        _rgate.activate_on(_rep, nullptr, RECV_ADDR);
     }
 
     void connect_output(InDirAccel *accel) {
@@ -88,12 +86,19 @@ public:
     }
 
 private:
+    static RecvGate create_rgate(EP &rep) {
+        auto rgate = RecvGate::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE));
+        // activate EP
+        rgate.activate_on(rep, nullptr, RECV_ADDR);
+        return rgate;
+    }
+
     std::unique_ptr<MemGate> _mgate;
-    RecvGate _rgate;
-    SendGate _sgate;
+    std::unique_ptr<ChildActivity> &_act;
     EP _rep;
     EP _mep;
-    std::unique_ptr<ChildActivity> &_act;
+    RecvGate _rgate;
+    SendGate _sgate;
     MemGate _mem;
 };
 

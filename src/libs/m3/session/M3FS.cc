@@ -40,8 +40,9 @@ std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
         reply >> file_id;
 
         _eps[ep_idx].file = file_id;
-        return std::unique_ptr<GenericFile>(new GenericFile(
-            perms, sel(), id(), static_cast<size_t>(file_id), _eps[ep_idx].ep->id(), &_gate));
+        return std::unique_ptr<GenericFile>(
+            new GenericFile(perms, sel(), id(), static_cast<size_t>(file_id), _eps[ep_idx].ep->id(),
+                            new LazyGate<SendGate>(&_gate)));
     }
     else {
         KIF::ExchangeArgs args;

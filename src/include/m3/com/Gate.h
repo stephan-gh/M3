@@ -50,8 +50,30 @@ class LazyGate {
 public:
     /**
      * Creates a new lazy gate with given capability
+     *
+     * @param cap the capability
      */
-    explicit LazyGate(G::Cap &&cap) : cap(std::move(cap)), gate() {
+    explicit LazyGate(G::Cap &&cap) : _cap(std::move(cap)), _gate() {
+    }
+
+    /**
+     * Creates a LazyGate object that is already a gate
+     *
+     * @param gate the gate to use
+     */
+    explicit LazyGate(G *gate) : _cap(G::Cap::bind(KIF::INV_SEL)), _gate(gate) {
+    }
+
+    ~LazyGate() {
+        if(_cap.sel() != KIF::INV_SEL)
+            delete _gate;
+    }
+
+    /**
+     * @return the capability
+     */
+    G::Cap &cap() noexcept {
+        return _cap;
     }
 
     /**
@@ -61,15 +83,15 @@ public:
      *
      * @return the gate
      */
-    G &get() {
-        if(!gate)
-            gate = std::make_unique<G>(cap.activate());
-        return *gate;
+    G &get() noexcept {
+        if(!_gate)
+            _gate = new G(_cap.activate());
+        return *_gate;
     }
 
 private:
-    G::Cap cap;
-    std::unique_ptr<G> gate;
+    G::Cap _cap;
+    G *_gate;
 };
 
 /**
