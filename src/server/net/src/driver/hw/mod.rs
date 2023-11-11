@@ -48,10 +48,12 @@ pub struct AXIEthDevice {
 impl AXIEthDevice {
     pub fn new() -> Result<Self, Error> {
         let bufs = MemGate::new(ALL_BUF_SIZE, Perm::RW)?;
-        Activity::own()
-            .pager()
-            .unwrap()
-            .map_mem(BUF_VIRT_ADDR, &bufs, ALL_BUF_SIZE, Perm::RW)?;
+        Activity::own().pager().unwrap().map_mem(
+            BUF_VIRT_ADDR,
+            bufs.sel(),
+            ALL_BUF_SIZE,
+            Perm::RW,
+        )?;
         let phys = bufs.region()?.0.to_phys(PageFlags::RW)?;
 
         let res = unsafe { axieth_init(BUF_VIRT_ADDR.as_local(), phys.as_raw(), RX_BUF_SIZE) };
