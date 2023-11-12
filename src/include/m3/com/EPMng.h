@@ -25,19 +25,11 @@
 
 namespace m3 {
 
-class Gate;
-class RecvGate;
-class Activity;
-
 /**
  * The endpoint manager allows us to have more gates than endpoints by multiplexing
  * the endpoints among the gates.
  */
 class EPMng {
-    friend class Gate;
-    friend class RecvGate;
-    friend class Activity;
-
     explicit EPMng() : _eps() {
     }
 

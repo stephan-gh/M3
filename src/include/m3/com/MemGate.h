@@ -22,13 +22,7 @@
 
 #include <m3/com/Gate.h>
 
-namespace pci {
-class ProxiedPciDevice;
-}
-
 namespace m3 {
-
-class Activity;
 
 /**
  * A memory capability is the precursor of a MemGate.
@@ -135,10 +129,6 @@ private:
  */
 class MemGate : public Gate {
     friend class MemCap;
-    friend class AladdinAccel;
-    friend class InDirAccel;
-    friend class StreamAccel;
-    friend class pci::ProxiedPciDevice;
 
     explicit MemGate(uint flags, capsel_t cap, bool resmng, EP *ep) noexcept
         : Gate(MEM_GATE, cap, flags, ep),

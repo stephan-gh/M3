@@ -23,17 +23,11 @@
 #include <m3/com/Gate.h>
 #include <m3/com/RecvGate.h>
 
-namespace pci {
-class ProxiedPciDevice;
-}
-
 namespace m3 {
 
-class EnvUserBackend;
 class SendCap;
 class SendGate;
 class Syscalls;
-class Activity;
 
 /**
  * The optional arguments for SendGate::create()
@@ -168,12 +162,6 @@ class SendGate : public Gate {
     template<class G>
     friend class LazyGate;
     friend class Syscalls;
-    friend class EnvUserBackend;
-    friend class Pager;
-    friend class AladdinAccel;
-    friend class InDirAccel;
-    friend class StreamAccel;
-    friend class pci::ProxiedPciDevice;
 
     explicit SendGate(capsel_t cap, uint capflags, RecvGate *replygate, EP *ep) noexcept
         : Gate(SEND_GATE, cap, capflags, ep),

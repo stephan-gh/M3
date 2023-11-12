@@ -24,22 +24,12 @@
 
 namespace m3 {
 
-class EPMng;
-class Gate;
-class GenericFile;
-class RecvGate;
-
 /**
  * Represents a TCU endpoint that can be used for communication. This class only serves the purpose
  * to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
  * be delegated to someone else.
  */
 class EP : public SListItem, public ObjCap {
-    friend class EPMng;
-    friend class Gate;
-    friend class GenericFile;
-    friend class RecvGate;
-
     explicit EP(capsel_t sel, epid_t id, uint replies, uint flags) noexcept
         : SListItem(),
           ObjCap(ObjCap::ENDPOINT, sel, flags),

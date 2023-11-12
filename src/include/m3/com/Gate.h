@@ -30,10 +30,6 @@
 
 namespace m3 {
 
-class GenericFile;
-class Syscalls;
-class OwnActivity;
-
 /**
  * A lazily activated gate
  *
@@ -107,13 +103,6 @@ private:
  * On top of Gate, GateStream provides an easy way to marshall/unmarshall data.
  */
 class Gate : public ObjCap {
-    friend class EPMng;
-    friend class RecvGate;
-    friend class SendGate;
-    friend class GenericFile;
-    friend class Syscalls;
-    friend class Activity;
-
 protected:
     explicit Gate(uint type, capsel_t cap, unsigned capflags, EP *ep) noexcept
         : ObjCap(type, cap, capflags),
