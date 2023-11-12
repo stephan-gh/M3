@@ -101,14 +101,14 @@ public:
         _sgate_out = std::make_unique<SendCap>(
             SendCap::create(&next->_rcap, SendGateArgs().label(LBL_OUT_REQ).credits(1)));
         _sgate_out->activate_on(_out_sep);
-        _mgate_out = std::make_unique<MemGate>(next->_mem.derive(BUF_ADDR - MEM_OFFSET, BUF_SIZE));
+        _mgate_out = std::make_unique<MemCap>(next->_mem.derive(BUF_ADDR - MEM_OFFSET, BUF_SIZE));
         _mgate_out->activate_on(_out_mep);
     }
 
 private:
     std::unique_ptr<SendCap> _sgate_in;
     std::unique_ptr<SendCap> _sgate_out;
-    std::unique_ptr<MemGate> _mgate_out;
+    std::unique_ptr<MemCap> _mgate_out;
     RecvCap _rcap;
     EP _in_sep;
     EP _in_mep;
@@ -116,7 +116,7 @@ private:
     EP _out_mep;
     EP _rep;
     std::unique_ptr<ChildActivity> &_act;
-    MemGate _mem;
+    MemCap _mem;
 };
 
 }

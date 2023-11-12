@@ -41,7 +41,7 @@ NOINLINE void child_to_parent() {
 
     auto res = pr.run<CycleInstant>([] {
         Pipes pipes("pipes");
-        MemGate mgate = MemGate::create_global(0x1'0000, MemGate::RW);
+        MemCap mgate = MemCap::create_global(0x1'0000, MemCap::RW);
         IndirectPipe pipe(pipes, mgate, 0x1'0000);
 
         Reference<Tile> tile = Tile::get("compat|own");
@@ -79,7 +79,7 @@ NOINLINE void parent_to_child() {
 
     auto res = pr.run<CycleInstant>([] {
         Pipes pipes("pipes");
-        MemGate mgate = MemGate::create_global(0x1'0000, MemGate::RW);
+        MemCap mgate = MemCap::create_global(0x1'0000, MemCap::RW);
         IndirectPipe pipe(pipes, mgate, 0x1'0000);
 
         Reference<Tile> tile(Tile::get("compat|own"));

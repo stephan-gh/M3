@@ -27,7 +27,6 @@ TCUOpHandler::TCUOpHandler()
     : _rgate(RecvGate::create_named("req")),
       _result(MemGate::create_global(MAX_RESULT_SIZE, MemGate::W)),
       _last_req() {
-    _rgate.activate();
 }
 
 OpHandler::Result TCUOpHandler::receive(Package &pkg) {

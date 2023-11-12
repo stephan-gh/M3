@@ -26,26 +26,14 @@ Gate::~Gate() {
     release_ep();
 }
 
-const EP &Gate::acquire_ep() {
-    if(!_ep)
-        _ep = EPMng::get().acquire();
-    return *_ep;
-}
-
-const EP &Gate::activate(capsel_t rbuf_mem, goff_t rbuf_off) {
-    if(!_ep) {
-        _ep = EPMng::get().acquire();
-        activate_on(sel(), *_ep, rbuf_mem, rbuf_off);
-    }
-    return *_ep;
+EP *Gate::activate(capsel_t sel, capsel_t rbuf_mem, goff_t rbuf_off) {
+    auto ep = EPMng::get().acquire();
+    activate_on(sel, *ep, rbuf_mem, rbuf_off);
+    return ep;
 }
 
 void Gate::activate_on(capsel_t sel, const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
     Syscalls::activate(ep.sel(), sel, rbuf_mem, rbuf_off);
-}
-
-void Gate::deactivate() {
-    release_ep(true);
 }
 
 void Gate::release_ep(bool force_inval) noexcept {

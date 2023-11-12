@@ -247,10 +247,10 @@ static void pipe_mux() {
 
     try {
         Pipes pipesrv("pipes");
-        MemGate *mems[NUM];
+        MemCap *mems[NUM];
         IndirectPipe *pipes[NUM];
         for(size_t i = 0; i < NUM; ++i) {
-            mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
+            mems[i] = new MemCap(MemCap::create_global(PIPE_SIZE, MemCap::RW));
             pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SIZE);
         }
 

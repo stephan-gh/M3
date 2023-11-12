@@ -28,13 +28,13 @@
 using namespace m3;
 
 struct Worker {
-    MemGate submem;
+    MemCap submem;
     SendCap scap;
     Reference<Tile> tile;
     ChildActivity act;
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
-        : submem(mem.derive(offset, size)),
+        : submem(mem.derive_cap(offset, size)),
           scap(SendCap::create(&rgate, SendGateArgs().credits(1))),
           tile(Tile::get("compat|own")),
           act(tile, "worker") {

@@ -126,7 +126,7 @@ private:
     std::unique_ptr<SendCap> _notify_sgate;
     uint8_t _notify_received;
     uint8_t _notify_requested;
-    MemGate _mg;
+    EP *_mep;
     size_t _goff;
     size_t _off;
     size_t _pos;

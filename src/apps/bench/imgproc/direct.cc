@@ -64,7 +64,7 @@ public:
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < ACCEL_COUNT) {
                 mems[i] =
-                    std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+                    std::make_unique<MemCap>(MemCap::create_global(PIPE_SHM_SIZE, MemCap::RW));
                 pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
             }
         }
@@ -131,7 +131,7 @@ private:
     std::unique_ptr<ChildActivity> acts[ACCEL_COUNT];
     std::unique_ptr<StreamAccel> accels[ACCEL_COUNT];
     std::unique_ptr<IndirectPipe> pipes[ACCEL_COUNT];
-    std::unique_ptr<MemGate> mems[ACCEL_COUNT];
+    std::unique_ptr<MemCap> mems[ACCEL_COUNT];
     bool running[ACCEL_COUNT];
 };
 

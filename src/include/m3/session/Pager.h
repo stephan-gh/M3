@@ -64,7 +64,7 @@ public:
     void map_anon(goff_t *virt, size_t len, int prot, int flags);
     void map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSession &sess,
                 size_t offset);
-    void map_mem(goff_t *virt, MemGate &mem, size_t len, int prot);
+    void map_mem(goff_t *virt, capsel_t mem, size_t len, int prot);
     void unmap(goff_t virt);
 
 private:

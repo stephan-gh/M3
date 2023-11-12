@@ -30,7 +30,7 @@ static char buffer[0x100];
 static void reader_quit() {
     auto tile = Tile::get("compat|own");
     ChildActivity writer(tile, "writer");
-    MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
+    MemCap mem = MemCap::create_global(0x1000, MemCap::RW);
     DirectPipe pipe(Activity::own(), writer, mem, 0x1000);
 
     writer.add_file(STDIN_FD, STDIN_FD);
@@ -68,7 +68,7 @@ static void writer_quit() {
     auto tile = Tile::get("compat|own");
     ChildActivity reader(tile, "reader");
 
-    MemGate mem = MemGate::create_global(64, MemGate::RW);
+    MemCap mem = MemCap::create_global(64, MemCap::RW);
     DirectPipe pipe(reader, Activity::own(), mem, 64);
 
     reader.add_file(STDIN_FD, pipe.reader_fd());
@@ -104,7 +104,7 @@ static void child_to_child() {
     auto tile2 = Tile::get("compat|own");
     ChildActivity reader(tile1, "reader");
     ChildActivity writer(tile2, "writer");
-    MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
+    MemCap mem = MemCap::create_global(0x1000, MemCap::RW);
     DirectPipe pipe(reader, writer, mem, 0x1000);
 
     reader.add_file(STDIN_FD, pipe.reader_fd());

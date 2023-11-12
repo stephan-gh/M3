@@ -34,14 +34,15 @@ int main() {
 
     const uintptr_t virt = 0x3000'0000;
 
-    MemGate mgate = MemGate::create_global(PAGES * PAGE_SIZE, MemGate::RW);
+    MemCap mgate = MemCap::create_global(PAGES * PAGE_SIZE, MemCap::RW);
 
     CycleDuration xfer;
     for(size_t i = 0; i < COUNT; ++i) {
         Syscalls::create_map(virt / PAGE_SIZE, Activity::own().sel(), mgate.sel(), 0, PAGES,
-                             MemGate::RW);
+                             MemCap::RW);
 
-        MemGate mapped_mem = Activity::own().get_mem(virt, PAGES * PAGE_SIZE, MemGate::R);
+        MemGate mapped_mem =
+            Activity::own().get_mem(virt, PAGES * PAGE_SIZE, MemGate::R).activate();
 
         alignas(8) char buf[8];
         for(size_t p = 0; p < PAGES; ++p) {

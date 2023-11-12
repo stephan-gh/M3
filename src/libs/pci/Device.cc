@@ -28,7 +28,7 @@ namespace pci {
 ProxiedPciDevice::ProxiedPciDevice(const char *name, TileISA isa)
     : _tile(Tile::alloc(TileDesc(TileType::COMP, isa))),
       _act(_tile, name),
-      _mem(_act.get_mem(0, PCI_CFG_ADDR + REG_ADDR + PAGE_SIZE, MemGate::RW)),
+      _mem(_act.get_mem(0, PCI_CFG_ADDR + REG_ADDR + PAGE_SIZE, MemGate::RW).activate()),
       _sep(EP::alloc_for(_act.sel(), EP_INT)),
       _mep(EP::alloc_for(_act.sel(), EP_DMA)),
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),
@@ -48,8 +48,8 @@ void ProxiedPciDevice::stopListing() {
     _intgate.stop();
 }
 
-void ProxiedPciDevice::setDmaEp(m3::MemGate &memgate) {
-    memgate.activate_on(_mep);
+void ProxiedPciDevice::setDmaEp(m3::MemCap &memcap) {
+    memcap.activate_on(_mep);
 }
 
 void ProxiedPciDevice::receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &) {

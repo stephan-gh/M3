@@ -43,10 +43,10 @@ void Activity::revoke(const KIF::CapRngDesc &crd, bool delonly) {
     Syscalls::revoke(sel(), crd, !delonly);
 }
 
-MemGate Activity::get_mem(goff_t addr, size_t size, int perms) {
+MemCap Activity::get_mem(goff_t addr, size_t size, int perms) {
     capsel_t nsel = SelSpace::get().alloc_sel();
     Syscalls::create_mgate(nsel, sel(), addr, size, perms);
-    return MemGate::bind(nsel, 0);
+    return MemCap::bind(nsel, 0);
 }
 
 }

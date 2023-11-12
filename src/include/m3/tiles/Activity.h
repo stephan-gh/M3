@@ -113,16 +113,16 @@ public:
     void revoke(const KIF::CapRngDesc &crd, bool delonly = false);
 
     /**
-     * Creates a new memory-gate for the memory region [addr..addr+size) of this activity's address
-     * space with given permissions.
+     * Creates a new memory capability for the memory region [addr..addr+size) of this activity's
+     * address space with given permissions.
      *
      * @param act the activity
      * @param addr the address (page aligned)
      * @param size the memory size (page aligned)
      * @param perms the permissions (see MemGate::RWX)
-     * @return the memory gate
+     * @return the memory capability
      */
-    MemGate get_mem(goff_t addr, size_t size, int perms);
+    MemCap get_mem(goff_t addr, size_t size, int perms);
 
 protected:
     actid_t _id;

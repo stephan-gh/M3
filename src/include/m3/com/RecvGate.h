@@ -30,7 +30,7 @@
 namespace m3 {
 
 class GateIStream;
-class MemGate;
+class MemCap;
 class SendGate;
 class Activity;
 template<class HDL>
@@ -112,7 +112,7 @@ public:
      * @param mem the receive buffer (nullptr for SPM)
      * @param off the offset within the buffer
      */
-    void activate_on(const EP &ep, MemGate *mem, size_t off);
+    void activate_on(const EP &ep, MemCap *mem, size_t off);
 
 private:
     void fetch_buffer_size() const;

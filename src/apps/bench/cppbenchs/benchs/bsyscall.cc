@@ -41,11 +41,11 @@ NOINLINE static void noop() {
 
 NOINLINE static void activate() {
     MemGate mgate = MemGate::create_global(0x1000, MemGate::RW);
-    const EP &ep = mgate.activate();
+    const EP *ep = mgate.ep();
 
     Profile pr;
-    WVPERF(__func__, pr.run<CycleInstant>([&ep, &mgate] {
-        Syscalls::activate(ep.sel(), mgate.sel(), KIF::INV_SEL, 0);
+    WVPERF(__func__, pr.run<CycleInstant>([ep, &mgate] {
+        Syscalls::activate(ep->sel(), mgate.sel(), KIF::INV_SEL, 0);
     }));
 }
 
@@ -113,24 +113,24 @@ NOINLINE static void create_map() {
     constexpr capsel_t DEST = 0x3000'0000 >> PAGE_BITS;
 
     struct SyscallMapRunner : public Runner {
-        explicit SyscallMapRunner() : mgate(MemGate::create_global(PAGE_SIZE * 2, MemGate::RW)) {
+        explicit SyscallMapRunner() : mcap(MemCap::create_global(PAGE_SIZE * 2, MemCap::RW)) {
         }
 
         void pre() override {
             // one warmup run, because the revoke leads to an unmap, which flushes and invalidates
             // all cache lines
-            Syscalls::create_map(DEST, Activity::own().sel(), mgate.sel(), 0, 1, MemGate::RW);
+            Syscalls::create_map(DEST, Activity::own().sel(), mcap.sel(), 0, 1, MemCap::RW);
         }
 
         void run() override {
-            Syscalls::create_map(DEST + 1, Activity::own().sel(), mgate.sel(), 1, 1, MemGate::RW);
+            Syscalls::create_map(DEST + 1, Activity::own().sel(), mcap.sel(), 1, 1, MemCap::RW);
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(), KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 2),
                              true);
         }
 
-        MemGate mgate;
+        MemCap mcap;
     };
 
     Profile pr;
@@ -141,7 +141,6 @@ NOINLINE static void create_map() {
 NOINLINE static void create_srv() {
     struct SyscallSrvRunner : public Runner {
         explicit SyscallSrvRunner() : rgate(RecvGate::create(10, 10)) {
-            rgate.activate();
         }
 
         void run() override {
@@ -162,19 +161,19 @@ NOINLINE static void create_srv() {
 
 NOINLINE static void derive_mem() {
     struct SyscallDeriveRunner : public Runner {
-        explicit SyscallDeriveRunner() : mgate(MemGate::create_global(0x1000, MemGate::RW)) {
+        explicit SyscallDeriveRunner() : mcap(MemCap::create_global(0x1000, MemCap::RW)) {
         }
 
         void run() override {
-            Syscalls::derive_mem(Activity::own().sel(), selector, mgate.sel(), 0, 0x1000,
-                                 MemGate::RW);
+            Syscalls::derive_mem(Activity::own().sel(), selector, mcap.sel(), 0, 0x1000,
+                                 MemCap::RW);
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(),
                              KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
-        MemGate mgate;
+        MemCap mcap;
     };
 
     Profile pr;
@@ -207,14 +206,14 @@ NOINLINE static void exchange() {
 NOINLINE static void revoke() {
     struct SyscallRevokeRunner : public Runner {
         void pre() override {
-            mgate = new MemGate(MemGate::create_global(0x1000, MemGate::RW));
+            mcap = new MemCap(MemCap::create_global(0x1000, MemCap::RW));
         }
         void run() override {
-            delete mgate;
-            mgate = nullptr;
+            delete mcap;
+            mcap = nullptr;
         }
 
-        MemGate *mgate;
+        MemCap *mcap;
     };
 
     Profile pr;

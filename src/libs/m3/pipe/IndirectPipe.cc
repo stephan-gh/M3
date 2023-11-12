@@ -22,7 +22,7 @@
 
 namespace m3 {
 
-IndirectPipe::IndirectPipe(Pipes &pipes, MemGate &mem, size_t memsize, int flags)
+IndirectPipe::IndirectPipe(Pipes &pipes, MemCap &mem, size_t memsize, int flags)
     : _pipe(pipes.create_pipe(mem, memsize)),
       _reader(_pipe.create_channel(true, flags)),
       _writer(_pipe.create_channel(false, flags)) {

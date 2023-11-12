@@ -59,7 +59,7 @@ public:
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < num) {
                 mems[i] =
-                    std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+                    std::make_unique<MemCap>(MemCap::create_global(PIPE_SHM_SIZE, MemCap::RW));
                 pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
             }
         }
@@ -127,7 +127,7 @@ private:
     std::unique_ptr<ChildActivity> acts[MAX_NUM];
     std::unique_ptr<StreamAccel> accels[MAX_NUM];
     std::unique_ptr<IndirectPipe> pipes[MAX_NUM];
-    std::unique_ptr<MemGate> mems[MAX_NUM];
+    std::unique_ptr<MemCap> mems[MAX_NUM];
     bool running[MAX_NUM];
 };
 

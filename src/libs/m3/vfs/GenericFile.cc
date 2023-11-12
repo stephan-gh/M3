@@ -39,23 +39,20 @@ GenericFile::GenericFile(int flags, capsel_t caps, size_t fs_id, size_t id, epid
       _notify_sgate(),
       _notify_received(),
       _notify_requested(),
-      _mg(MemGate::bind(ObjCap::INVALID)),
+      _mep(mep != TCU::INVALID_EP ? new EP(EP::bind(mep)) : nullptr),
       _goff(),
       _off(),
       _pos(),
       _len(),
       _writing() {
-    if(mep != TCU::INVALID_EP)
-        _mg.set_ep(new EP(EP::bind(mep)));
 }
 
 GenericFile::~GenericFile() {
     if(have_sess())
         delete _sg;
-    else {
+    else if(_mep) {
         // we never want to invalidate the EP
-        delete const_cast<EP *>(_mg.ep());
-        _mg.set_ep(nullptr);
+        EPMng::get().release(_mep, false);
     }
 }
 
@@ -78,9 +75,8 @@ void GenericFile::remove() noexcept {
     }
     else {
         try {
-            const EP *ep = _mg.ep();
-            if(ep)
-                Activity::own().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+            if(_mep)
+                Activity::own().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _mep->sel()), true);
         }
         catch(...) {
             // ignore
@@ -236,8 +232,11 @@ Option<size_t> GenericFile::read(void *buffer, size_t count) {
             if(count > 2)
                 CPU::compute(count / 2);
         }
-        else
-            _mg.read(buffer, amount, _off + _pos);
+        else {
+            Errors::Code res = TCU::get().read(_mep->id(), buffer, amount, _off + _pos);
+            if(res != Errors::SUCCESS)
+                throw TCUException(res);
+        }
         _pos += amount;
     }
     return Some(amount);
@@ -273,8 +272,11 @@ Option<size_t> GenericFile::write(const void *buffer, size_t count) {
             if(count > 4)
                 CPU::compute(count / 4);
         }
-        else
-            _mg.write(buffer, amount, _off + _pos);
+        else {
+            Errors::Code res = TCU::get().write(_mep->id(), buffer, amount, _off + _pos);
+            if(res != Errors::SUCCESS)
+                throw TCUException(res);
+        }
         _pos += amount;
     }
     _writing = true;
@@ -325,7 +327,6 @@ NOINLINE void GenericFile::enable_notifications() {
 
     std::unique_ptr<RecvGate> notify_rgate(new RecvGate(
         RecvGate::create(nextlog2<NOTIFY_MSG_SIZE>::val, nextlog2<NOTIFY_MSG_SIZE>::val)));
-    notify_rgate->activate();
 
     std::unique_ptr<SendCap> notify_sgate(new SendCap(SendCap::create(&*notify_rgate)));
 
@@ -391,9 +392,9 @@ void GenericFile::do_clone(Activity &act, KIF::CapRngDesc &crd) const {
 }
 
 void GenericFile::delegate_ep() {
-    if(!_mg.ep()) {
-        const EP &ep = _mg.acquire_ep();
-        do_delegate_ep(ep);
+    if(!_mep) {
+        _mep = EPMng::get().acquire();
+        do_delegate_ep(*_mep);
     }
 }
 

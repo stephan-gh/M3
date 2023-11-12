@@ -114,18 +114,10 @@ class Gate : public ObjCap {
     friend class Syscalls;
     friend class Activity;
 
-public:
-    static const epid_t UNBOUND = TOTAL_EPS;
-
 protected:
     explicit Gate(uint type, capsel_t cap, unsigned capflags, EP *ep) noexcept
         : ObjCap(type, cap, capflags),
           _ep(ep) {
-    }
-
-    explicit Gate(uint type, capsel_t cap, unsigned capflags, epid_t ep = UNBOUND) noexcept
-        : ObjCap(type, cap, capflags),
-          _ep(ep == UNBOUND ? nullptr : new EP(EP::bind(ep))) {
     }
 
 public:
@@ -134,23 +126,15 @@ public:
     }
     virtual ~Gate();
 
-    const EP &activate(capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
-    void activate_on(const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0) {
-        activate_on(sel(), ep, rbuf_mem, rbuf_off);
-    }
-    static void activate_on(capsel_t sel, const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL,
-                            goff_t rbuf_off = 0);
-    void deactivate();
-
-protected:
     const EP *ep() const noexcept {
         return _ep;
     }
-    void set_ep(EP *ep) noexcept {
-        _ep = ep;
-    }
 
-    const EP &acquire_ep();
+protected:
+    static EP *activate(capsel_t sel, capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
+    static void activate_on(capsel_t sel, const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL,
+                            goff_t rbuf_off = 0);
+
     void release_ep(bool force_inval = false) noexcept;
 
 private:

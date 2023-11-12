@@ -39,6 +39,7 @@ class SendGate;
 class RecvGate;
 class TimeInstant;
 class OwnActivity;
+class GenericFile;
 
 /**
  * A tile id, consisting of a chip and chip-local tile id
@@ -170,6 +171,7 @@ class TCU {
     friend class RecvGate;
     friend class TimeInstant;
     friend class OwnActivity;
+    friend class GenericFile;
 
     explicit TCU() {
     }

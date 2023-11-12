@@ -52,7 +52,6 @@ public:
     static EP alloc_for(capsel_t act, epid_t ep = TOTAL_EPS, uint replies = 0);
     static EP bind(epid_t id) noexcept;
 
-    explicit EP() noexcept;
     EP &operator=(EP &&ep) noexcept;
     EP(EP &&ep) noexcept
         : SListItem(std::move(ep)),

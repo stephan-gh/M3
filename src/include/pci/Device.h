@@ -60,7 +60,7 @@ public:
         _mem.write(&val, sizeof(val), REG_ADDR + PCI_CFG_ADDR + offset);
     }
 
-    void setDmaEp(m3::MemGate &memgate);
+    void setDmaEp(m3::MemCap &memcap);
 
     void listenForIRQs(m3::WorkLoop *wl, std::function<void()> callback);
     void stopListing();

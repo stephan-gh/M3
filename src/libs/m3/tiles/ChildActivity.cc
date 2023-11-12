@@ -218,7 +218,7 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
     size_t env_size = Math::round_up(size, sizeof(word_t));
     env_size = serialize_state(senv, buffer.get(), env_size);
 
-    MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W);
+    MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W).activate();
 
     /* write entire runtime stuff */
     env_mem.write(buffer.get(), env_size, sizeof(senv));
@@ -284,7 +284,7 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
     if(tile_desc().has_virtmem())
         vthrow(Errors::NOT_SUP, "Exec with VM needs a pager"_cf);
 
-    MemGate mem = get_mem(0, MEM_OFFSET + tile_desc().mem_size(), MemGate::W);
+    MemGate mem = get_mem(0, MEM_OFFSET + tile_desc().mem_size(), MemGate::W).activate();
 
     size_t segoff = pheader.p_vaddr;
     size_t count = pheader.p_filesz;

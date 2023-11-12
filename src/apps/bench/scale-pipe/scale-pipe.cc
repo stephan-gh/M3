@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
         auto overall_start = CycleInstant::now();
 
         constexpr size_t PIPE_SHM_SIZE = 512 * 1024;
-        MemGate *mems[instances];
+        MemCap *mems[instances];
         IndirectPipe *pipes[instances];
 
         for(size_t i = 0; i < instances * 2; ++i) {
@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
             }
 
             if(i % 2 == 0) {
-                mems[i / 2] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+                mems[i / 2] = new MemCap(MemCap::create_global(PIPE_SHM_SIZE, MemCap::RW));
                 pipes[i / 2] =
                     new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
                 apps[i]->act.add_file(STDOUT_FD, pipes[i / 2]->writer().fd());

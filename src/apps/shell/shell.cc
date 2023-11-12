@@ -86,7 +86,7 @@ static const char *get_pe_name(const std::unique_ptr<Parser::VarList> &vars, con
 static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &cmds) {
     bool builtin[MAX_CMDS];
     std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
-    std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
+    std::unique_ptr<MemCap> mems[MAX_CMDS] = {nullptr};
     // destroy the activities first to prevent errors due to destroyed communication channels
     std::unique_ptr<StreamAccel> accels[MAX_CMDS] = {nullptr};
     Reference<Tile> tiles[MAX_CMDS];
@@ -176,7 +176,7 @@ static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &c
         }
         else if((builtin[i] || tiles[i]->desc().is_programmable()) ||
                 (builtin[i + 1] || tiles[i + 1]->desc().is_programmable())) {
-            mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+            mems[i] = std::make_unique<MemCap>(MemCap::create_global(PIPE_SHM_SIZE, MemCap::RW));
             pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
             outfd = pipes[i]->writer().fd();
         }

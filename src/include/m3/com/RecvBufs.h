@@ -30,7 +30,7 @@ namespace m3 {
 
 class RecvBuf {
 public:
-    explicit RecvBuf(uintptr_t addr, size_t size, std::unique_ptr<MemGate> &mem)
+    explicit RecvBuf(uintptr_t addr, size_t size, std::unique_ptr<MemCap> &mem)
         : _addr(addr),
           _size(size),
           _mem() {
@@ -53,7 +53,7 @@ public:
 private:
     uintptr_t _addr;
     size_t _size;
-    std::unique_ptr<MemGate> _mem;
+    std::unique_ptr<MemCap> _mem;
 };
 
 class RecvBufs {

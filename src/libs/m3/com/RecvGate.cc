@@ -80,7 +80,7 @@ RecvGate RecvCap::activate() {
     return RecvGate(sel(), buf_addr, buf, rep, _order, _msgorder, cap_flags);
 }
 
-void RecvCap::activate_on(const EP &ep, MemGate *mem, size_t off) {
+void RecvCap::activate_on(const EP &ep, MemCap *mem, size_t off) {
     Gate::activate_on(sel(), ep, mem ? mem->sel() : KIF::INV_SEL, off);
 }
 
@@ -110,14 +110,13 @@ void RecvGate::RecvGateWorkItem::work() {
 
 RecvGate::RecvGate(capsel_t cap, size_t addr, RecvBuf *buf, EP *ep, uint order, uint msgorder,
                    uint flags) noexcept
-    : Gate(RECV_GATE, cap, flags),
+    : Gate(RECV_GATE, cap, flags, ep),
       _buf(buf),
       _buf_addr(addr),
       _order(order),
       _msgorder(msgorder),
       _handler(),
       _workitem() {
-    set_ep(ep);
 }
 
 RecvGate::~RecvGate() {

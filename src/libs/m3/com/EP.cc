@@ -20,9 +20,6 @@
 
 namespace m3 {
 
-EP::EP() noexcept : EP(ObjCap::INVALID, Gate::UNBOUND, 0, KEEP_CAP) {
-}
-
 EP &EP::operator=(EP &&ep) noexcept {
     release();
     sel(ep.sel());

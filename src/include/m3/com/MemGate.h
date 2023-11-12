@@ -31,18 +31,14 @@ namespace m3 {
 class Activity;
 
 /**
- * A memory gate is used to access tile-external memory via the TCU. You can either create a MemGate
- * by requesting tile-external memory from the kernel or bind a MemGate to an existing capability.
+ * A memory capability is the precursor of a MemGate.
+ *
+ * MemCap can be turned into a MemGate through activation.
  */
-class MemGate : public Gate {
-    friend class AladdinAccel;
-    friend class InDirAccel;
-    friend class StreamAccel;
-    friend class pci::ProxiedPciDevice;
-
-    explicit MemGate(uint flags, capsel_t cap, bool revoke) noexcept
-        : Gate(MEM_GATE, cap, flags),
-          _revoke(revoke) {
+class MemCap : public ObjCap {
+    explicit MemCap(uint flags, capsel_t cap, bool resmng) noexcept
+        : ObjCap(MEM_GATE, cap, flags),
+          _resmng(resmng) {
     }
 
 public:
@@ -51,7 +47,112 @@ public:
     static const int X = KIF::Perm::X;
     static const int RW = R | W;
     static const int RWX = R | W | X;
-    static const int PERM_BITS = 3;
+
+    /**
+     * Creates a new memory capability for global memory. That is, it requests <size> bytes of
+     * global memory with given permissions.
+     *
+     * @param size the memory size
+     * @param perms the permissions (see MemCap::RWX)
+     * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
+     * @return the memory capability
+     */
+    static MemCap create_global(size_t size, int perms, capsel_t sel = INVALID);
+
+    /**
+     * Binds a new memory capability to the boot module with given name.
+     *
+     * @param name the name of the boot module
+     * @return the memory capability
+     */
+    static MemCap bind_bootmod(const std::string_view &name);
+
+    /**
+     * Binds this capability for read/write/cmpxchg to the given memory capability. That is, the
+     * capability should be a memory capability you've received from somebody else.
+     *
+     * @param sel the capability selector
+     * @param flags the flags to control whether the cap is kept
+     */
+    static MemCap bind(capsel_t sel, uint flags = ObjCap::KEEP_CAP) noexcept {
+        return MemCap(flags, sel, false);
+    }
+
+    MemCap(MemCap &&m) noexcept : ObjCap(std::move(m)), _resmng(m._resmng) {
+    }
+
+    ~MemCap();
+
+    /**
+     * Derives memory from this memory capability. That is, it creates a new memory capability that
+     * is bound to a subset of this memory (in space or permissions).
+     *
+     * @param offset the offset inside this memory capability
+     * @param size the size of the memory area
+     * @param perms the permissions (you can only downgrade)
+     * @return the new memory capability
+     */
+    MemCap derive(goff_t offset, size_t size, int perms = RWX) const;
+
+    /**
+     * Derives memory from this memory capability for <act> and uses <sel> for it. That is, it
+     * creates a new memory capability that is bound to a subset of this memory (in space or
+     * permissions).
+     *
+     * @param act the activity to delegate the derived cap to
+     * @param sel the capability selector to use
+     * @param offset the offset inside this memory capability
+     * @param size the size of the memory area
+     * @param perms the permissions (you can only downgrade)
+     * @return the new memory capability
+     */
+    MemCap derive_for(capsel_t act, capsel_t sel, goff_t offset, size_t size,
+                      int perms = RWX) const;
+
+    /**
+     * Activates this MemCap and thereby turns it into a usable MemGate
+     *
+     * This will allocate a new EP from the EPMng.
+     *
+     * @return the created MemGate
+     */
+    MemGate activate();
+
+    /**
+     * Activates this MemCap on the given EP for someone else
+     *
+     * As it will be used by someone else, no MemGate is returned.
+     */
+    void activate_on(const EP &ep);
+
+private:
+    bool _resmng;
+};
+
+/**
+ * A memory gate is used to access tile-external memory via the TCU. You can either create a MemGate
+ * by requesting tile-external memory from the kernel or bind a MemGate to an existing capability.
+ */
+class MemGate : public Gate {
+    friend class MemCap;
+    friend class AladdinAccel;
+    friend class InDirAccel;
+    friend class StreamAccel;
+    friend class pci::ProxiedPciDevice;
+
+    explicit MemGate(uint flags, capsel_t cap, bool resmng, EP *ep) noexcept
+        : Gate(MEM_GATE, cap, flags, ep),
+          _resmng(resmng) {
+    }
+
+public:
+    typedef MemCap Cap;
+
+    static const int R = MemCap::R;
+    static const int W = MemCap::W;
+    static const int X = MemCap::X;
+    static const int RW = MemCap::RW;
+    static const int RWX = MemCap::RWX;
 
     /**
      * Creates a new memory gate for global memory. That is, it requests <size> bytes of global
@@ -60,10 +161,11 @@ public:
      * @param size the memory size
      * @param perms the permissions (see MemGate::RWX)
      * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
-     * @param flags the flags to control whether the cap is kept
      * @return the memory gate
      */
-    static MemGate create_global(size_t size, int perms, capsel_t sel = INVALID, uint flags = 0);
+    static MemGate create_global(size_t size, int perms, capsel_t sel = INVALID) {
+        return MemCap::create_global(size, perms, sel).activate();
+    }
 
     /**
      * Binds a new memory-gate to the boot module with given name.
@@ -71,7 +173,9 @@ public:
      * @param name the name of the boot module
      * @return the memory gate
      */
-    static MemGate bind_bootmod(const std::string_view &name);
+    static MemGate bind_bootmod(const std::string_view &name) {
+        return MemCap::bind_bootmod(name).activate();
+    }
 
     /**
      * Binds this gate for read/write/cmpxchg to the given memory capability. That is, the
@@ -80,11 +184,11 @@ public:
      * @param sel the capability selector
      * @param flags the flags to control whether the cap is kept
      */
-    static MemGate bind(capsel_t sel, uint flags = ObjCap::KEEP_CAP) noexcept {
-        return MemGate(flags, sel, true);
+    static MemGate bind(capsel_t sel, uint flags = ObjCap::KEEP_CAP) {
+        return MemCap::bind(sel, flags).activate();
     }
 
-    MemGate(MemGate &&m) noexcept : Gate(std::move(m)), _revoke(m._revoke) {
+    MemGate(MemGate &&m) noexcept : Gate(std::move(m)), _resmng(m._resmng) {
     }
 
     ~MemGate();
@@ -98,7 +202,16 @@ public:
      * @param perms the permissions (you can only downgrade)
      * @return the new memory gate
      */
-    MemGate derive(goff_t offset, size_t size, int perms = RWX) const;
+    MemGate derive(goff_t offset, size_t size, int perms = RWX) const {
+        return derive_cap(offset, size, perms).activate();
+    }
+
+    /**
+     * Like derive(), but does not create a MemGate, but a MemCap
+     */
+    MemCap derive_cap(goff_t offset, size_t size, int perms = RWX) const {
+        return MemCap::bind(sel()).derive(offset, size, perms);
+    }
 
     /**
      * Derives memory from this memory gate for <act> and uses <sel> for it. That is, it creates
@@ -109,11 +222,12 @@ public:
      * @param offset the offset inside this memory capability
      * @param size the size of the memory area
      * @param perms the permissions (you can only downgrade)
-     * @param flags the capability flags
      * @return the new memory gate
      */
-    MemGate derive_for(capsel_t act, capsel_t sel, goff_t offset, size_t size, int perms = RWX,
-                       uint flags = 0) const;
+    MemGate derive_for(capsel_t act, capsel_t sel, goff_t offset, size_t size,
+                       int perms = RWX) const {
+        return MemCap::bind(this->sel()).derive_for(act, sel, offset, size, perms).activate();
+    }
 
     /**
      * Writes the <len> bytes at <data> to <offset>.
@@ -134,7 +248,7 @@ public:
     void read(void *data, size_t len, goff_t offset);
 
 private:
-    bool _revoke;
+    bool _resmng;
 };
 
 }

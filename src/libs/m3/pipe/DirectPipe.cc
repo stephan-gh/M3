@@ -24,7 +24,7 @@
 
 namespace m3 {
 
-DirectPipe::DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size)
+DirectPipe::DirectPipe(Activity &rd, Activity &wr, MemCap &mem, size_t size)
     : _rd(rd),
       _wr(wr),
       _size(size),

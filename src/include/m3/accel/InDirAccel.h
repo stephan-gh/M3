@@ -52,18 +52,19 @@ public:
     } PACKED;
 
     explicit InDirAccel(std::unique_ptr<ChildActivity> &act, RecvGate &reply_gate)
-        : _mgate(),
+        : _mcap(),
           _act(act),
           _rep(EP::alloc_for(act->sel(), EP_RECV, 1)),
           _mep(EP::alloc_for(act->sel(), EP_OUT)),
           _rcap(create_rcap(_rep)),
           _sgate(SendGate::create(&_rcap, SendGateArgs().credits(1).reply_gate(&reply_gate))),
-          _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
+          _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW).activate()) {
     }
 
     void connect_output(InDirAccel *accel) {
-        _mgate = std::make_unique<MemGate>(accel->_mem.derive(BUF_ADDR - MEM_OFFSET, MAX_BUF_SIZE));
-        _mgate->activate_on(_mep);
+        _mcap =
+            std::make_unique<MemCap>(accel->_mem.derive_cap(BUF_ADDR - MEM_OFFSET, MAX_BUF_SIZE));
+        _mcap->activate_on(_mep);
     }
 
     void read(void *data, size_t size) {
@@ -93,7 +94,7 @@ private:
         return rgate;
     }
 
-    std::unique_ptr<MemGate> _mgate;
+    std::unique_ptr<MemCap> _mcap;
     std::unique_ptr<ChildActivity> &_act;
     EP _rep;
     EP _mep;

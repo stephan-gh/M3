@@ -68,13 +68,13 @@ void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSe
     is >> *virt;
 }
 
-void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
+void Pager::map_mem(goff_t *virt, capsel_t mem, size_t len, int prot) {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
     os << opcodes::Pager::MAP_MEM << *virt << len << prot;
     args.bytes = os.total();
 
-    delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, mem.sel()), &args);
+    delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, mem), &args);
 
     ExchangeIStream is(args);
     is >> *virt;

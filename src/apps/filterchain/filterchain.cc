@@ -52,7 +52,6 @@ int main(int argc, char **argv) {
         offset += BUF_SIZE;
         rem -= BUF_SIZE;
     }
-    mem.deactivate();
 
     println("Starting filter chain..."_cf);
 
@@ -63,7 +62,8 @@ int main(int argc, char **argv) {
     // create a gate the sender can send to (at the receiver)
     RecvCap rcap = RecvCap::create(nextlog2<512>::val, nextlog2<64>::val);
     SendCap scap = SendCap::create(&rcap, SendGateArgs().credits(1));
-    MemGate resmem = MemGate::create_global(BUF_SIZE, MemGate::RW);
+    MemCap inputmem = mem.derive_cap(0, memSize);
+    MemCap resmem = MemCap::create_global(BUF_SIZE, MemCap::RW);
 
     t2.delegate_obj(rcap.sel());
 
@@ -90,11 +90,11 @@ int main(int argc, char **argv) {
 
     auto tile1 = Tile::get("compat|own");
     ChildActivity t1(tile1, "sender");
-    t1.delegate_obj(mem.sel());
+    t1.delegate_obj(inputmem.sel());
     t1.delegate_obj(resmem.sel());
     t1.delegate_obj(scap.sel());
 
-    t1.data_sink() << mem.sel() << scap.sel() << resmem.sel() << memSize;
+    t1.data_sink() << inputmem.sel() << scap.sel() << resmem.sel() << memSize;
 
     t1.run([] {
         capsel_t mem_sel, sgate_sel, resmem_sel;

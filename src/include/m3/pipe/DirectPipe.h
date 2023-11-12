@@ -88,7 +88,7 @@ public:
      * @param mem the shared memory area
      * @param size the size of the shared memory area
      */
-    explicit DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size);
+    explicit DirectPipe(Activity &rd, Activity &wr, MemCap &mem, size_t size);
     DirectPipe(const DirectPipe &) = delete;
     DirectPipe &operator=(const DirectPipe &) = delete;
     ~DirectPipe();
@@ -133,8 +133,8 @@ private:
     Activity &_wr;
     size_t _size;
     RecvCap _rcap;
-    MemGate _rmem;
-    MemGate _wmem;
+    MemCap _rmem;
+    MemCap _wmem;
     SendCap _scap;
     fd_t _rdfd;
     fd_t _wrfd;

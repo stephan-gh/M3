@@ -30,53 +30,76 @@
 
 namespace m3 {
 
-MemGate::~MemGate() {
-    if(!(flags() & KEEP_CAP) && !_revoke) {
+static bool destruct(capsel_t sel, uint flags, bool resmng) {
+    if(!(flags & ObjCap::KEEP_CAP) && resmng) {
         try {
-            Activity::own().resmng()->free_mem(sel());
+            Activity::own().resmng()->free_mem(sel);
         }
         catch(...) {
             // ignore
         }
-        flags(KEEP_CAP);
+        return true;
     }
+    return false;
 }
 
-MemGate MemGate::create_global(size_t size, int perms, capsel_t sel, uint flags) {
+MemCap MemCap::create_global(size_t size, int perms, capsel_t sel) {
     if(sel == INVALID)
         sel = SelSpace::get().alloc_sel();
     Activity::own().resmng()->alloc_mem(sel, size, perms);
-    return MemGate(flags, sel, false);
+    return MemCap(0, sel, true);
 }
 
-MemGate MemGate::bind_bootmod(const std::string_view &name) {
+MemCap MemCap::bind_bootmod(const std::string_view &name) {
     auto sel = SelSpace::get().alloc_sel();
     Activity::own().resmng()->use_mod(sel, name);
-    return MemGate(0, sel, true);
+    return MemCap(0, sel, false);
 }
 
-MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
+MemCap MemCap::derive(goff_t offset, size_t size, int perms) const {
     capsel_t nsel = SelSpace::get().alloc_sel();
     Syscalls::derive_mem(Activity::own().sel(), nsel, sel(), offset, size, perms);
-    return MemGate(0, nsel, true);
+    return MemCap(0, nsel, false);
 }
 
-MemGate MemGate::derive_for(capsel_t act, capsel_t cap, goff_t offset, size_t size, int perms,
-                            uint flags) const {
+MemCap MemCap::derive_for(capsel_t act, capsel_t cap, goff_t offset, size_t size, int perms) const {
     Syscalls::derive_mem(act, cap, sel(), offset, size, perms);
-    return MemGate(flags, cap, true);
+    return MemCap(0, cap, false);
+}
+
+MemGate MemCap::activate() {
+    auto org_flags = flags();
+
+    EP *ep = Gate::activate(sel());
+
+    // don't revoke the cap
+    flags(KEEP_CAP);
+
+    return MemGate(org_flags, sel(), _resmng, ep);
+}
+
+void MemCap::activate_on(const EP &ep) {
+    Gate::activate_on(sel(), ep);
+}
+
+MemCap::~MemCap() {
+    if(destruct(sel(), flags(), _resmng))
+        flags(KEEP_CAP);
+}
+
+MemGate::~MemGate() {
+    if(destruct(sel(), flags(), _resmng))
+        flags(KEEP_CAP);
 }
 
 void MemGate::read(void *data, size_t len, goff_t offset) {
-    const EP &ep = activate();
-    Errors::Code res = TCU::get().read(ep.id(), data, len, offset);
+    Errors::Code res = TCU::get().read(ep()->id(), data, len, offset);
     if(EXPECT_FALSE(res != Errors::SUCCESS))
         throw TCUException(res);
 }
 
 void MemGate::write(const void *data, size_t len, goff_t offset) {
-    const EP &ep = activate();
-    Errors::Code res = TCU::get().write(ep.id(), data, len, offset);
+    Errors::Code res = TCU::get().write(ep()->id(), data, len, offset);
     if(EXPECT_FALSE(res != Errors::SUCCESS))
         throw TCUException(res);
 }

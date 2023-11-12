@@ -35,17 +35,17 @@ RecvBuf *RecvBufs::alloc(size_t size) {
         vthrow(Errors::NO_SPACE, "Insufficient rbuf space for {}b"_cf, size);
 
     auto addr = maybe_addr.unwrap();
-    std::unique_ptr<MemGate> mgate;
+    std::unique_ptr<MemCap> mcap;
     if(vm) {
         // allocate memory
         size_t aligned_size = Math::round_up(size, static_cast<size_t>(PAGE_SIZE));
-        mgate.reset(new MemGate(MemGate::create_global(aligned_size, MemGate::R)));
+        mcap.reset(new MemCap(MemCap::create_global(aligned_size, MemCap::R)));
 
         // map receive buffer
         capsel_t dst = addr / PAGE_SIZE;
         capsel_t pages = aligned_size / PAGE_SIZE;
         try {
-            Syscalls::create_map(dst, Activity::own().sel(), mgate->sel(), 0, pages, MemGate::R);
+            Syscalls::create_map(dst, Activity::own().sel(), mcap->sel(), 0, pages, MemCap::R);
 #if defined(__m3lx__)
             m3lx::mmap_tcu(m3lx::tcu_fd(), reinterpret_cast<void *>(addr), aligned_size,
                            m3lx::MemType::Custom, KIF::Perm::R);
@@ -58,7 +58,7 @@ RecvBuf *RecvBufs::alloc(size_t size) {
         }
     }
 
-    return new RecvBuf(addr, size, mgate);
+    return new RecvBuf(addr, size, mcap);
 }
 
 void RecvBufs::free(RecvBuf *rbuf) noexcept {

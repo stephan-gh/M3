@@ -30,7 +30,7 @@ static constexpr size_t DATA_SIZE = PIPE_SIZE / 4;
 
 void tepoll() {
     Pipes pipes("pipes");
-    MemGate mem = MemGate::create_global(PIPE_SIZE, MemGate::RW);
+    MemCap mem = MemCap::create_global(PIPE_SIZE, MemCap::RW);
     IndirectPipe pipe(pipes, mem, PIPE_SIZE);
 
     pipe.reader().set_blocking(false);

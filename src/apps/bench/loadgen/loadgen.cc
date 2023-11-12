@@ -47,17 +47,17 @@ public:
 
     void send_request() {
         if(rem_req > 0) {
-            mgate->write(http_req, sizeof(http_req), 0);
+            mgate->get().write(http_req, sizeof(http_req), 0);
             auto msg = create_vmsg(sizeof(http_req));
-            sgate->send(msg.finish(), ptr_to_label(this));
+            sgate->get().send(msg.finish(), ptr_to_label(this));
             rem_req--;
         }
     }
 
     uint rem_req;
     SendCap cliscap;
-    std::unique_ptr<SendGate> sgate;
-    std::unique_ptr<MemGate> mgate;
+    std::unique_ptr<LazyGate<SendGate>> sgate;
+    std::unique_ptr<LazyGate<MemGate>> mgate;
 };
 
 class ReqHandler;
@@ -104,8 +104,8 @@ public:
 
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, SelSpace::get().alloc_sels(2), 2);
 
-        sess->sgate.reset(new SendGate(SendGate::bind(crd.start() + 0, &_rgate)));
-        sess->mgate.reset(new MemGate(MemGate::bind(crd.start() + 1)));
+        sess->sgate.reset(new LazyGate<SendGate>(SendCap::bind(crd.start() + 0, &_rgate)));
+        sess->mgate.reset(new LazyGate<MemGate>(MemCap::bind(crd.start() + 1)));
 
         xchg.out_caps(crd);
         return Errors::SUCCESS;
