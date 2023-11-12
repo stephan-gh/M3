@@ -27,7 +27,6 @@ static const int msg_ord = nextlog2<256>::val;
 
 static void send_errors() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
-    rgate.activate();
     auto sgate = SendGate::create(&rgate, SendGateArgs());
 
     {

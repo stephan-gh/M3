@@ -35,13 +35,13 @@ const EP &Gate::acquire_ep() {
 const EP &Gate::activate(capsel_t rbuf_mem, goff_t rbuf_off) {
     if(!_ep) {
         _ep = EPMng::get().acquire();
-        activate_on(*_ep, rbuf_mem, rbuf_off);
+        activate_on(sel(), *_ep, rbuf_mem, rbuf_off);
     }
     return *_ep;
 }
 
-void Gate::activate_on(const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
-    Syscalls::activate(ep.sel(), sel(), rbuf_mem, rbuf_off);
+void Gate::activate_on(capsel_t sel, const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
+    Syscalls::activate(ep.sel(), sel, rbuf_mem, rbuf_off);
 }
 
 void Gate::deactivate() {

@@ -86,17 +86,17 @@ NOINLINE static void create_rgate() {
 
 NOINLINE static void create_sgate() {
     struct SyscallSGateRunner : public Runner {
-        explicit SyscallSGateRunner() : rgate(RecvGate::create(10, 10)) {
+        explicit SyscallSGateRunner() : rcap(RecvCap::create(10, 10)) {
         }
         void run() override {
-            Syscalls::create_sgate(selector, rgate.sel(), 0x1234, 1024);
+            Syscalls::create_sgate(selector, rcap.sel(), 0x1234, 1024);
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(),
                              KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
-        RecvGate rgate;
+        RecvCap rcap;
     };
 
     Profile pr;

@@ -151,7 +151,6 @@ CycleDuration chain_indirect(const char *in, size_t num) {
 
     RecvGate reply_gate =
         RecvGate::create(getnextlog2(REPLY_SIZE * num * ACCEL_COUNT), nextlog2<REPLY_SIZE>::val);
-    reply_gate.activate();
 
     FileRef<GenericFile> infds[num];
     FileRef<GenericFile> outfds[num];

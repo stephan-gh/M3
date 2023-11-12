@@ -61,13 +61,13 @@ int main(int argc, char **argv) {
     ChildActivity t2(tile2, "receiver");
 
     // create a gate the sender can send to (at the receiver)
-    RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
-    SendCap scap = SendCap::create(&rgate, SendGateArgs().credits(1));
+    RecvCap rcap = RecvCap::create(nextlog2<512>::val, nextlog2<64>::val);
+    SendCap scap = SendCap::create(&rcap, SendGateArgs().credits(1));
     MemGate resmem = MemGate::create_global(BUF_SIZE, MemGate::RW);
 
-    t2.delegate_obj(rgate.sel());
+    t2.delegate_obj(rcap.sel());
 
-    t2.data_sink() << rgate.sel();
+    t2.data_sink() << rcap.sel();
 
     t2.run([] {
         capsel_t rgate_sel;

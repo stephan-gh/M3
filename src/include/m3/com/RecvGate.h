@@ -39,6 +39,89 @@ class RecvBuf;
 class EnvUserBackend;
 
 /**
+ * A receive capability is the precursor of a RecvGate.
+ *
+ * RecvCap can be turned into a RecvGate through activation.
+ */
+class RecvCap : public ObjCap {
+    explicit RecvCap(capsel_t sel, uint order, uint msgorder, uint flags, bool create);
+
+public:
+    /**
+     * Creates a new receive capability with given size.
+     *
+     * @param order the size of the buffer (2^<order> bytes)
+     * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
+     * @return the receive capability
+     */
+    static RecvCap create(uint order, uint msgorder);
+    /**
+     * Creates a new receive capability at selector <sel> with given size.
+     *
+     * @param sel the capability selector to use
+     * @param order the size of the buffer (2^<order> bytes)
+     * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
+     * @return the receive capability
+     */
+    static RecvCap create(capsel_t sel, uint order, uint msgorder);
+
+    /**
+     * Creates the receive capability with given name as defined in the application's configuration.
+     *
+     * @param name the name in the configuration file
+     * @return the receive capability
+     */
+    static RecvCap create_named(const char *name);
+
+    /**
+     * Binds the receive capability at selector <sel>.
+     *
+     * @param sel the capability selector
+     * @return the receive capability
+     */
+    static RecvCap bind(capsel_t sel) noexcept;
+
+    RecvCap(const RecvCap &) = delete;
+    RecvCap &operator=(const RecvCap &) = delete;
+    RecvCap(RecvCap &&r) noexcept : ObjCap(std::move(r)), _order(r._order), _msgorder(r._msgorder) {
+    }
+
+    /**
+     * @return the number of slots in the receive buffer
+     */
+    uint slots() const {
+        fetch_buffer_size();
+        return 1U << (_order - _msgorder);
+    }
+
+    /**
+     * Activates this RecvCap and thereby turns it into a usable RecvGate
+     *
+     * This will allocate a new EP from the EPMng.
+     *
+     * @return the created RecvGate
+     */
+    RecvGate activate();
+
+    /**
+     * Activates this receive gate on the given endpoint with given receive buffer address. This
+     * call is intended for CUs that don't manage their own receive buffer space. For that reason,
+     * the receive buffer addresses needs to be chosen externally.
+     *
+     * @param ep the endpoint
+     * @param mem the receive buffer (nullptr for SPM)
+     * @param off the offset within the buffer
+     */
+    void activate_on(const EP &ep, MemGate *mem, size_t off);
+
+private:
+    void fetch_buffer_size() const;
+
+    mutable uint _order;
+    mutable uint _msgorder;
+};
+
+/**
  * A receive gate is used to receive messages from send gates. To this end, it has a receive buffer
  * of a fixed message and total size. Multiple send gates can be created for one receive gate. After
  * a message has been received, the reply operation can be used to send a reply back to the sender.
@@ -48,6 +131,9 @@ class EnvUserBackend;
  * received messages. In this case, a WorkLoop item is created.
  */
 class RecvGate : public Gate {
+    typedef RecvCap Cap;
+
+    friend class RecvCap;
     friend class Pager;
     template<class HDL>
     friend class Server;
@@ -67,16 +153,8 @@ class RecvGate : public Gate {
         RecvGate *_gate;
     };
 
-    explicit RecvGate(capsel_t cap, size_t addr, uint order, uint msgorder, uint flags) noexcept
-        : Gate(RECV_GATE, cap, flags),
-          _buf(),
-          _buf_addr(addr),
-          _order(order),
-          _msgorder(msgorder),
-          _handler(),
-          _workitem() {
-    }
-    explicit RecvGate(capsel_t cap, size_t addr, epid_t ep, uint order, uint msgorder, uint flags);
+    explicit RecvGate(capsel_t cap, size_t addr, RecvBuf *buf, EP *ep, uint order, uint msgorder,
+                      uint flags) noexcept;
 
 public:
     using msghandler_t = std::function<void(GateIStream &)>;
@@ -108,17 +186,20 @@ public:
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate create(uint order, uint msgorder);
+    static RecvGate create(uint order, uint msgorder) {
+        return RecvCap::create(order, msgorder).activate();
+    }
     /**
      * Creates a new receive gate at selector <sel> with given size.
      *
      * @param sel the capability selector to use
      * @param order the size of the buffer (2^<order> bytes)
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
-     * @param flags the flags to control whether the cap is kept
      * @return the receive gate
      */
-    static RecvGate create(capsel_t sel, uint order, uint msgorder, uint flags = 0);
+    static RecvGate create(capsel_t sel, uint order, uint msgorder) {
+        return RecvCap::create(sel, order, msgorder).activate();
+    }
 
     /**
      * Creates the receive gate with given name as defined in the application's configuration.
@@ -127,7 +208,9 @@ public:
      * @param replygate the receive gate to which the replies should be sent
      * @return the receive gate
      */
-    static RecvGate create_named(const char *name);
+    static RecvGate create_named(const char *name) {
+        return RecvCap::create_named(name).activate();
+    }
 
     /**
      * Binds the receive gate at selector <sel>.
@@ -135,7 +218,9 @@ public:
      * @param sel the capability selector
      * @return the receive gate
      */
-    static RecvGate bind(capsel_t sel) noexcept;
+    static RecvGate bind(capsel_t sel) {
+        return RecvCap::bind(sel).activate();
+    }
 
     RecvGate(const RecvGate &) = delete;
     RecvGate &operator=(const RecvGate &) = delete;
@@ -144,6 +229,7 @@ public:
           _buf(r._buf),
           _buf_addr(r._buf_addr),
           _order(r._order),
+          _msgorder(r._msgorder),
           _handler(r._handler),
           _workitem(std::move(r._workitem)) {
         r._buf = nullptr;
@@ -154,36 +240,16 @@ public:
     /**
      * @return the address of the receive buffer (or 0 if not activated)
      */
-    uintptr_t address() const noexcept;
+    uintptr_t address() const noexcept {
+        return _buf_addr;
+    }
 
     /**
      * @return the number of slots in the receive buffer
      */
-    uint slots() const {
-        fetch_buffer_size();
+    uint slots() const noexcept {
         return 1U << (_order - _msgorder);
     }
-
-    /**
-     * Activates this receive gate, i.e., lets the kernel configure a free endpoint for it.
-     */
-    void activate();
-
-    /**
-     * Activates this receive gate on the given endpoint with given receive buffer address. This
-     * call is intended for CUs that don't manage their own receive buffer space. For that reason,
-     * the receive buffer addresses needs to be chosen externally.
-     *
-     * @param ep the endpoint
-     * @param mem the receive buffer (nullptr for SPM)
-     * @param off the offset within the buffer
-     */
-    void activate_on(const EP &ep, MemGate *mem, size_t off);
-
-    /**
-     * Deactivates and stops the receive gate.
-     */
-    void deactivate() noexcept;
 
     /**
      * Starts to listen for received messages, i.e., adds an item to the given workloop.
@@ -203,7 +269,7 @@ public:
      *
      * @return true if there are unread messages
      */
-    bool has_msgs();
+    bool has_msgs() noexcept;
 
     /**
      * Suspend the activity until a message arrives on this RecvGate.
@@ -215,7 +281,7 @@ public:
      *
      * @return the message or nullptr
      */
-    const TCU::Message *fetch();
+    const TCU::Message *fetch() noexcept;
 
     /**
      * Waits until a message is received. If <sgate> is given, it will stop if as soon as <sgate>
@@ -251,7 +317,7 @@ public:
      *
      * @param msg the message
      */
-    void ack_msg(const TCU::Message *msg);
+    void ack_msg(const TCU::Message *msg) noexcept;
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.
@@ -261,16 +327,10 @@ public:
     void drop_msgs_with(label_t label) noexcept;
 
 private:
-    void fetch_buffer_size() const;
-
-    void set_ep(epid_t ep) {
-        Gate::set_ep(new EP(EP::bind(ep)));
-    }
-
     RecvBuf *_buf;
     size_t _buf_addr;
-    mutable uint _order;
-    mutable uint _msgorder;
+    uint _order;
+    uint _msgorder;
     msghandler_t _handler;
     std::unique_ptr<RecvGateWorkItem> _workitem;
     static RecvGate _syscall;

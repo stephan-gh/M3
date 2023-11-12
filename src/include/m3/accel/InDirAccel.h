@@ -56,8 +56,8 @@ public:
           _act(act),
           _rep(EP::alloc_for(act->sel(), EP_RECV, 1)),
           _mep(EP::alloc_for(act->sel(), EP_OUT)),
-          _rgate(create_rgate(_rep)),
-          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1).reply_gate(&reply_gate))),
+          _rcap(create_rcap(_rep)),
+          _sgate(SendGate::create(&_rcap, SendGateArgs().credits(1).reply_gate(&reply_gate))),
           _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
     }
 
@@ -86,8 +86,8 @@ public:
     }
 
 private:
-    static RecvGate create_rgate(EP &rep) {
-        auto rgate = RecvGate::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE));
+    static RecvCap create_rcap(EP &rep) {
+        auto rgate = RecvCap::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE));
         // activate EP
         rgate.activate_on(rep, nullptr, RECV_ADDR);
         return rgate;
@@ -97,7 +97,7 @@ private:
     std::unique_ptr<ChildActivity> &_act;
     EP _rep;
     EP _mep;
-    RecvGate _rgate;
+    RecvCap _rcap;
     SendGate _sgate;
     MemGate _mem;
 };

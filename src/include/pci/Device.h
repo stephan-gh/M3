@@ -85,8 +85,8 @@ private:
     m3::MemGate _mem;
     m3::EP _sep;
     m3::EP _mep;
-    m3::RecvGate _intgate;  // receives interrupts from the proxied pci device
-    m3::SendGate _sintgate; // used by the proxied pci device to signal interrupts to its driver
+    m3::RecvGate _intgate; // receives interrupts from the proxied pci device
+    m3::SendCap _sintgate; // used by the proxied pci device to signal interrupts to its driver
     std::function<void()> _callback;
 };
 

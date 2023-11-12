@@ -92,7 +92,7 @@ private:
 /**
  * A send capability is the precursor of a SendGate.
  *
- * SendCap implements GateCap and can therefore be turned into a SendGate through activation.
+ * SendCap can be turned into a SendGate through activation.
  */
 class SendCap : public ObjCap {
     friend class SendGate;
@@ -110,7 +110,7 @@ public:
      * @param args additional arguments
      * @return the send gate
      */
-    static SendCap create(RecvGate *rgate, const SendGateArgs &args = SendGateArgs());
+    static SendCap create(ObjCap *rgate, const SendGateArgs &args = SendGateArgs());
 
     /**
      * Creates the send gate with given name as defined in the application's configuration.
@@ -190,7 +190,7 @@ public:
      * @param args additional arguments
      * @return the send gate
      */
-    static SendGate create(RecvGate *rgate, const SendGateArgs &args = SendGateArgs()) {
+    static SendGate create(ObjCap *rgate, const SendGateArgs &args = SendGateArgs()) {
         return SendCap::create(rgate, args).activate();
     }
 

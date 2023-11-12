@@ -27,7 +27,7 @@
 
 namespace m3 {
 
-SendCap SendCap::create(RecvGate *rgate, const SendGateArgs &args) {
+SendCap SendCap::create(ObjCap *rgate, const SendGateArgs &args) {
     auto sel = args._sel == INVALID ? SelSpace::get().alloc_sel() : args._sel;
     Syscalls::create_sgate(sel, rgate->sel(), args._label, args._credits);
     return SendCap(sel, args._flags, args._reply_gate);

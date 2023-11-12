@@ -47,7 +47,6 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t 
 
     RecvGate reply_gate =
         RecvGate::create(getnextlog2(REPLY_SIZE * num), nextlog2<REPLY_SIZE>::val);
-    reply_gate.activate();
 
     // create activities
     for(size_t i = 0; i < num; ++i) {

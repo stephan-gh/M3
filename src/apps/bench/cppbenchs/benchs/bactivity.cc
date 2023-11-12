@@ -43,7 +43,6 @@ NOINLINE static void run() {
     const ulong repeats = 4;
 
     auto rgate = RecvGate::create(nextlog2<256>::val, nextlog2<256>::val);
-    rgate.activate();
     auto scap = SendCap::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
 
     auto tile = Tile::get("compat|own");

@@ -36,7 +36,6 @@ DirectPipeWriter::State::State(capsel_t caps, size_t size)
       _wrpos(),
       _capacity(DirectPipe::MSG_BUF_SIZE / DirectPipe::MSG_SIZE),
       _eof() {
-    _rgate.activate();
 }
 
 Option<size_t> DirectPipeWriter::State::find_spot(size_t *len) noexcept {
@@ -125,7 +124,6 @@ Option<size_t> DirectPipeWriter::write(const void *buffer, size_t count) {
                 receive_vmsg(_state->_rgate, len);
             }
             else {
-                _state->_rgate.activate();
                 const TCU::Message *msg = _state->_rgate.fetch();
                 if(msg) {
                     GateIStream is(_state->_rgate, msg);

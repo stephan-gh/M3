@@ -135,7 +135,11 @@ public:
     virtual ~Gate();
 
     const EP &activate(capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
-    void activate_on(const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
+    void activate_on(const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0) {
+        activate_on(sel(), ep, rbuf_mem, rbuf_off);
+    }
+    static void activate_on(capsel_t sel, const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL,
+                            goff_t rbuf_off = 0);
     void deactivate();
 
 protected:

@@ -45,7 +45,6 @@ public:
               _scap(SendCap::create(&_rgate, SendGateArgs().credits(1).sel(sels + 0))),
               _mgate(MemGate::create_global(memsize, MemGate::RW, sels + 1)),
               _is() {
-            _rgate.activate();
         }
 
         void wait() {

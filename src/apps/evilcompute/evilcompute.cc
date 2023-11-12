@@ -27,7 +27,6 @@ using namespace m3;
 int main(int argc, char **argv) {
     // send a message to ourself, but don't fetch it
     RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
-    rgate.activate();
     SendGate sgate = SendGate::create(&rgate);
     send_vmsg(sgate, 1, 2, 3);
 

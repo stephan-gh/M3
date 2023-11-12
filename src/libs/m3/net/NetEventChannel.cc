@@ -25,8 +25,6 @@ NetEventChannel::NetEventChannel(capsel_t caps)
     : _rgate(RecvGate::bind(caps + 0)),
       _rplgate(RecvGate::create(nextlog2<REPLY_BUF_SIZE>::val, nextlog2<REPLY_SIZE>::val)),
       _sgate(SendGate::bind(caps + 1, &_rplgate)) {
-    _rgate.activate();
-    _rplgate.activate();
 }
 
 Errors::Code NetEventChannel::build_data_message(void *buffer, size_t buf_size, const Endpoint &ep,

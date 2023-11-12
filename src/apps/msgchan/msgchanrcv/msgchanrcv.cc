@@ -24,7 +24,6 @@ using namespace m3;
 
 int main() {
     RecvGate rgate = RecvGate::create_named("chan");
-    rgate.activate();
 
     SendGate s1 = SendGate::create_named("reply1");
     SendGate s2 = SendGate::create_named("reply2");

@@ -97,7 +97,7 @@ public:
      * @return the capabilities (rgate, memory and sgate)
      */
     capsel_t caps() const noexcept {
-        return _rgate.sel();
+        return _rcap.sel();
     }
     /**
      * @return the size of the shared memory area
@@ -132,7 +132,7 @@ private:
     Activity &_rd;
     Activity &_wr;
     size_t _size;
-    RecvGate _rgate;
+    RecvCap _rcap;
     MemGate _rmem;
     MemGate _wmem;
     SendCap _scap;

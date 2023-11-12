@@ -26,7 +26,6 @@ int main() {
     capsel_t sel = 1000;
 
     RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
-    rgate.activate();
     while(1) {
         try {
             m3::Syscalls::create_sgate(sel++, rgate.sel(), 0, SendGate::UNLIMITED);

@@ -90,7 +90,6 @@ Option<size_t> DirectPipeReader::read(void *buffer, size_t count) {
                 receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen));
         }
         else {
-            _state->_rgate.activate();
             const TCU::Message *msg = _state->_rgate.fetch();
             if(msg) {
                 _state->_is = std::make_unique<GateIStream>(GateIStream(_state->_rgate, msg));

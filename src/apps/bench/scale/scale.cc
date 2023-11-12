@@ -38,16 +38,16 @@ struct App {
           argv(argv),
           tile(tile),
           act(tile, argv[0]),
-          rgate(RecvGate::create(6, 6)),
-          sgate(SendGate::create(&rgate)) {
-        act.delegate_obj(rgate.sel());
+          rcap(RecvCap::create(6, 6)),
+          sgate(SendGate::create(&rcap)) {
+        act.delegate_obj(rcap.sel());
     }
 
     size_t argc;
     const char **argv;
     Reference<Tile> tile;
     ChildActivity act;
-    RecvGate rgate;
+    RecvCap rcap;
     SendGate sgate;
 };
 
@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
         apps[i]->argv[4] = "-g";
 
         OStringStream rgatesel(new char[11], 11);
-        format_to(rgatesel, "{}"_cf, apps[i]->rgate.sel());
+        format_to(rgatesel, "{}"_cf, apps[i]->rcap.sel());
         apps[i]->argv[5] = rgatesel.str();
         apps[i]->argv[6] = "-f";
         apps[i]->argv[7] = inst_name.str();
