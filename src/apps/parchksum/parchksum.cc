@@ -89,8 +89,14 @@ int main(int argc, char **argv) {
     }
 
     // wait for all workers
-    for(size_t i = 0; i < acts; ++i)
+    for(size_t i = 0; i < acts; ++i) {
         worker[i]->act.wait();
+        delete worker[i];
+    }
+
+    // create new workers
+    for(size_t i = 0; i < acts; ++i)
+        worker[i] = new Worker(rgate, mem, i * SUBAREA_SIZE, SUBAREA_SIZE);
 
     // now build the checksum
     for(size_t i = 0; i < acts; ++i) {
