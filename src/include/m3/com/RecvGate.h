@@ -32,11 +32,7 @@ namespace m3 {
 class GateIStream;
 class MemCap;
 class SendGate;
-class Activity;
-template<class HDL>
-class Server;
 class RecvBuf;
-class EnvUserBackend;
 
 /**
  * A receive capability is the precursor of a RecvGate.
@@ -134,13 +130,6 @@ class RecvGate : public Gate {
     typedef RecvCap Cap;
 
     friend class RecvCap;
-    friend class Pager;
-    template<class HDL>
-    friend class Server;
-    friend class AladdinAccel;
-    friend class InDirAccel;
-    friend class StreamAccel;
-    friend class EnvUserBackend;
 
     class RecvGateWorkItem : public WorkItem {
     public:

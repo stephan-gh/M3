@@ -46,14 +46,12 @@ namespace m3 {
 class ResMng;
 class OwnActivity;
 class ChildActivity;
-class ClientSession;
 
 /**
  * Represents an activity on a tile. On general-purpose tiles, the activity executes code on the
  * core. On accelerator/device tiles, the activity uses the logic of the accelerator/device.
  */
 class Activity : public ObjCap {
-    friend class ClientSession;
     friend class ChildActivity;
 
     static constexpr size_t DATA_SIZE = 256;
