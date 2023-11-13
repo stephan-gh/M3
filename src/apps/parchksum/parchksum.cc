@@ -145,5 +145,6 @@ int main(int argc, char **argv) {
         worker[i]->act.wait();
         delete worker[i];
     }
+    delete[] worker;
     return 0;
 }
