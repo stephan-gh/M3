@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
             }
 
             println("Checksum for sub area finished"_cf);
-            send_vmsg(sgate, checksum);
+            send_receive_vmsg(sgate, checksum);
             return 0;
         });
     }
@@ -135,7 +135,8 @@ int main(int argc, char **argv) {
     uint checksum = 0;
     for(size_t i = 0; i < acts; ++i) {
         uint actchksum;
-        receive_vmsg(rgate, actchksum);
+        auto msg = receive_vmsg(rgate, actchksum);
+        reply_vmsg(msg, 0);
         checksum += actchksum;
     }
 
