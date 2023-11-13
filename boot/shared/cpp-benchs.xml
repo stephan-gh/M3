@@ -15,7 +15,7 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager">
+                <app args="pager maxcli=3">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
