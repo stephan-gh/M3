@@ -252,8 +252,8 @@ fn create_rgate(
 #[allow(clippy::vec_box)]
 struct WorkloopArgs<'s, 'c, 'd, 'q, 'r> {
     starter: &'s mut RootChildStarter,
-    childs: &'c mut ChildManager,
-    delayed: &'d mut Vec<Box<OwnChild>>,
+    childmng: &'c mut ChildManager,
+    childs: &'d mut Vec<Box<OwnChild>>,
     reqs: &'q requests::Requests,
     res: &'r mut Resources,
 }
@@ -261,13 +261,13 @@ struct WorkloopArgs<'s, 'c, 'd, 'q, 'r> {
 fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
     let WorkloopArgs {
         starter,
+        childmng,
         childs,
-        delayed,
         reqs,
         res,
     } = args;
 
-    reqs.run_loop_async(childs, delayed, res, |_, _| {}, *starter)
+    reqs.run_loop_async(childmng, childs, res, |_, _| {}, *starter)
         .expect("Running the workloop failed");
 }
 
@@ -323,18 +323,18 @@ pub fn main() -> Result<(), Error> {
     .expect("Unable to create sendqueue RecvGate");
     sendqueue::init(squeue_rgate);
 
-    let mut childs = childs::ChildManager::default();
+    let mut childmng = childs::ChildManager::default();
 
     let mut starter = RootChildStarter::new(sub.mods().clone());
 
-    let mut delayed = sub
-        .start_async(&mut childs, &reqs, &mut res, &mut starter)
+    let mut childs = sub
+        .create_childs(&mut childmng, &mut res, &mut starter)
         .expect("Unable to start subsystem");
 
     let mut wargs = WorkloopArgs {
         starter: &mut starter,
+        childmng: &mut childmng,
         childs: &mut childs,
-        delayed: &mut delayed,
         reqs: &reqs,
         res: &mut res,
     };
@@ -347,7 +347,7 @@ pub fn main() -> Result<(), Error> {
         );
     }
 
-    wargs.childs.start_waiting(1);
+    wargs.childmng.start_waiting(1);
 
     workloop(&mut wargs);
 

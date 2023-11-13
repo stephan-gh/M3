@@ -45,9 +45,7 @@ fn subsys_builder(t: &mut dyn WvTester) {
 
     let mut child_sub = SubsystemBuilder::default();
 
-    wv_assert_ok!(
-        child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW))
-    );
+    wv_assert_ok!(child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW)));
     child_sub.add_mod(wv_assert_ok!(MemCap::new(0x1000, Perm::RW)), "test");
     child_sub.add_mem(wv_assert_ok!(MemCap::new(0x4000, Perm::R)), false);
     child_sub.add_tile(wv_assert_ok!(Tile::get("compat")));
@@ -86,26 +84,33 @@ fn start_simple(t: &mut dyn WvTester) {
         || {
             let mut t = DefaultWvTester::default();
 
-            let (reqs, mut childs, child_sub, mut res) = setup_resmng();
+            let (reqs, mut childmng, child_sub, mut res) = setup_resmng();
 
-            let cid = childs.next_id();
-            let delayed = wv_assert_ok!(child_sub.start_async(
+            let cid = childmng.next_id();
+            let mut childs = wv_assert_ok!(child_sub.create_childs(
+                &mut childmng,
+                &mut res,
+                &mut TestStarter {}
+            ));
+            wv_assert_eq!(t, childs.len(), 1);
+
+            wv_assert_ok!(Subsystem::start_async(
+                &mut childmng,
                 &mut childs,
                 &reqs,
                 &mut res,
                 &mut TestStarter {}
             ));
-            wv_assert_eq!(t, delayed.len(), 0);
 
-            wv_assert_eq!(t, childs.children(), 1);
-            wv_assert_eq!(t, childs.daemons(), 0);
-            wv_assert_eq!(t, childs.foreigns(), 0);
+            wv_assert_eq!(t, childmng.children(), 1);
+            wv_assert_eq!(t, childmng.daemons(), 0);
+            wv_assert_eq!(t, childmng.foreigns(), 0);
 
-            let child = wv_assert_some!(childs.child_by_id(cid));
+            let child = wv_assert_some!(childmng.child_by_id(cid));
 
-            childs.kill_child_async(&reqs, &mut res, child.activity_sel(), Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, child.activity_sel(), Code::Success);
 
-            wv_assert_eq!(t, childs.children(), 0);
+            wv_assert_eq!(t, childmng.children(), 0);
 
             Ok(())
         },
@@ -140,40 +145,49 @@ fn start_service_deps(t: &mut dyn WvTester) {
         || {
             let mut t = DefaultWvTester::default();
 
-            let (reqs, mut childs, child_sub, mut res) = setup_resmng();
+            let (reqs, mut childmng, child_sub, mut res) = setup_resmng();
 
-            let cid = childs.next_id();
-            let delayed = wv_assert_ok!(child_sub.start_async(
+            let cid = childmng.next_id();
+            let mut childs = wv_assert_ok!(child_sub.create_childs(
+                &mut childmng,
+                &mut res,
+                &mut TestStarter {}
+            ));
+            wv_assert_eq!(t, childs.len(), 4);
+
+            wv_assert_ok!(Subsystem::start_async(
+                &mut childmng,
                 &mut childs,
                 &reqs,
                 &mut res,
                 &mut TestStarter {}
             ));
-            wv_assert_eq!(t, delayed.len(), 1);
-            wv_assert_eq!(t, delayed[0].name(), "2");
-            wv_assert_eq!(t, delayed[0].has_unmet_reqs(&res), true);
 
-            wv_assert_eq!(t, childs.children(), 3);
-            wv_assert_eq!(t, childs.daemons(), 0);
-            wv_assert_eq!(t, childs.foreigns(), 0);
+            wv_assert_eq!(t, childs.len(), 1);
+            wv_assert_eq!(t, childs[0].name(), "2");
+            wv_assert_eq!(t, childs[0].has_unmet_reqs(&res), true);
 
-            let c1 = wv_assert_some!(childs.child_by_id(cid + 0));
+            wv_assert_eq!(t, childmng.children(), 3);
+            wv_assert_eq!(t, childmng.daemons(), 0);
+            wv_assert_eq!(t, childmng.foreigns(), 0);
+
+            let c1 = wv_assert_some!(childmng.child_by_id(cid + 0));
             wv_assert_eq!(t, c1.name(), "1");
-            childs.kill_child_async(&reqs, &mut res, c1.activity_sel(), Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c1.activity_sel(), Code::Success);
 
-            wv_assert_eq!(t, childs.children(), 2);
+            wv_assert_eq!(t, childmng.children(), 2);
 
-            let c2 = wv_assert_some!(childs.child_by_id(cid + 2));
+            let c2 = wv_assert_some!(childmng.child_by_id(cid + 2));
             wv_assert_eq!(t, c2.name(), "3");
-            childs.kill_child_async(&reqs, &mut res, c2.activity_sel(), Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c2.activity_sel(), Code::Success);
 
-            wv_assert_eq!(t, childs.children(), 1);
+            wv_assert_eq!(t, childmng.children(), 1);
 
-            let c3 = wv_assert_some!(childs.child_by_id(cid + 3));
+            let c3 = wv_assert_some!(childmng.child_by_id(cid + 3));
             wv_assert_eq!(t, c3.name(), "4");
-            childs.kill_child_async(&reqs, &mut res, c3.activity_sel(), Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c3.activity_sel(), Code::Success);
 
-            wv_assert_eq!(t, childs.children(), 0);
+            wv_assert_eq!(t, childmng.children(), 0);
 
             Ok(())
         },
@@ -205,26 +219,34 @@ fn start_resource_split(t: &mut dyn WvTester) {
         || {
             let mut t = DefaultWvTester::default();
 
-            let (reqs, mut childs, child_sub, mut res) = setup_resmng();
+            let (reqs, mut childmng, child_sub, mut res) = setup_resmng();
 
-            let cid = childs.next_id();
-            let delayed = wv_assert_ok!(child_sub.start_async(
+            let cid = childmng.next_id();
+            let mut childs = wv_assert_ok!(child_sub.create_childs(
+                &mut childmng,
+                &mut res,
+                &mut TestStarter {}
+            ));
+            wv_assert_eq!(t, childs.len(), 5);
+
+            wv_assert_ok!(Subsystem::start_async(
+                &mut childmng,
                 &mut childs,
                 &reqs,
                 &mut res,
                 &mut TestStarter {}
             ));
-            wv_assert_eq!(t, delayed.len(), 0);
+            wv_assert_eq!(t, childs.len(), 0);
 
-            wv_assert_eq!(t, childs.children(), 5);
-            wv_assert_eq!(t, childs.daemons(), 0);
-            wv_assert_eq!(t, childs.foreigns(), 0);
+            wv_assert_eq!(t, childmng.children(), 5);
+            wv_assert_eq!(t, childmng.daemons(), 0);
+            wv_assert_eq!(t, childmng.foreigns(), 0);
 
-            let c1 = wv_assert_some!(childs.child_by_id(cid + 0));
-            let c2 = wv_assert_some!(childs.child_by_id(cid + 1));
-            let c3 = wv_assert_some!(childs.child_by_id(cid + 2));
-            let c4 = wv_assert_some!(childs.child_by_id(cid + 3));
-            let c5 = wv_assert_some!(childs.child_by_id(cid + 4));
+            let c1 = wv_assert_some!(childmng.child_by_id(cid + 0));
+            let c2 = wv_assert_some!(childmng.child_by_id(cid + 1));
+            let c3 = wv_assert_some!(childmng.child_by_id(cid + 2));
+            let c4 = wv_assert_some!(childmng.child_by_id(cid + 3));
+            let c5 = wv_assert_some!(childmng.child_by_id(cid + 4));
 
             wv_assert_eq!(t, c1.name(), "1");
             wv_assert_eq!(t, c2.name(), "2");
@@ -357,13 +379,13 @@ fn start_resource_split(t: &mut dyn WvTester) {
             let c3_sel = c3.activity_sel();
             let c2_sel = c2.activity_sel();
             let c1_sel = c1.activity_sel();
-            childs.kill_child_async(&reqs, &mut res, c5_sel, Code::Success);
-            childs.kill_child_async(&reqs, &mut res, c4_sel, Code::Success);
-            childs.kill_child_async(&reqs, &mut res, c3_sel, Code::Success);
-            childs.kill_child_async(&reqs, &mut res, c2_sel, Code::Success);
-            childs.kill_child_async(&reqs, &mut res, c1_sel, Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c5_sel, Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c4_sel, Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c3_sel, Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c2_sel, Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, c1_sel, Code::Success);
 
-            wv_assert_eq!(t, childs.children(), 0);
+            wv_assert_eq!(t, childmng.children(), 0);
 
             Ok(())
         },

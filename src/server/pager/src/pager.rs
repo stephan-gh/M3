@@ -172,8 +172,8 @@ impl subsys::ChildStarter for PagedChildStarter {
 #[allow(clippy::vec_box)]
 struct WorkloopArgs<'t, 'c, 'd, 'r, 'q, 's> {
     starter: &'t mut PagedChildStarter,
-    childs: &'c mut ChildManager,
-    delayed: &'d mut Vec<Box<OwnChild>>,
+    childmng: &'c mut ChildManager,
+    childs: &'d mut Vec<Box<OwnChild>>,
     res: &'r mut Resources,
     reqs: &'q requests::Requests,
     serv: &'s mut Server,
@@ -182,23 +182,23 @@ struct WorkloopArgs<'t, 'c, 'd, 'r, 'q, 's> {
 fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_, '_>) {
     let WorkloopArgs {
         starter,
+        childmng,
         childs,
-        delayed,
         res,
         reqs,
         serv,
     } = args;
 
     reqs.run_loop_async(
+        childmng,
         childs,
-        delayed,
         res,
-        |childs, _res| {
+        |childmng, _res| {
             serv.fetch_and_handle(REQHDL.borrow_mut().deref_mut()).ok();
 
             REQHDL.borrow_mut().fetch_and_handle_msg_with(
                 |_handler, opcode, sess, is| match opcode {
-                    o if o == opcodes::Pager::Pagefault.into() => sess.pagefault(childs, is),
+                    o if o == opcodes::Pager::Pagefault.into() => sess.pagefault(childmng, is),
                     o if o == opcodes::Pager::MapAnon.into() => sess.map_anon(is),
                     o if o == opcodes::Pager::Unmap.into() => sess.unmap(is),
                     _ => Err(Error::new(Code::InvArgs)),
@@ -254,16 +254,16 @@ pub fn main() -> Result<(), Error> {
     .expect("Unable to create sendqueue RecvGate");
     sendqueue::init(squeue_rgate);
 
-    let mut childs = childs::ChildManager::default();
+    let mut childmng = childs::ChildManager::default();
 
-    let mut delayed = subsys
-        .start_async(&mut childs, &reqs, &mut res, &mut starter)
+    let mut childs = subsys
+        .create_childs(&mut childmng, &mut res, &mut starter)
         .expect("Unable to start subsystem");
 
     let mut wargs = WorkloopArgs {
         starter: &mut starter,
+        childmng: &mut childmng,
         childs: &mut childs,
-        delayed: &mut delayed,
         res: &mut res,
         reqs: &reqs,
         serv: &mut srv,
@@ -277,7 +277,7 @@ pub fn main() -> Result<(), Error> {
         );
     }
 
-    wargs.childs.start_waiting(1);
+    wargs.childmng.start_waiting(1);
 
     workloop(&mut wargs);
 

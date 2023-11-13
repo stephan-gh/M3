@@ -23,6 +23,7 @@ use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test}
 
 use resmng::childs::Child;
 use resmng::resources::Resources;
+use resmng::subsys::Subsystem;
 
 use crate::helper::{run_subsys, setup_resmng, TestStarter};
 
@@ -47,28 +48,35 @@ fn basics(t: &mut dyn WvTester) {
         || {
             let mut t = DefaultWvTester::default();
 
-            let (reqs, mut childs, child_sub, mut res) = setup_resmng();
+            let (reqs, mut childmng, child_sub, mut res) = setup_resmng();
 
-            let cid = childs.next_id();
-            let delayed = wv_assert_ok!(child_sub.start_async(
+            let cid = childmng.next_id();
+            let mut childs = wv_assert_ok!(child_sub.create_childs(
+                &mut childmng,
+                &mut res,
+                &mut TestStarter {}
+            ));
+            wv_assert_eq!(t, childs.len(), 1);
+
+            wv_assert_ok!(Subsystem::start_async(
+                &mut childmng,
                 &mut childs,
                 &reqs,
                 &mut res,
                 &mut TestStarter {}
             ));
-            wv_assert_eq!(t, delayed.len(), 0);
-            wv_assert_eq!(t, childs.children(), 1);
+            wv_assert_eq!(t, childmng.children(), 1);
 
-            let child = wv_assert_some!(childs.child_by_id_mut(cid));
+            let child = wv_assert_some!(childmng.child_by_id_mut(cid));
 
             services(&mut t, child, &mut res);
             memories(&mut t, child, &mut res);
             tiles(&mut t, child, &mut res);
 
             let sel = child.activity_sel();
-            childs.kill_child_async(&reqs, &mut res, sel, Code::Success);
+            childmng.kill_child_async(&reqs, &mut res, sel, Code::Success);
 
-            wv_assert_eq!(t, childs.children(), 0);
+            wv_assert_eq!(t, childmng.children(), 0);
 
             Ok(())
         },

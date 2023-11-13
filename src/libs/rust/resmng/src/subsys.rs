@@ -291,14 +291,13 @@ impl Subsystem {
             + (self.mods.len() + self.tiles.len() + self.mems.len() + idx * 2) as Selector
     }
 
-    pub fn start_async(
+    pub fn create_childs(
         &self,
-        childs: &mut childs::ChildManager,
-        reqs: &Requests,
+        childmng: &mut childs::ChildManager,
         res: &mut Resources,
         starter: &mut dyn ChildStarter,
     ) -> Result<Vec<Box<childs::OwnChild>>, VerboseError> {
-        let mut delayed = Vec::new();
+        let mut childs = Vec::new();
 
         let root = self.cfg();
         if Activity::own().resmng().is_none() {
@@ -589,8 +588,8 @@ impl Subsystem {
                 };
 
                 // create child
-                let child_id = childs.alloc_id();
-                let mut child = Box::new(childs::OwnChild::new(
+                let child_id = childmng.alloc_id();
+                let child = Box::new(childs::OwnChild::new(
                     child_id,
                     tile_usage.clone(),
                     domain_tile_usage,
@@ -605,17 +604,38 @@ impl Subsystem {
                 ));
                 log!(LogFlags::ResMngChild, "Created {:?}", child);
 
-                // start it immediately if all dependencies are met or remember it for later
-                if !child.has_unmet_reqs(res) {
-                    starter.start_async(reqs, res, &mut child)?;
-                    childs.add(child);
-                }
-                else {
-                    delayed.push(child);
-                }
+                childs.push(child);
             }
         }
-        Ok(delayed)
+        Ok(childs)
+    }
+
+    #[allow(clippy::vec_box)]
+    pub fn start_async(
+        childmng: &mut childs::ChildManager,
+        childs: &mut Vec<Box<childs::OwnChild>>,
+        reqs: &Requests,
+        res: &mut Resources,
+        starter: &mut dyn ChildStarter,
+    ) -> Result<(), VerboseError> {
+        let mut new_wait = false;
+        let mut idx = 0;
+        while idx < childs.len() {
+            if childs[idx].has_unmet_reqs(res) {
+                idx += 1;
+                continue;
+            }
+
+            let mut child = childs.remove(idx);
+            starter.start_async(reqs, res, &mut child)?;
+            childmng.add(child);
+            new_wait = true;
+        }
+
+        if new_wait {
+            childmng.start_waiting(1);
+        }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -852,34 +872,6 @@ impl SubsystemBuilder {
         self._desc = Some(mem.deactivate());
         Ok(())
     }
-}
-
-#[allow(clippy::vec_box)]
-pub(crate) fn start_delayed_async(
-    childs: &mut childs::ChildManager,
-    delayed: &mut Vec<Box<childs::OwnChild>>,
-    reqs: &Requests,
-    res: &mut Resources,
-    starter: &mut dyn ChildStarter,
-) -> Result<(), VerboseError> {
-    let mut new_wait = false;
-    let mut idx = 0;
-    while idx < delayed.len() {
-        if delayed[idx].has_unmet_reqs(res) {
-            idx += 1;
-            continue;
-        }
-
-        let mut child = delayed.remove(idx);
-        starter.start_async(reqs, res, &mut child)?;
-        childs.add(child);
-        new_wait = true;
-    }
-
-    if new_wait {
-        childs.start_waiting(1);
-    }
-    Ok(())
 }
 
 fn pass_down_tiles(

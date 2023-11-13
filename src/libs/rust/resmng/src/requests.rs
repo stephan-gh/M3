@@ -26,7 +26,7 @@ use m3::vec::Vec;
 use crate::childs::{ChildManager, Id, OwnChild};
 use crate::resources::Resources;
 use crate::sendqueue;
-use crate::subsys::{self, ChildStarter};
+use crate::subsys::{ChildStarter, Subsystem};
 
 pub struct Requests {
     rgate: RecvGate,
@@ -54,12 +54,14 @@ impl Requests {
     {
         let upcall_rg = RecvGate::upcall();
 
+        Subsystem::start_async(childs, delayed, self, res, starter)?;
+
         loop {
             {
                 if let Ok(msg) = self.rgate.fetch() {
                     let is = GateIStream::new(msg, &self.rgate);
                     self.handle_request_async(childs, res, starter, is);
-                    subsys::start_delayed_async(childs, delayed, self, res, starter)?;
+                    Subsystem::start_async(childs, delayed, self, res, starter)?;
                 }
             }
 
