@@ -41,6 +41,8 @@ public:
           _dst(static_cast<char *>(malloc(DEFAULT_SIZE))),
           _max(_dst ? DEFAULT_SIZE : 0),
           _pos() {
+        if(_dst)
+            *_dst = '\0';
     }
 
     /**
@@ -55,6 +57,7 @@ public:
           _dst(dst),
           _max(max),
           _pos() {
+        *_dst = '\0';
     }
 
     /**
@@ -90,6 +93,9 @@ public:
         if(_pos + 1 >= _max && _dynamic) {
             _max *= 2;
             _dst = static_cast<char *>(realloc(_dst, _max));
+            // ensure that we do no longer write into the string
+            if(!_dst)
+                _max = 0;
         }
         // write into the buffer if there is still enough room
         if(_pos + 1 < _max) {
