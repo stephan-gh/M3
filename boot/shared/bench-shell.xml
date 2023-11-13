@@ -15,27 +15,23 @@
                 <app args="pipes" daemon="1">
                     <serv name="pipes" />
                 </app>
-            </dom>
-            <dom>
                 <app args="vterm" daemon="1">
                     <serv name="vterm" />
                     <serial />
                 </app>
             </dom>
             <dom>
-                <app args="pager">
+                <app args="pager maxcli=3">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
                     <tiles type="boom|core" count="1" />
-                    <dom tile="boom|core">
-                        <app args="/bin/shell cat /test.txt | wc">
-                            <mount fs="m3fs" path="/" />
-                            <sess name="pipes" />
-                            <sess name="vterm" />
-                            <tiles type="boom|core" count="2" />
-                        </app>
-                    </dom>
+                    <app args="/bin/shell cat /test.txt | wc">
+                        <mount fs="m3fs" path="/" />
+                        <sess name="pipes" />
+                        <sess name="vterm" />
+                        <tiles type="boom|core" count="2" />
+                    </app>
                 </app>
             </dom>
         </app>
