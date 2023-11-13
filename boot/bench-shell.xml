@@ -27,13 +27,13 @@
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="boom|core" count="1" />
-                    <dom tile="boom|core">
-                        <app args="/bin/shell cat /test.txt | wc">
+                    <tiles type="core" count="1" />
+                    <dom tile="core">
+                        <app args="/bin/shell cat test.txt">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
                             <sess name="vterm" />
-                            <tiles type="boom|core" count="2" />
+                            <tiles type="boom|core" count="1" />
                         </app>
                     </dom>
                 </app>
