@@ -18,7 +18,7 @@
 use m3::cell::{LazyStaticCell, LazyStaticRefCell};
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::{MemCap, MemGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::format;
@@ -42,7 +42,7 @@ static AUDIO_SIZE: LazyStaticCell<usize> = LazyStaticCell::default();
 #[derive(Debug)]
 struct MicSession {
     _serv: ServerSession,
-    img: Option<MemGate>,
+    img: Option<MemCap>,
 }
 
 impl RequestSession for MicSession {
@@ -78,7 +78,11 @@ impl MicSession {
 
         // derive a read-only memory cap for the client. this revokes the previous memory cap, if
         // there was any.
-        sess.img = Some(AUDIO_DATA.borrow().derive(0, AUDIO_SIZE.get(), Perm::R)?);
+        sess.img = Some(
+            AUDIO_DATA
+                .borrow()
+                .derive_cap(0, AUDIO_SIZE.get(), Perm::R)?,
+        );
 
         xchg.out_args().push(AUDIO_SIZE.get());
         xchg.out_caps(kif::CapRngDesc::new(
