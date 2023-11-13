@@ -34,7 +34,7 @@
                             <mod name="tilemux" perm="r" />
                             <tiles type="core" count="2" />
                             <dom>
-                                <app args="/bin/shell" getinfo="1">
+                                <app args="/bin/shell ls -l" getinfo="1">
                                     <mount fs="m3fs" path="/" />
                                     <sess name="pipes" />
                                     <sess name="vterm" />
