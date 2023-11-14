@@ -128,7 +128,7 @@ impl DNS {
     fn generate_request(buf: &mut [u8], txid: u16, name: &str) -> Result<(), VerboseError> {
         // safety: we are still within the allocated vector and DNSHeader has no alignment
         // requirements
-        let mut header = unsafe { &mut *(buf.as_mut_ptr() as *mut DNSHeader) };
+        let header = unsafe { &mut *(buf.as_mut_ptr() as *mut DNSHeader) };
 
         // build DNS request message
         header.id = txid.to_be();
@@ -144,7 +144,7 @@ impl DNS {
 
         // safety: we are still within the allocated vector and DNSQuestionEnd has no alignment
         // requirements
-        let mut qend = unsafe {
+        let qend = unsafe {
             &mut *(buf
                 .as_mut_ptr()
                 .add(mem::size_of::<DNSHeader>() + name.len() + 2)

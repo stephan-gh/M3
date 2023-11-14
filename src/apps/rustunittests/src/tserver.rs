@@ -229,7 +229,7 @@ impl NotSupSession {
         sid: SessId,
         _xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let mut sess = cli.get_mut(sid).unwrap();
+        let sess = cli.get_mut(sid).unwrap();
         sess.calls += 1;
         // stop the service after 5 calls
         if sess.calls == 5 {

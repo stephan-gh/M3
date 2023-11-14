@@ -16,6 +16,7 @@
  * General Public License version 2 for more details.
  */
 
+#![allow(internal_features)]
 #![feature(allocator_internals)]
 #![feature(core_intrinsics)]
 #![feature(maybe_uninit_write_slice)]

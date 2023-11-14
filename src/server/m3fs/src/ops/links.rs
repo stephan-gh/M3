@@ -120,7 +120,7 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
 
                     // remove entry by skipping over it
                     if off > 0 {
-                        let mut prev = DirEntry::from_buffer_mut(&mut block, prev_off);
+                        let prev = DirEntry::from_buffer_mut(&mut block, prev_off);
                         prev.next += entry_next;
                     }
                     // copy the next entry back, if there is any

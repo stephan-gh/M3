@@ -17,6 +17,7 @@
  */
 
 #![no_std]
+#![allow(internal_features)]
 #![feature(alloc_error_handler)]
 #![feature(core_intrinsics)]
 #![feature(lang_items)]
