@@ -11,9 +11,10 @@ cmd_list = options.cmd.split(",")
 
 num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_mem = 1
+num_kecacc = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 accs = ['rot13', 'rot13']
-mem_tile = TileId(0, num_tiles + len(accs))
+mem_tile = TileId(0, num_tiles + len(accs) + num_kecacc)
 
 tiles = []
 
@@ -42,11 +43,21 @@ for i in range(0, len(accs)):
                            epCount=num_eps)
     tiles.append(tile)
 
+for i in range(0, num_kecacc):
+    tile = createKecAccTile(noc=root.noc,
+                            options=options,
+                            id=TileId(0, num_tiles + len(accs) + i),
+                            cmdline=cmd_list[1],  # FIXME
+                            memTile=None,
+                            spmsize='64MB',
+                            epCount=num_eps)
+    tiles.append(tile)
+
 # create the memory tiles
 for i in range(0, num_mem):
     tile = createMemTile(noc=root.noc,
                          options=options,
-                         id=TileId(0, num_tiles + len(accs) + i),
+                         id=TileId(0, num_tiles + len(accs) + num_kecacc + i),
                          size='3072MB',
                          epCount=num_eps)
     tiles.append(tile)
@@ -54,7 +65,7 @@ for i in range(0, num_mem):
 # create tile for serial input
 tile = createSerialTile(noc=root.noc,
                         options=options,
-                        id=TileId(0, num_tiles + len(accs) + num_mem),
+                        id=TileId(0, num_tiles + len(accs) + num_kecacc + num_mem),
                         memTile=None,
                         epCount=num_eps)
 tiles.append(tile)
