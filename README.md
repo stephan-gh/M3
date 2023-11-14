@@ -67,7 +67,7 @@ Note that `M_fpga` and `M_m3` can also be the same, in which case `M3_HW_FPGA_HO
 
 The bitfiles for the hardware platform can be found in `platform/hw/fpga_tools/bitfiles`. The bitfiles are built for the Xilinx VCU118 FPGA. The following command can be used to load a specific bitfile onto the FPGA. This requires an installation of Vivado or Vivado Lab:
 
-    $ ./b loadfpga=fpga_top_v4.5.1.bit
+    $ ./b loadfpga=fpga_top_v4.6.0.bit
 
 With `M3_TARGET=hw22`, the bitfile `fpga_top_v4.4.12` needs to be used.
 
