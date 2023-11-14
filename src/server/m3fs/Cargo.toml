@@ -2,7 +2,7 @@
 name = "m3fs"
 version = "0.1.0"
 authors = ["Nils Asmussen <nils@os.inf.tu-dresden.de>", "Tendsin Mende <tendsin@protonmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 path = "src/m3fs.rs"
@@ -12,4 +12,4 @@ crate-type = ["staticlib"]
 bitflags = "2.1.0"
 m3 = { path = "../../libs/rust/m3" }
 base = { path = "../../libs/rust/base"}
-thread = { path = "../../libs/rust/thread" }
+thread = { path = "../../libs/rust/thread"}

@@ -254,8 +254,6 @@ impl core::fmt::Display for MAC {
 /// Compute an RFC 1071 compliant checksum
 // taken from smoltcp
 pub fn data_checksum(mut data: &[u8]) -> u16 {
-    use core::convert::TryInto;
-
     let mut accum = 0;
 
     // For each 32-byte chunk...

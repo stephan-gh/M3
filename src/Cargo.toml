@@ -41,6 +41,7 @@ members = [
 exclude = [
     "tilemux"
 ]
+resolver = "2"
 
 [profile.release]
 lto = true
