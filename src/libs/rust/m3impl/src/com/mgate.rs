@@ -358,7 +358,9 @@ impl MemGate {
         let mut vec = Vec::<T>::with_capacity(items);
         // we deliberately use uninitialize memory here, because it's performance critical
         // safety: this is okay, because the TCU does not read from `vec`
-        unsafe { vec.set_len(items) };
+        unsafe {
+            vec.set_len(items)
+        };
         self.read(&mut vec, off)?;
         Ok(vec)
     }

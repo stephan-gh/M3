@@ -45,7 +45,9 @@ fn subsys_builder(t: &mut dyn WvTester) {
 
     let mut child_sub = SubsystemBuilder::default();
 
-    wv_assert_ok!(child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW)));
+    wv_assert_ok!(
+        child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW))
+    );
     child_sub.add_mod(wv_assert_ok!(MemCap::new(0x1000, Perm::RW)), "test");
     child_sub.add_mem(wv_assert_ok!(MemCap::new(0x4000, Perm::R)), false);
     child_sub.add_tile(wv_assert_ok!(Tile::get("compat")));
