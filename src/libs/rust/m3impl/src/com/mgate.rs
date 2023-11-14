@@ -358,9 +358,7 @@ impl MemGate {
         let mut vec = Vec::<T>::with_capacity(items);
         // we deliberately use uninitialize memory here, because it's performance critical
         // safety: this is okay, because the TCU does not read from `vec`
-        unsafe {
-            vec.set_len(items)
-        };
+        unsafe { vec.set_len(items) };
         self.read(&mut vec, off)?;
         Ok(vec)
     }
@@ -368,11 +366,7 @@ impl MemGate {
     /// Uses the TCU read command to read from the memory region at offset `off` and stores the read
     /// data into the slice `data`. The number of bytes to read is defined by `data`.
     pub fn read<T>(&self, data: &mut [T], off: GlobOff) -> Result<(), Error> {
-        self.read_bytes(
-            data.as_mut_ptr() as *mut u8,
-            data.len() * mem::size_of::<T>(),
-            off,
-        )
+        self.read_bytes(data.as_mut_ptr() as *mut u8, mem::size_of_val(data), off)
     }
 
     /// Reads `mem::size_of::<T>()` bytes via the TCU read command from the memory region at offset
@@ -393,11 +387,7 @@ impl MemGate {
 
     /// Writes `data` with the TCU write command to the memory region at offset `off`.
     pub fn write<T>(&self, data: &[T], off: GlobOff) -> Result<(), Error> {
-        self.write_bytes(
-            data.as_ptr() as *const u8,
-            data.len() * mem::size_of::<T>(),
-            off,
-        )
+        self.write_bytes(data.as_ptr() as *const u8, mem::size_of_val(data), off)
     }
 
     /// Writes `obj` via the TCU write command to the memory region at offset `off`.

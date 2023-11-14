@@ -239,7 +239,7 @@ pub fn try_read_slice<T>(tile: TileId, addr: GlobOff, data: &mut [T]) -> Result<
         tile,
         addr,
         data.as_mut_ptr() as *mut _ as *mut u8,
-        data.len() * mem::size_of::<T>(),
+        mem::size_of_val(data),
     )
 }
 
@@ -264,12 +264,12 @@ pub fn try_read_mem(
 
 pub fn write_slice<T>(tile: TileId, addr: GlobOff, sl: &[T]) {
     let sl_addr = sl.as_ptr() as *const u8;
-    write_mem(tile, addr, sl_addr, sl.len() * mem::size_of::<T>());
+    write_mem(tile, addr, sl_addr, mem::size_of_val(sl));
 }
 
 pub fn try_write_slice<T>(tile: TileId, addr: GlobOff, sl: &[T]) -> Result<(), Error> {
     let sl_addr = sl.as_ptr() as *const u8;
-    try_write_mem(tile, addr, sl_addr, sl.len() * mem::size_of::<T>())
+    try_write_mem(tile, addr, sl_addr, mem::size_of_val(sl))
 }
 
 pub fn write_mem(tile: TileId, addr: GlobOff, data: *const u8, size: usize) {

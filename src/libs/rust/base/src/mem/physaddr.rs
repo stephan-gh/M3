@@ -37,7 +37,7 @@ pub struct PhysAddr(PhysAddrRaw);
 impl PhysAddr {
     /// Creates a new physical address for given endpoint and offset
     pub const fn new(ep: EpId, off: PhysAddrRaw) -> Self {
-        Self((ep as PhysAddrRaw) << 30 | (cfg::MEM_OFFSET as PhysAddrRaw) + off)
+        Self((ep as PhysAddrRaw) << 30 | ((cfg::MEM_OFFSET as PhysAddrRaw) + off))
     }
 
     /// Creates a new physical address from given raw address

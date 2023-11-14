@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use core::{fmt, mem};
+use core::fmt;
 
 use crate::boxed::Box;
 use crate::cap::Selector;
@@ -115,7 +115,7 @@ impl FileTable {
 
     /// Removes the file with given file descriptor from the table
     pub fn remove(&mut self, fd: Fd) {
-        if let Some(ref mut f) = mem::replace(&mut self.files[fd], None) {
+        if let Some(ref mut f) = self.files[fd].take() {
             f.remove();
         }
     }

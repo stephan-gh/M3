@@ -360,7 +360,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
             clients: ClientManager::new(max_clients, msg_size, max_cli_cons)?,
             msg_hdls: Vec::new(),
             cap_hdls: Vec::new(),
-            _opcode: PhantomData::default(),
+            _opcode: PhantomData,
         })
     }
 

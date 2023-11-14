@@ -404,7 +404,7 @@ where
     ktcu::write_mem(
         tile,
         env_mem_off + *env_off as GlobOff,
-        arg_buf.as_ptr() as *const u8,
+        arg_buf.as_ptr(),
         arg_buf.len(),
     );
 

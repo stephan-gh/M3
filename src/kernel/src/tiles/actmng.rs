@@ -292,9 +292,7 @@ impl ActivityMng {
 
     pub fn remove_activity_async(id: tcu::ActId, revoker: tcu::ActId) {
         let mut actmng = INST.borrow_mut();
-        // Replace item at position
-        // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
-        let act: Option<Rc<Activity>> = base::mem::replace(&mut actmng.acts[id as usize], None);
+        let act: Option<Rc<Activity>> = actmng.acts[id as usize].take();
 
         match act {
             Some(ref v) => {

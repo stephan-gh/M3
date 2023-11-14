@@ -52,7 +52,7 @@ impl<T: ?Sized> FileRef<T> {
         FileRef {
             fd,
             close: false,
-            phantom: PhantomData::default(),
+            phantom: PhantomData,
         }
     }
 
@@ -63,7 +63,7 @@ impl<T: ?Sized> FileRef<T> {
         FileRef {
             fd,
             close: true,
-            phantom: PhantomData::default(),
+            phantom: PhantomData,
         }
     }
 

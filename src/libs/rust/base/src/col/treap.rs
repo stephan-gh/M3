@@ -22,7 +22,6 @@ use core::num::Wrapping;
 use core::ptr::{read_volatile, NonNull};
 
 use crate::boxed::Box;
-use crate::mem;
 
 struct Node<K, V> {
     left: Option<NonNull<Node<K, V>>>,
@@ -81,12 +80,10 @@ impl<K: Copy + Ord, V> Treap<K, V> {
 
     /// Removes all elements from the treap
     pub fn clear(&mut self) {
-        if let Some(r) = mem::replace(&mut self.root, None) {
+        if let Some(r) = self.root.take() {
             Self::remove_rec(r);
             // destroy the node
-            unsafe {
-                drop(Box::from_raw(r.as_ptr()))
-            };
+            unsafe { drop(Box::from_raw(r.as_ptr())) };
         }
 
         self.prio = Wrapping(314_159_265);

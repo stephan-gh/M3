@@ -18,7 +18,6 @@
 
 use m3::boxed::Box;
 use m3::col::{BoxList, BoxRef};
-use m3::mem;
 use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{impl_boxitem, wv_perf, wv_run_test};
@@ -109,7 +108,7 @@ fn push_pop(_t: &mut dyn WvTester) {
         }
 
         fn run(&mut self) {
-            let item = mem::replace(&mut self.1, None);
+            let item = self.1.take();
             self.0.push_front(item.unwrap());
         }
 

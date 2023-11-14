@@ -240,7 +240,7 @@ fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
         helper::config_local_ep(SEP, |regs| {
             TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
         });
-        let buf_addr = unsafe { (buf.bytes.as_ptr() as *const u8).add(cfg::PAGE_SIZE - 16) };
+        let buf_addr = unsafe { buf.bytes.as_ptr().add(cfg::PAGE_SIZE - 16) };
         assert_eq!(
             TCU::send_aligned(SEP, buf_addr, 32, 0x1111, tcu::NO_REPLIES),
             Err(Error::new(Code::PageBoundary))
@@ -264,7 +264,7 @@ fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
             // make it a reply EP
             regs[0] |= 1 << 53;
         });
-        let buf_addr = unsafe { (buf.bytes.as_ptr() as *const u8).add(cfg::PAGE_SIZE - 16) };
+        let buf_addr = unsafe { buf.bytes.as_ptr().add(cfg::PAGE_SIZE - 16) };
         assert_eq!(
             TCU::reply_aligned(REP1, buf_addr, 32, 0),
             Err(Error::new(Code::PageBoundary))
@@ -399,9 +399,7 @@ fn test_pmp_failures() {
     CU_REQS.set(0);
 
     // flush the cache to be sure that the reads cause cache misses
-    unsafe {
-        machine::flush_cache()
-    };
+    unsafe { machine::flush_cache() };
 
     // the physical address is only invalid on RISC-V (where we have a base offset of 0x1000_0000)
     #[cfg(target_arch = "riscv64")]
@@ -474,13 +472,9 @@ fn test_pmp_failures() {
             error: Code::NoPerm,
         }));
         atomic::fence(atomic::Ordering::SeqCst);
-        unsafe {
-            ptr::write_volatile(addr, 0x77)
-        };
+        unsafe { ptr::write_volatile(addr, 0x77) };
         // flush the cache to trigger a LLC miss
-        unsafe {
-            machine::flush_cache()
-        };
+        unsafe { machine::flush_cache() };
 
         while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 2 {}
         assert_eq!(CU_REQS.get(), 2);

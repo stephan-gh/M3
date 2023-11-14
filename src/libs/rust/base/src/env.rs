@@ -30,7 +30,7 @@ use crate::cell::LazyStaticRefCell;
 use crate::cfg;
 use crate::col::{String, ToString, Vec};
 use crate::format;
-use crate::mem::{self, VirtAddr};
+use crate::mem::VirtAddr;
 use crate::util;
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -138,7 +138,7 @@ impl Closure {
 
     /// Calls the closure (can only be done once) and returns its exit code
     pub fn call(&mut self) -> i32 {
-        match mem::replace(&mut self.func, None) {
+        match self.func.take() {
             Some(c) => c(),
             None => 1,
         }
