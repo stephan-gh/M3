@@ -75,14 +75,14 @@ def main():
             return
 
     mods = [] if args.mod is None else args.mod
-
     pmp_size = 16 * 1024 * 1024 if args.vm else 64 * 1024 * 1024
-    ld = loader.Loader(pmp_size)
+
+    ld = loader.Loader(pmp_size, args.vm)
 
     # disable NoC ARQ for program upload
     fpga_inst.set_arq_enable(False)
 
-    ld.init(fpga_inst.pms, fpga_inst.dram1, args.tile, mods, args.logflags, args.vm)
+    ld.init(fpga_inst.pms, fpga_inst.dram1, args.tile, mods, args.logflags)
 
     # enable NoC ARQ when cores are running
     fpga_inst.set_arq_enable(True)
@@ -98,7 +98,7 @@ def main():
     if args.serial is not None:
         terminal = term.LxTerm(args.serial)
     else:
-        terminal = term.TCUTerm(fpga_inst)
+        terminal = term.TCUTerm(fpga_inst.dram1, fpga_inst.nocif)
 
     # write in binary to stdout (we get individual bytes from Linux, for example)
     fdout = os.fdopen(sys.stdout.fileno(), "wb", closefd=False)

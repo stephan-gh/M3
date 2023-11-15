@@ -3,6 +3,8 @@ import sys
 
 from elftools.elf.elffile import ELFFile
 
+import memory
+import pm
 from tcu import EP, MemEP, Flags
 
 import utils
@@ -20,27 +22,29 @@ PMP_ADDR = SERIAL_ADDR + SERIAL_SIZE
 
 
 class Loader:
-    def __init__(self, pmp_size):
+    def __init__(self, pmp_size: int, vm: bool):
         self.pmp_size = pmp_size
+        self.vm = vm
 
-    def init(self, tiles, dram, kernels, mods, logflags, vm):
+    def init(self, tiles: list[pm], dram: memory, kernels: list[str],
+             mods: list[str], logflags: str):
         # load boot info into DRAM
         kernel_tiles = kernels[0:len(tiles)]
-        if vm:
+        if self.vm:
             mods_addr = PMP_ADDR + (len(kernel_tiles) * self.pmp_size)
         else:
             mods_addr = PMP_ADDR + (len(tiles) * self.pmp_size)
-        self._load_boot_info(dram, mods, tiles, vm, mods_addr)
+        self._load_boot_info(tiles, dram, mods, mods_addr)
 
         # init all tiles
         for i, tile in enumerate(tiles, 0):
-            self._init_tile(dram, tile, i, i < len(kernel_tiles), vm)
+            self._init_tile(dram, tile, i, i < len(kernel_tiles))
 
         # load kernels on tiles
         for i, pargs in enumerate(kernel_tiles, 0):
-            self._load_prog(dram, tiles, i, pargs.split(' '), vm, logflags)
+            self._load_prog(tiles, dram, i, pargs.split(' '), logflags)
 
-    def start(self, tiles, debug):
+    def start(self, tiles: list[pm], debug: int):
         # start kernel tiles
         debug_tile = len(tiles) if debug is None else debug
         for i, tile in enumerate(tiles, 0):
@@ -48,7 +52,7 @@ class Loader:
                 # start core (via interrupt 0)
                 tiles[i].rocket_start()
 
-    def _init_tile(self, dram, tile, i, loaded, vm):
+    def _init_tile(self, dram: memory, tile: pm, tile_idx: int, loaded: bool):
         # reset TCU (clear command log and reset registers except FEATURES and EPs)
         tile.tcu_reset()
 
@@ -56,15 +60,15 @@ class Loader:
         tile.rocket_enableTrace()
 
         # set features: privileged, vm, ctxsw
-        tile.tcu_set_features(1, vm, 1)
+        tile.tcu_set_features(1, self.vm, 1)
 
         # invalidate all EPs
         for ep in range(0, 127):
             tile.tcu_set_ep(ep, EP.invalid())
 
         # init PMP EP (for loaded tiles or if SPM should be emulated)
-        if loaded or not vm:
-            mem_begin = PMP_ADDR + i * self.pmp_size
+        if loaded or not self.vm:
+            mem_begin = PMP_ADDR + tile_idx * self.pmp_size
             mem_size = self.pmp_size
 
             # install first PMP EP
@@ -77,7 +81,7 @@ class Loader:
             pmp_ep.set_size(mem_size)
             tile.tcu_set_ep(0, pmp_ep)
 
-    def _load_boot_info(self, dram, mods, tiles, vm, mods_addr):
+    def _load_boot_info(self, tiles: list[pm], dram: memory, mods: list[str], mods_addr: int):
         # boot info
         kenv_off = KENV_ADDR
         utils.write_u64(dram, kenv_off + 0 * 8, len(mods))    # mod_count
@@ -94,9 +98,9 @@ class Loader:
 
         # tile descriptors
         for x in range(0, len(tiles)):
-            utils.write_u64(dram, kenv_off, self._tile_desc(tiles, x, vm))         # PM
+            utils.write_u64(dram, kenv_off, self._tile_desc(tiles, x))         # PM
             kenv_off += 8
-        utils.write_u64(dram, kenv_off, self._tile_desc(tiles, len(tiles), False))  # dram1
+        utils.write_u64(dram, kenv_off, self._tile_desc(tiles, len(tiles)))    # dram1
         kenv_off += 8
 
         # mems
@@ -104,8 +108,9 @@ class Loader:
         utils.write_u64(dram, kenv_off + 0, utils.glob_addr(MEM_TILE, mem_start))  # addr
         utils.write_u64(dram, kenv_off + 8, DRAM_SIZE - mem_start)          # size
 
-    def _load_prog(self, dram, tiles, i, args, vm, logflags):
-        pm = tiles[i]
+    def _load_prog(self, tiles: list[pm], dram: memory, tile_idx: int,
+                   args: list[str], logflags: str):
+        pm = tiles[tile_idx]
 
         # start core
         pm.start()
@@ -120,14 +125,14 @@ class Loader:
                 sys.exit("error: {} has entry {:#x}, not 0x10003000.".format(
                     args[0], elf.header['e_entry']))
 
-        mem_begin = PMP_ADDR + i * self.pmp_size
+        mem_begin = PMP_ADDR + tile_idx * self.pmp_size
 
         # load ELF file
         dram.mem.write_elf(args[0], mem_begin - DRAM_OFF)
         sys.stdout.flush()
 
-        desc = self._tile_desc(tiles, i, vm)
-        kenv = utils.glob_addr(MEM_TILE, KENV_ADDR) if i == 0 else 0
+        desc = self._tile_desc(tiles, tile_idx)
+        kenv = utils.glob_addr(MEM_TILE, KENV_ADDR) if tile_idx == 0 else 0
 
         # write arguments and env vars
         argv = ENV + 0x400
@@ -141,7 +146,7 @@ class Loader:
         dram_env = ENV + mem_begin - DRAM_OFF
         utils.write_u64(dram, dram_env - 0x1000, 0x0000306f)  # j _start (+0x3000)
         utils.write_u64(dram, dram_env + 0, 1)           # platform = HW
-        utils.write_u64(dram, dram_env + 8, i)           # chip, tile
+        utils.write_u64(dram, dram_env + 8, tile_idx)    # chip, tile
         utils.write_u64(dram, dram_env + 16, desc)       # tile_desc
         utils.write_u64(dram, dram_env + 24, len(args))  # argc
         utils.write_u64(dram, dram_env + 32, argv)       # argv
@@ -157,7 +162,7 @@ class Loader:
 
         sys.stdout.flush()
 
-    def _add_mod(self, dram, addr, mod, offset):
+    def _add_mod(self, dram: memory, addr: int, mod: str, offset: int) -> int:
         (name, path) = mod.split('=')
         path = os.path.basename(path)
         size = os.path.getsize(path)
@@ -167,16 +172,16 @@ class Loader:
         self._write_file(dram, path, addr)
         return size
 
-    def _write_file(self, mod, file, offset):
+    def _write_file(self, dram: memory, file: str, offset: int):
         print("%s: loading %s with %u bytes to %#x" %
-              (mod.name, file, os.path.getsize(file), offset))
+              (dram.name, file, os.path.getsize(file), offset))
         sys.stdout.flush()
 
         with open(file, "rb") as f:
             content = f.read()
-        mod.mem.write_bytes_checked(offset, content, True)
+        dram.mem.write_bytes_checked(offset, content, True)
 
-    def _write_args(self, dram, args, argv, mem_begin):
+    def _write_args(self, dram: memory, args: list[str], argv: int, mem_begin: int) -> int:
         argc = len(args)
         args_addr = argv + (argc + 1) * 8
         for (idx, a) in enumerate(args, 0):
@@ -191,20 +196,20 @@ class Loader:
         utils.write_u64(dram, argv + (mem_begin - DRAM_OFF) + argc * 8, 0)
         return args_addr
 
-    def _tile_desc(self, tiles, i, vm):
-        if i >= len(tiles):
+    def _tile_desc(self, tiles: list[pm], tile_idx: int):
+        if tile_idx >= len(tiles):
             # mem size | TileAttr::IMEM | TileType::MEM
             return (DRAM_SIZE >> 12) << 28 | ((1 << 4) << 11) | 1
 
         tile_desc = 1 << 6  # RISCV
-        if not vm:
+        if not self.vm:
             # mem size | TileAttr::IMEM
             tile_desc |= ((self.pmp_size >> 12) << 28) | ((1 << 4) << 11)
-        if i < 5:
+        if tile_idx < 5:
             tile_desc |= (1 << 1) << 11  # Rocket core
         else:
             tile_desc |= (1 << 0) << 11  # BOOM core
-        if i == 6:
+        if tile_idx == 6:
             tile_desc |= (1 << 2) << 11  # NIC
             tile_desc |= (1 << 3) << 11  # Serial
         return tile_desc

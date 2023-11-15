@@ -8,6 +8,9 @@ import serial
 from serial.tools.miniterm import Miniterm
 import termios
 
+from noc import NoCethernet
+import memory
+
 import loader
 import utils
 
@@ -19,20 +22,21 @@ class Term:
 
 class TCUTerm(Term):
     # inspired by MiniTerm (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
-    def __init__(self, fpga_inst):
+    def __init__(self, dram: memory, nocif: NoCethernet):
         self.fd = sys.stdin.fileno()
         # make stdin nonblocking
         fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
         fcntl.fcntl(self.fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
         # get original terminal attributes to restore them later
         self.old = termios.tcgetattr(self.fd)
-        self.fpga_inst = fpga_inst
+        self.nocif = nocif
+        self.dram = dram
         # reset tile and EP in case they are set from a previous run
-        utils.write_u64(fpga_inst.dram1, loader.SERIAL_ADDR + 0, 0)
-        utils.write_u64(fpga_inst.dram1, loader.SERIAL_ADDR + 8, 0)
+        utils.write_u64(self.dram, loader.SERIAL_ADDR + 0, 0)
+        utils.write_u64(self.dram, loader.SERIAL_ADDR + 8, 0)
         self._setup()
 
-    def should_stop(self):
+    def should_stop(self) -> bool:
         if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
             bytes = self._getkey()
             if len(bytes) == 1 and bytes[0] == chr(0x1d):
@@ -51,7 +55,7 @@ class TCUTerm(Term):
         termios.tcsetattr(self.fd, termios.TCSANOW, new)
         print("-- TCU Terminal ( Quit: Ctrl+] ) --")
 
-    def _getkey(self):
+    def _getkey(self) -> bytes:
         try:
             # read multiple bytes to get sequences like ^[D
             bytes = sys.stdin.read(8)
@@ -59,18 +63,18 @@ class TCUTerm(Term):
             bytes = ['\x03']
         return bytes
 
-    def _write(self, c):
-        bytes = c.encode('utf-8')
+    def _write(self, data: bytes):
+        bytes = data.encode('utf-8')
         # read desired destination
-        tile = utils.read_u64(self.fpga_inst.dram1, loader.SERIAL_ADDR + 0)
-        ep = utils.read_u64(self.fpga_inst.dram1, loader.SERIAL_ADDR + 8)
+        tile = utils.read_u64(self.dram, loader.SERIAL_ADDR + 0)
+        ep = utils.read_u64(self.dram, loader.SERIAL_ADDR + 8)
         # only send if it was initialized
         if ep != 0:
-            utils.send_input(self.fpga_inst, tile >> 8, tile & 0xFF, ep, bytes)
+            utils.send_input(self.nocif, tile >> 8, tile & 0xFF, ep, bytes)
 
 
 class LxTerm(Term):
-    def __init__(self, port):
+    def __init__(self, port: int):
         # interactive usage
         ser = serial.Serial(port=port, baudrate=115200, xonxoff=True)
         self.miniterm = Miniterm(ser)
@@ -78,7 +82,7 @@ class LxTerm(Term):
         self.miniterm.set_rx_encoding('UTF-8')
         self.miniterm.set_tx_encoding('UTF-8')
 
-        def key_description(character):
+        def key_description(character) -> str:
             """generate a readable description for a key"""
             ascii_code = ord(character)
             if ascii_code < 32:
@@ -97,7 +101,7 @@ class LxTerm(Term):
         self.miniterm.transmitter_thread.start()
         self.miniterm.console.setup()
 
-    def should_stop(self):
+    def should_stop(self) -> bool:
         return not self.miniterm.alive
 
     def cleanup(self):
