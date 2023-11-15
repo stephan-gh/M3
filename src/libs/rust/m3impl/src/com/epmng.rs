@@ -69,7 +69,7 @@ impl EpMng {
             syscalls::activate(ep.sel(), INVALID_SEL, INVALID_SEL, 0).ok();
         }
 
-        if ep.replies() == 0 {
+        if ep.is_cacheable() {
             self.eps.push(ep);
         }
     }

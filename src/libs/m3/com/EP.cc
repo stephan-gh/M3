@@ -26,6 +26,7 @@ EP &EP::operator=(EP &&ep) noexcept {
     flags(ep.flags());
     _id = ep._id;
     _replies = ep._replies;
+    _flags = ep._flags;
     ep.flags(KEEP_CAP);
     return *this;
 }
@@ -37,11 +38,17 @@ EP EP::alloc(uint replies) {
 EP EP::alloc_for(capsel_t act, epid_t ep, uint replies) {
     capsel_t sel = SelSpace::get().alloc_sel();
     epid_t id = Syscalls::alloc_ep(sel, act, ep, replies);
-    return EP(sel, id, replies, 0);
+    uint flags = 0;
+    if(ep == TOTAL_EPS && replies == 0)
+        flags |= EPFlags::CACHEABLE;
+    return EP(sel, id, replies, 0, flags);
 }
 
 EP EP::bind(epid_t id) noexcept {
-    return EP(ObjCap::INVALID, id, 0, KEEP_CAP);
+    uint flags = 0;
+    if(id >= env()->first_std_ep && id < env()->first_std_ep + TCU::STD_EPS_COUNT)
+        flags |= EPFlags::STANDARD;
+    return EP(ObjCap::INVALID, id, 0, KEEP_CAP, flags);
 }
 
 }

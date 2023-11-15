@@ -33,6 +33,11 @@ EP *EPMng::acquire(epid_t ep, uint replies) {
 }
 
 void EPMng::release(EP *ep, bool invalidate) noexcept {
+    if(ep->is_standard()) {
+        delete ep;
+        return;
+    }
+
     if(invalidate) {
         try {
             // invalidate our endpoint to be able to reuse it for something else later
@@ -43,7 +48,7 @@ void EPMng::release(EP *ep, bool invalidate) noexcept {
         }
     }
 
-    if(ep->replies() == 0 && ep->sel() != ObjCap::INVALID)
+    if(ep->is_cacheable())
         _eps.append(ep);
     else
         delete ep;

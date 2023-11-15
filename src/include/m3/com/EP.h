@@ -24,17 +24,27 @@
 
 namespace m3 {
 
+class EPMng;
+
+enum EPFlags {
+    STANDARD = 0x1,
+    CACHEABLE = 0x2,
+};
+
 /**
  * Represents a TCU endpoint that can be used for communication. This class only serves the purpose
  * to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
  * be delegated to someone else.
  */
 class EP : public SListItem, public ObjCap {
-    explicit EP(capsel_t sel, epid_t id, uint replies, uint flags) noexcept
+    friend class EPMng;
+
+    explicit EP(capsel_t sel, epid_t id, uint replies, uint flags, uint epflags) noexcept
         : SListItem(),
           ObjCap(ObjCap::ENDPOINT, sel, flags),
           _id(id),
-          _replies(replies) {
+          _replies(replies),
+          _flags(epflags) {
     }
 
 public:
@@ -47,14 +57,8 @@ public:
         : SListItem(std::move(ep)),
           ObjCap(std::move(ep)),
           _id(ep._id),
-          _replies(ep._replies) {
-    }
-
-    /**
-     * @return true if the endpoint is valid, i.e., has a selector and endpoint id
-     */
-    bool valid() const noexcept {
-        return sel() != ObjCap::INVALID;
+          _replies(ep._replies),
+          _flags(ep._flags) {
     }
 
     /**
@@ -75,16 +79,17 @@ public:
      * @return if the EP is a standard EP
      */
     bool is_standard() const noexcept {
-        return id() >= env()->first_std_ep && id() < env()->first_std_ep + TCU::STD_EPS_COUNT;
+        return (_flags & EPFlags::STANDARD) != 0;
     }
 
 private:
-    void set_id(epid_t id) noexcept {
-        _id = id;
+    bool is_cacheable() const noexcept {
+        return (_flags & EPFlags::CACHEABLE) != 0;
     }
 
     epid_t _id;
     uint _replies;
+    uint _flags;
 };
 
 }

@@ -13,11 +13,21 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
+
 use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::errors::Error;
 use crate::kif;
 use crate::syscalls;
 use crate::tcu::{EpId, TOTAL_EPS};
+
+bitflags! {
+    #[derive(Copy, Clone, Debug)]
+    struct EPFlags : u8 {
+        const STANDARD = 0x1;
+        const CACHEABLE = 0x2;
+    }
+}
 
 /// Represents a TCU endpoint that can be used for communication
 ///
@@ -31,7 +41,7 @@ pub struct EP {
     cap: Capability,
     ep: EpId,
     replies: u32,
-    std: bool,
+    flags: EPFlags,
 }
 
 /// The arguments for [`EP`] creations.
@@ -73,12 +83,18 @@ impl EPArgs {
 }
 
 impl EP {
-    const fn create(sel: Selector, ep: EpId, replies: u32, flags: CapFlags, std: bool) -> Self {
+    const fn create(
+        sel: Selector,
+        ep: EpId,
+        replies: u32,
+        cflags: CapFlags,
+        flags: EPFlags,
+    ) -> Self {
         EP {
-            cap: Capability::new(sel, flags),
+            cap: Capability::new(sel, cflags),
             ep,
             replies,
-            std,
+            flags,
         }
     }
 
@@ -89,23 +105,36 @@ impl EP {
 
     /// Allocates a new endpoint with custom arguments
     pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
+        let flags = if args.epid == TOTAL_EPS && args.replies == 0 {
+            EPFlags::CACHEABLE
+        }
+        else {
+            EPFlags::empty()
+        };
+
         let (sel, id) = Self::alloc_cap(args.epid, args.act, args.replies)?;
         Ok(Self::create(
             sel,
             id,
             args.replies,
             CapFlags::empty(),
-            false,
+            flags,
         ))
     }
 
     /// Binds the given selector to a new EP object
     pub fn new_bind(ep: EpId, sel: Selector) -> Self {
-        Self::create(sel, ep, 0, CapFlags::KEEP_CAP, false)
+        Self::create(sel, ep, 0, CapFlags::KEEP_CAP, EPFlags::empty())
     }
 
     pub(crate) const fn new_def_bind(ep: EpId) -> Self {
-        Self::create(kif::INVALID_SEL, ep, 0, CapFlags::KEEP_CAP, true)
+        Self::create(
+            kif::INVALID_SEL,
+            ep,
+            0,
+            CapFlags::KEEP_CAP,
+            EPFlags::STANDARD,
+        )
     }
 
     pub(crate) fn destructing_move(&mut self) -> Self {
@@ -116,7 +145,7 @@ impl EP {
             cap: Capability::new(self.sel(), flags),
             ep,
             replies: self.replies,
-            std: self.std,
+            flags: self.flags,
         }
     }
 
@@ -137,7 +166,11 @@ impl EP {
 
     /// Returns if the EP is a standard EP
     pub fn is_standard(&self) -> bool {
-        self.std
+        self.flags.contains(EPFlags::STANDARD)
+    }
+
+    pub(crate) fn is_cacheable(&self) -> bool {
+        self.flags.contains(EPFlags::CACHEABLE)
     }
 
     /// Configures this endpoint for the given gate for a different activity. Note that this call

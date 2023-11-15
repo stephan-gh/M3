@@ -37,7 +37,7 @@ void Gate::activate_on(capsel_t sel, const EP &ep, capsel_t rbuf_mem, goff_t rbu
 }
 
 void Gate::release_ep(bool force_inval) noexcept {
-    if(_ep && !_ep->is_standard()) {
+    if(_ep) {
         EPMng::get().release(_ep, force_inval || (flags() & KEEP_CAP));
         _ep = nullptr;
     }
