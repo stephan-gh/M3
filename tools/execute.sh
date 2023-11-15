@@ -346,7 +346,7 @@ build_params_hw() {
             echo 'echo -n > .running'
             echo 'trap "rm -f .running 2>/dev/null" SIGINT SIGTERM EXIT'
             echo 'rm -f .ready'
-            echo "python3 ./fpga.py $fpga $args --debug $M3_HW_PAUSE &>log.txt &"
+            echo "python3 ./fpga/main.py $fpga $args --debug $M3_HW_PAUSE &>log.txt &"
             # wait until it's finished or failed
             echo 'fpga=$!'
             echo 'echo "Waiting until FPGA has been initialized..."'
@@ -363,12 +363,12 @@ build_params_hw() {
             # make sure that openocd is stopped
             trap 'ssh -t $M3_HW_FPGA_HOST "killall openocd"' ERR INT TERM
         else
-            echo "python3 ./fpga.py $fpga $args 2>&1 | tee -i log.txt"
+            echo "python3 ./fpga/main.py $fpga $args 2>&1 | tee -i log.txt"
         fi
     } > "$M3_OUT/run.sh"
 
     rsync -rz \
-        tools/fpga.py platform/hw/fpga_tools/python "${files[@]}" "$M3_OUT/run.sh" \
+        tools/fpga platform/hw/fpga_tools/python "${files[@]}" "$M3_OUT/run.sh" \
         "$M3_HW_FPGA_HOST:$M3_HW_FPGA_DIR"
 
     ssh -t "$M3_HW_FPGA_HOST" "cd $M3_HW_FPGA_DIR && sh run.sh"
