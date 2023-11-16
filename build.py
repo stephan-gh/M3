@@ -165,9 +165,10 @@ class M3Env(Env):
             deps += [cfg]
         return Env.rust_exe(self, gen, out, deps=deps)
 
-    def m3_rust_lib(self, gen):
-        global rustlibs
+    def m3_rust_lib(self, gen, features=[]):
+        global rustlibs, rustfeatures
         rustlibs += [self.cur_dir]
+        rustfeatures += features
 
     def add_rust_features(self):
         if self['BUILD'] == 'bench':
