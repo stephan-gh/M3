@@ -167,7 +167,11 @@ NOINLINE static void nonblocking_server() {
         WVASSERT(socket->state() == Socket::Connected || socket->state() == Socket::RemoteClosed);
 
         WVASSERTEQ(socket->local_endpoint(), Endpoint(IpAddr(192, 168, 112, 1), 3000));
-        WVASSERTEQ(socket->remote_endpoint().addr, IpAddr(192, 168, 112, 2));
+        // if the network stack receives *both* the connected message and the close message before
+        // we get any event, we only receive the close message and thus are not connected and do not
+        // know the remote EP.
+        if(socket->state() == Socket::Connected)
+            WVASSERTEQ(socket->remote_endpoint().addr, IpAddr(192, 168, 112, 2));
 
         socket->set_blocking(true);
         socket->close();
