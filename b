@@ -675,7 +675,7 @@ case "$cmd" in
                     find "$(dirname "$f")/src" -name "*.rs" -print0 | xargs -0 rustfmt
                     ;;
                 *.py)
-                    autopep8 -i "$f"
+                    autopep8 --global-config .python-format -i "$f"
                     ;;
             esac
         done < <(find src tools -mindepth 2 \( -name Cargo.toml -or \
