@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 if [ $# -ne 1 ] && [ $# -ne 2 ]; then
     echo "Usage: $0 <mhz> [<warmup>]" 1>&2

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # fall back to reasonable defaults
 if [ -z "$M3_BUILD" ]; then

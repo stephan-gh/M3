@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage() {
     echo "Usage: $1 <crossname> <script> [--debug=<prog>]" 1>&2
