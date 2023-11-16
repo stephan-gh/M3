@@ -54,9 +54,7 @@ impl<'s> Sink for SliceSink<'s> {
 
     #[inline(always)]
     fn push_str(&mut self, s: &str) {
-        unsafe {
-            copy_from_str(&mut self.slice[self.pos..], s)
-        }
+        unsafe { copy_from_str(&mut self.slice[self.pos..], s) }
         self.pos += (s.len() + 1 + 7) / 8;
     }
 }

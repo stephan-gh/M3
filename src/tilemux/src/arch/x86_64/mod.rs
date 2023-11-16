@@ -104,9 +104,7 @@ pub fn handle_fpu_ex(_state: &mut State) {
             };
         }
         else {
-            unsafe {
-                asm!("fninit")
-            };
+            unsafe { asm!("fninit") };
             fpu_state.init = true;
         }
 

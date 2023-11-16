@@ -119,22 +119,16 @@ pub fn handle_fpu_ex(state: &mut State) {
         // need to save old state?
         if old_id != tilemux::ACT_ID {
             let mut old_act = activities::get_mut(old_id).unwrap();
-            unsafe {
-                save_fpu(old_act.fpu_state())
-            };
+            unsafe { save_fpu(old_act.fpu_state()) };
         }
 
         // restore new state
         let fpu_state = cur.fpu_state();
         if fpu_state.init {
-            unsafe {
-                restore_fpu(fpu_state)
-            };
+            unsafe { restore_fpu(fpu_state) };
         }
         else {
-            unsafe {
-                libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33)
-            };
+            unsafe { libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33) };
             fpu_state.init = true;
         }
 

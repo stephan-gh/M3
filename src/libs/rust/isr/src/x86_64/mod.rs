@@ -533,9 +533,7 @@ impl crate::ISRArch for X86ISR {
     }
 
     fn enable_irqs() {
-        unsafe {
-            asm!("sti")
-        };
+        unsafe { asm!("sti") };
     }
 
     fn fetch_irq() -> IRQSource {

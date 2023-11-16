@@ -26,9 +26,7 @@ pub fn flush_cache() {
     }
 
     // safety: cfg::TILE_MEM_BASE is mapped and sufficiently large
-    unsafe {
-        machine::flush_cache()
-    };
+    unsafe { machine::flush_cache() };
 }
 
 pub struct TCUCmdState {

@@ -583,9 +583,7 @@ pub fn remove(id: Id, status: Code, notify: bool, sched: bool) {
         // safety: the activity reference `v` is still valid here
         let old = match unsafe { &v.as_ref().state } {
             // safety: we don't access `v` afterwards
-            ActState::Running => unsafe {
-                CUR.set(None).unwrap()
-            },
+            ActState::Running => unsafe { CUR.set(None).unwrap() },
             ActState::Ready => RDY.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
             ActState::Blocked => BLK.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
         };

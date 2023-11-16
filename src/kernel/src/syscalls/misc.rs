@@ -203,12 +203,10 @@ pub fn get_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        try_kmem_quota!(
-            actcap
-                .obj_caps()
-                .borrow_mut()
-                .obtain(r.dst, csess.unwrap(), true)
-        );
+        try_kmem_quota!(actcap
+            .obj_caps()
+            .borrow_mut()
+            .obtain(r.dst, csess.unwrap(), true));
     }
     else {
         sysc_err!(Code::InvArgs, "Unknown session id {}", r.sid);

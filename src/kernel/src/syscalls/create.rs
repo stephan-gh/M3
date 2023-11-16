@@ -96,11 +96,10 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 
     if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
         let map_caps = tgt_act.map_caps().borrow_mut();
-        try_kmem_quota!(
-            act.obj_caps()
-                .borrow_mut()
-                .insert_as_child_from(cap, map_caps, sel)
-        );
+        try_kmem_quota!(act
+            .obj_caps()
+            .borrow_mut()
+            .insert_as_child_from(cap, map_caps, sel));
     }
     else {
         try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, r.act));

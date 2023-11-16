@@ -632,7 +632,12 @@ impl TCU {
         );
         Self::get_error().ok()?;
         let msg = Self::read_unpriv_reg(UnprivReg::Arg1);
-        if msg != !0 { Some(msg as usize) } else { None }
+        if msg != !0 {
+            Some(msg as usize)
+        }
+        else {
+            None
+        }
     }
 
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
@@ -1092,9 +1097,7 @@ impl TCU {
 
     fn write_reg(idx: usize, val: Reg) {
         // safety: as above
-        unsafe {
-            CPU::write8b((MMIO_ADDR.as_mut_ptr::<Reg>()).add(idx), val)
-        };
+        unsafe { CPU::write8b((MMIO_ADDR.as_mut_ptr::<Reg>()).add(idx), val) };
     }
 
     fn build_cmd(ep: EpId, cmd: CmdOpCode, arg: Reg) -> Reg {
