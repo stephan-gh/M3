@@ -77,6 +77,19 @@ class M3Env(Env):
         ))
         return out
 
+    def objcopy(self, gen, out, input, type):
+        out = BuildPath.new(self, out)
+        gen.add_build(BuildEdge(
+            'objcopy',
+            outs=[out],
+            ins=[SourcePath.new(self, input)],
+            vars={
+                'objcopy': self['OBJCOPY'],
+                'type': type,
+            },
+        ))
+        return out
+
     def soft_float(self):
         if self['ISA'] == 'x86_64':
             self['ASFLAGS'] += ['-msoft-float', '-mno-sse']
@@ -353,6 +366,7 @@ env['AR'] = cross + 'gcc-ar'
 env['RANLIB'] = cross + 'gcc-ranlib'
 env['STRIP'] = cross + 'strip'
 env['SHLINK'] = cross + 'gcc'
+env['OBJCOPY'] = cross + 'objcopy'
 
 # basic flags for target compilation
 env['CPPFLAGS'] += ['-D__' + target + '__']
@@ -420,6 +434,10 @@ gen.add_rule('mkm3fs', Rule(
 gen.add_rule('elf2hex', Rule(
     cmd=env['TOOLDIR'] + '/elf2hex $in > $out',
     desc='ELF2HEX $out',
+))
+gen.add_rule('objcopy', Rule(
+    cmd='$objcopy -O $type $in $out',
+    desc='OBJCOPY $out'
 ))
 
 # generate linker scripts
