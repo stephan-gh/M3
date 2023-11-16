@@ -43,6 +43,7 @@ pub mod cpu {
 }
 
 /// Thread-safe reference-counting pointers
+#[cfg(target_has_atomic = "ptr")]
 pub mod sync {
     pub use alloc::sync::{Arc, Weak};
 }
