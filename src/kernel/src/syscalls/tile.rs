@@ -14,17 +14,15 @@
  */
 
 use base::build_vmsg;
-use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, Error, VerboseError};
 use base::kif::{self, syscalls};
-use base::mem::{GlobAddr, GlobOff, MsgBuf};
+use base::mem::MsgBuf;
 use base::quota::Quota;
 use base::rc::Rc;
 use base::tcu;
 
 use crate::cap::{Capability, KObject, MGateObject};
-use crate::mem::Allocation;
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
 use crate::tiles::{tilemng, Activity, TileMux, INVAL_ID};
@@ -280,8 +278,7 @@ pub fn tile_mem(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
         sysc_err!(Code::InvArgs, "Tile has no internal memory");
     }
 
-    let glob = GlobAddr::new_with(tile.tile(), cfg::MEM_OFFSET as GlobOff);
-    let mem = Allocation::new(glob, platform::tile_desc(tile.tile()).mem_size() as GlobOff);
+    let mem = tile.memory();
     let cap = Capability::new(
         r.dst,
         KObject::MGate(MGateObject::new(mem, kif::Perm::RWX, true)),

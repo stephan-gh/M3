@@ -15,6 +15,8 @@
 
 use base::build_vmsg;
 use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
+use base::cfg;
+use base::env;
 use base::errors::{Code, Error};
 use base::io::LogFlags;
 use base::kif::{self, service, tilemux::QuotaId};
@@ -27,7 +29,9 @@ use core::fmt;
 use core::ptr;
 
 use crate::com::Service;
+use crate::ktcu;
 use crate::mem;
+use crate::platform;
 use crate::tiles::{tilemng, Activity, State, TileMux};
 
 #[derive(Clone)]
@@ -646,6 +650,23 @@ impl TileObject {
     pub fn rem_activity(&self) {
         assert!(self.activities() > 0);
         self.cur_acts.set(self.activities() - 1);
+    }
+
+    pub fn memory(&self) -> mem::Allocation {
+        // on the hw platform we cannot write into the local memory until the core is running.
+        // however, we cannot turn on the core until we have properly initialized the memory. thus,
+        // we need to write it to the DRAM location that emulates local SPM on the hw platform.
+        if env::boot().platform == env::Platform::Hw {
+            let (mem_tile, mem_off, mem_size, _perm) =
+                ktcu::unpack_mem_ep_remote(self.tile(), 0).expect("Unable to read PMPEP0");
+            mem::Allocation::new(GlobAddr::new_with(mem_tile, mem_off), mem_size)
+        }
+        else {
+            mem::Allocation::new(
+                GlobAddr::new_with(self.tile(), cfg::MEM_OFFSET as GlobOff),
+                platform::tile_desc(self.tile()).mem_size() as GlobOff,
+            )
+        }
     }
 
     pub fn alloc(&self, eps: u32) {

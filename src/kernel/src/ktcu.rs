@@ -381,6 +381,15 @@ pub fn glob_to_phys_remote(
     })
 }
 
+pub fn unpack_mem_ep_remote(
+    tile: TileId,
+    ep: EpId,
+) -> Result<(TileId, GlobOff, GlobOff, kif::Perm), Error> {
+    let mut regs = [0; 3];
+    read_ep_remote(tile, ep, &mut regs)?;
+    TCU::unpack_mem_regs(&regs).ok_or_else(|| Error::new(Code::NoMEP))
+}
+
 pub fn read_ep_remote(tile: TileId, ep: EpId, regs: &mut [Reg]) -> Result<(), Error> {
     for i in 0..regs.len() {
         try_read_slice(

@@ -165,11 +165,7 @@ impl ActivityMng {
         let tile_desc = platform::tile_desc(tile_id);
 
         let mux_mem = if tile_desc.has_memory() {
-            // load tilemux into the tile's internal memory
-            Allocation::new(
-                GlobAddr::new_with(tile_id, cfg::MEM_OFFSET as GlobOff),
-                tile_desc.mem_size() as GlobOff,
-            )
+            tile.memory()
         }
         else {
             // allocate some memory for the tilemux
