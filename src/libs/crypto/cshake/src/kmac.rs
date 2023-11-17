@@ -38,6 +38,23 @@ pub fn prepend_key(buf: &mut [u8], key: &[u8], block_bytes: usize) -> usize {
     bytepad(buf, block_bytes, |buf| encode_string(buf, key))
 }
 
+/// Writes a partial KMAC key to the start of the buffer, leaving room for extra
+/// key bytes to be appended separately. Returns the offset where the extra key
+/// bytes should be written into the buffer. This should be absorbed **before**
+/// (or prepended to) the actual input data to produce valid KMAC hashes.
+/// The block bytes are implicitly determined by the buffer size, which should
+/// be sized appropriately for the underlying hash function (cSHAKE128 for KMAC128
+/// or cSHAKE256 for KMAC256).
+pub fn write_partial_key<const B: usize>(
+    buf: &mut [u8; B],
+    key_pad: &[u8],
+    extra_len: usize,
+) -> usize {
+    let mut off = left_encode(&mut buf[..], B);
+    off += encode_string_extra(&mut buf[off..], key_pad, extra_len);
+    off
+}
+
 /// Writes the KMAC output length (in bits) to the start of the buffer. This should be absorbed
 /// **after** (or appended to) the actual input data to produce valid KMAC hashes.
 pub fn append_output_length(buf: &mut [u8], bits: usize) -> usize {

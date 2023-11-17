@@ -59,8 +59,12 @@ pub fn right_encode(buf: &mut [u8], x: usize) -> usize {
 ///
 /// Up to `size_of::<usize>() + 1 + s.len()` bytes are written, depending on the length of s.
 pub fn encode_string(buf: &mut [u8], s: &[u8]) -> usize {
+    encode_string_extra(buf, s, 0)
+}
+
+pub(crate) fn encode_string_extra(buf: &mut [u8], s: &[u8], extra_len: usize) -> usize {
     let len = s.len();
-    let len_size = left_encode(buf, len * u8::BITS as usize);
+    let len_size = left_encode(buf, (len + extra_len) * u8::BITS as usize);
     buf[len_size..len_size + len].copy_from_slice(s);
     len_size + len
 }
