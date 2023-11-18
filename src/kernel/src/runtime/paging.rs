@@ -17,7 +17,7 @@ use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::env;
 use base::errors::Error;
-use base::kif::{PageFlags, TileDesc};
+use base::kif::PageFlags;
 use base::mem::{GlobAddr, GlobOff, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use base::tcu;
 use base::util::math;
@@ -68,7 +68,7 @@ static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
-    if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
+    if !env::boot().tile_desc().has_virtmem() {
         Paging::disable();
         return;
     }

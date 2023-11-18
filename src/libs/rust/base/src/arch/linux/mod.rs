@@ -8,7 +8,7 @@ use std::os::unix::io::AsRawFd;
 use crate::cell::{LazyStaticCell, LazyStaticRefCell};
 use crate::cfg;
 use crate::env;
-use crate::kif::{Perm, TileDesc};
+use crate::kif::Perm;
 use crate::tcu;
 use crate::time::TimeDuration;
 use crate::util::math;
@@ -94,7 +94,7 @@ pub fn init() {
     )
     .expect("Unable to map TCU-EPs MMIO region");
 
-    let (rbuf_virt_addr, rbuf_size) = TileDesc::new_from(env::boot().tile_desc).rbuf_std_space();
+    let (rbuf_virt_addr, rbuf_size) = env::boot().tile_desc().rbuf_std_space();
     mmap::mmap_tcu(
         tcu_fd(),
         rbuf_virt_addr,

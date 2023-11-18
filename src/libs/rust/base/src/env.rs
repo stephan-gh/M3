@@ -30,7 +30,9 @@ use crate::cell::LazyStaticRefCell;
 use crate::cfg;
 use crate::col::{String, ToString, Vec};
 use crate::format;
+use crate::kif::TileDesc;
 use crate::mem::VirtAddr;
+use crate::tcu::TileId;
 use crate::util;
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -55,6 +57,16 @@ pub struct BootEnv {
     pub raw_tile_count: u64,
     #[derivative(Default(value = "[0u64; cfg::MAX_TILES * cfg::MAX_CHIPS]"))]
     pub raw_tile_ids: [u64; cfg::MAX_TILES * cfg::MAX_CHIPS],
+}
+
+impl BootEnv {
+    pub fn tile_id(self) -> TileId {
+        TileId::new_from_raw(self.tile_id as u16)
+    }
+
+    pub fn tile_desc(self) -> TileDesc {
+        TileDesc::new_from(self.tile_desc)
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]

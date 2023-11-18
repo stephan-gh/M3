@@ -39,7 +39,7 @@ static BUF: StaticRefCell<[u8; 8192]> = StaticRefCell::new([0u8; 8192]);
 static RBUFS: StaticRefCell<[VirtAddr; 8]> = StaticRefCell::new([VirtAddr::null(); 8]);
 
 fn log_flag(tile: TileId) -> LogFlags {
-    match tile == TileId::new_from_raw(env::boot().tile_id as u16) {
+    match tile == env::boot().tile_id() {
         true => LogFlags::KernKEPs,
         false => LogFlags::KernEPs,
     }
@@ -52,7 +52,7 @@ where
     let mut regs = [0; EP_REGS];
     cfg(
         &mut regs,
-        (TileId::new_from_raw(env::boot().tile_id as u16), ep),
+        (env::boot().tile_id(), ep),
     );
     TCU::set_ep_regs(ep, &regs);
 }

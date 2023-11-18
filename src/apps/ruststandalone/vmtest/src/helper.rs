@@ -20,12 +20,12 @@ use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::env;
 use base::io::{self, LogFlags};
-use base::kif::{PageFlags, Perm, TileDesc};
+use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
 use base::machine;
 use base::mem::{PhysAddr, PhysAddrRaw, VirtAddr};
-use base::tcu::{EpId, Message, Reg, TileId, EP_REGS, TCU};
+use base::tcu::{EpId, Message, Reg, EP_REGS, TCU};
 
 use crate::paging;
 
@@ -97,9 +97,9 @@ pub fn init(name: &str) {
         );
     }
 
-    io::init(TileId::new_from_raw(env::boot().tile_id as u16), name);
+    io::init(env::boot().tile_id(), name);
 
-    if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
+    if !env::boot().tile_desc().has_virtmem() {
         use ::paging::ArchPaging;
         log!(LogFlags::Info, "Disabling paging...");
         ::paging::Paging::disable();
@@ -115,14 +115,14 @@ pub fn init(name: &str) {
     ISR::reg_tm_calls(tmcall);
     ISR::enable_irqs();
 
-    if TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
+    if env::boot().tile_desc().has_virtmem() {
         // now that we're running with virtual memory enabled and can handle interrupts, we want to know about PMP failures
         TCU::enable_pmp_cureqs();
     }
 }
 
 pub fn virt_to_phys(virt: VirtAddr) -> (VirtAddr, PhysAddr) {
-    if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
+    if !env::boot().tile_desc().has_virtmem() {
         (virt, virt.as_phys())
     }
     else {

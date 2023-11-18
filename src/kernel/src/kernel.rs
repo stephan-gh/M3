@@ -34,7 +34,6 @@ mod tiles;
 use base::cfg;
 use base::env;
 use base::io::{self, LogFlags};
-use base::kif::TileDesc;
 use base::log;
 use base::machine;
 use base::mem::VirtAddr;
@@ -75,7 +74,7 @@ fn create_rbufs() {
     let tm_rbuf_size = math::next_log2(cfg::MAX_ACTS) + tm_slot_size;
     let total_size = (1 << sysc_rbuf_size) + (1 << serv_rbuf_size) + (1 << tm_rbuf_size);
 
-    let tiledesc = TileDesc::new_from(env::boot().tile_desc);
+    let tiledesc = env::boot().tile_desc();
     let mut rbuf = if tiledesc.has_virtmem() {
         // we need to make sure that receive buffers are physically contiguous. thus, allocate a new
         // chunk of physical memory and map it somewhere.
@@ -106,7 +105,7 @@ fn create_heap() {
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
         let mut heap_end = __m3_heap_get_end();
         assert_eq!(heap_end, 0);
-        let desc = TileDesc::new_from(env::boot().tile_desc);
+        let desc = env::boot().tile_desc();
         if desc.has_virtmem() {
             heap_end = heap_start + 128 * cfg::PAGE_SIZE;
         }
@@ -153,7 +152,7 @@ pub extern "C" fn env_run() {
     unsafe { __m3_init_libc(0, ptr::null(), ptr::null(), false) };
     create_heap();
     crate::slab::init();
-    let tile_id = tcu::TileId::new_from_raw(env::boot().tile_id as u16);
+    let tile_id = env::boot().tile_id();
     io::init(tile_id, "kernel");
 
     runtime::paging::init();

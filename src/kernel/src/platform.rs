@@ -79,7 +79,7 @@ pub fn info_size() -> usize {
 }
 
 pub fn kernel_tile() -> TileId {
-    TileId::new_from_raw(env::boot().tile_id as u16)
+    env::boot().tile_id()
 }
 pub fn user_tiles() -> impl Iterator<Item = TileId> {
     get()

@@ -90,7 +90,7 @@ impl Env {
     }
 
     pub fn tile_id(&self) -> tcu::TileId {
-        tcu::TileId::new_from_raw(self.base.boot.tile_id as u16)
+        self.base.boot.tile_id()
     }
 
     pub fn shared(&self) -> bool {
