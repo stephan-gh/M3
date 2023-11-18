@@ -42,6 +42,39 @@ pub struct Log {
     start_pos: usize,
 }
 
+/// The color used for log entries. Chosen based on tile ID by default.
+#[derive(Copy, Clone, Debug)]
+pub enum LogColor {
+    Red           = 31,
+    Green         = 32,
+    Yellow        = 33,
+    Blue          = 34,
+    Magenta       = 35,
+    Cyan          = 36,
+    BrightRed     = 91,
+    BrightGreen   = 92,
+    BrightYellow  = 93,
+    BrightBlue    = 94,
+    BrightMagenta = 95,
+    BrightCyan    = 96,
+}
+
+impl LogColor {
+    const DEFAULT: [LogColor; 6] = [
+        LogColor::Red,
+        LogColor::Green,
+        LogColor::Yellow,
+        LogColor::Blue,
+        LogColor::Magenta,
+        LogColor::Cyan,
+    ];
+
+    /// Returns the default color for a given tile ID.
+    pub fn for_tile(tile_id: TileId) -> Self {
+        Self::DEFAULT[(tile_id.raw() as usize) % Self::DEFAULT.len()]
+    }
+}
+
 impl Log {
     /// Returns the logger
     pub fn get() -> Option<RefMut<'static, Log>> {
@@ -85,8 +118,7 @@ impl Log {
         }
     }
 
-    pub(crate) fn init(&mut self, tile_id: TileId, name: &str) {
-        let colors = ["31", "32", "33", "34", "35", "36"];
+    pub(crate) fn init(&mut self, tile_id: TileId, name: &str, color: LogColor) {
         let begin = match name.rfind('/') {
             Some(b) => b + 1,
             None => 0,
@@ -96,7 +128,7 @@ impl Log {
         self.pos = 0;
         self.write_fmt(format_args!(
             "\x1B[0;{}m[{}:{:<8}@",
-            colors[(tile_id.raw() as usize) % colors.len()],
+            color as u8,
             tile_id,
             &name[begin..begin + len]
         ))
@@ -137,9 +169,9 @@ pub fn flags() -> LogFlags {
 }
 
 /// Initializes the logger
-pub fn init(tile_id: TileId, name: &str) {
+pub fn init(tile_id: TileId, name: &str, color: LogColor) {
     LOG_READY.set(true);
-    Log::get().unwrap().init(tile_id, name);
+    Log::get().unwrap().init(tile_id, name, color);
 
     // set log flags afterwards so that we can properly print errors during parsing
     if let Some(log) = env::boot_var("LOG") {

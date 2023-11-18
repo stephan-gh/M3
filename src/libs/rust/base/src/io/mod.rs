@@ -27,7 +27,7 @@ pub use self::logflags::LogFlags;
 pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
 
-use crate::io::log::Log;
+use crate::io::log::{Log, LogColor};
 use crate::tcu::TileId;
 
 use core::fmt;
@@ -100,5 +100,5 @@ pub fn log_slice(slice: &[u8], addr: usize) {
 
 /// Initializes the I/O module
 pub fn init(tile_id: TileId, name: &str) {
-    log::init(tile_id, name);
+    log::init(tile_id, name, LogColor::for_tile(tile_id));
 }
