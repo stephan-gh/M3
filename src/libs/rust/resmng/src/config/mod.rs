@@ -285,6 +285,7 @@ impl TileType {
                 "kecacc" => desc.attr().contains(kif::TileAttr::KECACC),
                 "serial" => desc.attr().contains(kif::TileAttr::SERIAL),
                 "imem" => desc.attr().contains(kif::TileAttr::IMEM),
+                "rot" => desc.attr().contains(kif::TileAttr::ROT),
 
                 "indir" => desc.isa() == kif::TileISA::AccelIndir,
                 "copy" => desc.isa() == kif::TileISA::AccelCopy,

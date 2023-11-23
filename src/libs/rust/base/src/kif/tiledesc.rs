@@ -86,6 +86,8 @@ bitflags! {
         const IEPS          = 1 << 5;
         /// Contains a Keccak Accelerator (KecAcc)
         const KECACC        = 1 << 6;
+        /// Root of Trust
+        const ROT           = 1 << 7;
     }
 }
 
@@ -247,6 +249,14 @@ impl TileDesc {
                         res.isa(),
                         0,
                         res.attr() | TileAttr::KECACC | TileAttr::IMEM,
+                    )
+                },
+                "rot" => {
+                    res = TileDesc::new_with_attr(
+                        res.tile_type(),
+                        res.isa(),
+                        0,
+                        res.attr() | TileAttr::ROT | TileAttr::IMEM,
                     )
                 },
 

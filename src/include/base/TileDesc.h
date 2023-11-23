@@ -60,6 +60,7 @@ enum TileAttr {
     IMEM = 1 << 4,
     IEPS = 1 << 5,
     KECACC = 1 << 6,
+    ROT = 1 << 7,
 };
 
 /**

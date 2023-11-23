@@ -48,6 +48,8 @@ static TileDesc desc_with_properties(TileDesc desc, const char *props) {
             res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::SERIAL);
         else if(strcmp(prop, "kecacc") == 0)
             res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::KECACC);
+        else if(strcmp(prop, "rot") == 0)
+            res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::ROT);
         else if(strcmp(prop, "indir") == 0)
             res = TileDesc(TileType::COMP, TileISA::ACCEL_INDIR, 0, TileAttr::IMEM);
         else if(strcmp(prop, "copy") == 0)
