@@ -30,6 +30,10 @@
 
 namespace m3 {
 
+class SendCap;
+class RecvCap;
+class MemCap;
+
 /**
  * A lazily activated gate
  *
@@ -103,6 +107,10 @@ private:
  * On top of Gate, GateStream provides an easy way to marshall/unmarshall data.
  */
 class Gate : public ObjCap {
+    friend class SendCap;
+    friend class RecvCap;
+    friend class MemCap;
+
 protected:
     explicit Gate(uint type, capsel_t cap, unsigned capflags, EP *ep) noexcept
         : ObjCap(type, cap, capflags),
