@@ -3,7 +3,6 @@ from ninjapie import Env, Generator, SourcePath, BuildPath, BuildEdge, Rule
 import os
 import sys
 import subprocess
-from glob import glob
 
 target = os.environ.get('M3_TARGET')
 isa = os.environ.get('M3_ISA', 'x86_64')
@@ -118,7 +117,6 @@ class M3Env(Env):
             crt0_objs = [BuildPath(self['BINDIR'] + '/' + f) for f in crts0]
             crtn_objs = [BuildPath(self['BINDIR'] + '/' + f) for f in crtsn]
             ins = crt0_objs + ins + crtn_objs
-            gcc_dir = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver + '/'
 
         # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
         # compiler-builtins crate (or musl), because those are poor implementations.
