@@ -25,6 +25,7 @@ mod ser;
 pub use self::de::M3Deserializer;
 pub use self::ser::{M3Serializer, Sink, SliceSink, VecSink};
 pub use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+pub use serde_bytes as bytes;
 
 use crate::col::{String, Vec};
 use crate::libc;

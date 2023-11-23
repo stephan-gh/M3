@@ -15,6 +15,7 @@ static_assertions = "1.1.0"
 num_enum = { version = "0.6.1", default-features = false }
 serde = { version = "1.0.152", default-features = false, features = ["derive", "alloc"] }
 serde_repr = "0.1.12"
+serde_bytes = { version = "0.11.12", default-features = false, features = ["alloc"] }
 minicov = { version = "0.3.1", optional = true }
 
 # This is not actually used but just here to keep minicov always present in

@@ -27,6 +27,7 @@ pub trait Sink {
     fn words(&self) -> &[u64];
     fn push(&mut self, word: u64);
     fn push_str(&mut self, s: &str);
+    fn push_bytes(&mut self, bytes: &[u8]);
 }
 
 pub struct SliceSink<'s> {
@@ -56,6 +57,19 @@ impl<'s> Sink for SliceSink<'s> {
     fn push_str(&mut self, s: &str) {
         unsafe { copy_from_str(&mut self.slice[self.pos..], s) }
         self.pos += (s.len() + 1 + 7) / 8;
+    }
+
+    #[inline(always)]
+    fn push_bytes(&mut self, bytes: &[u8]) {
+        let elems = (bytes.len() + 7) / 8;
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                bytes.as_ptr(),
+                self.slice[self.pos..self.pos + elems].as_mut_ptr() as *mut u8,
+                bytes.len(),
+            );
+        }
+        self.pos += elems;
     }
 }
 
@@ -89,6 +103,22 @@ impl<'v> Sink for VecSink<'v> {
         unsafe {
             // safety: we know the pointer and length are valid
             copy_from_str(&mut self.vec.as_mut_slice()[cur..cur + elems], s);
+        }
+    }
+
+    #[inline(always)]
+    fn push_bytes(&mut self, bytes: &[u8]) {
+        let elems = (bytes.len() + 7) / 8;
+        let cur = self.vec.len();
+        self.vec.resize(cur + elems, 0);
+
+        unsafe {
+            // safety: we know the pointer and length are valid
+            core::ptr::copy_nonoverlapping(
+                bytes.as_ptr(),
+                self.vec.as_mut_slice()[cur..].as_mut_ptr() as *mut u8,
+                bytes.len(),
+            );
         }
     }
 }
@@ -221,8 +251,10 @@ impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
     }
 
     #[inline(always)]
-    fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok, Self::Error> {
-        unimplemented!()
+    fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
+        self.push_word(v.len() as u64);
+        self.sink.push_bytes(v);
+        Ok(())
     }
 
     #[inline(always)]

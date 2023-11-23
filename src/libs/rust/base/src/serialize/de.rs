@@ -17,7 +17,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::col::String;
+use crate::col::{String, Vec};
 use crate::errors::{Code, Error};
 use crate::serialize::{copy_str_from, str_slice_from};
 use serde::de::{DeserializeSeed, EnumAccess, SeqAccess, VariantAccess, Visitor};
@@ -72,6 +72,19 @@ impl<'de> M3Deserializer<'de> {
     fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
         // safety: we know that the pointer and length are okay
         self.do_pop_str(|slice, pos, len| unsafe { str_slice_from(&slice[pos..], len - 1) })
+    }
+
+    #[inline(always)]
+    fn pop_byte_vec(&mut self) -> Result<Vec<u8>, Error> {
+        Ok(self.pop_byte_slice()?.to_vec())
+    }
+
+    #[inline(always)]
+    fn pop_byte_slice(&mut self) -> Result<&'static [u8], Error> {
+        // safety: we know that the pointer and length are okay
+        self.do_pop_str(|slice, pos, len| unsafe {
+            core::slice::from_raw_parts(slice[pos..].as_ptr() as *const u8, len)
+        })
     }
 
     fn do_pop_str<T, F>(&mut self, f: F) -> Result<T, Error>
@@ -220,19 +233,19 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     }
 
     #[inline(always)]
-    fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_borrowed_bytes(self.pop_byte_slice()?)
     }
 
     #[inline(always)]
-    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_byte_buf(self.pop_byte_vec()?)
     }
 
     #[inline(always)]
