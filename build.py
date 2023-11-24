@@ -433,3 +433,4 @@ if isa == 'riscv' and os.path.exists('src/m3lx/build.py'):
 
 # finally, write it to file
 gen.write_to_file(defaults={})
+gen.write_compile_cmds(outdir='build')
