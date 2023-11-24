@@ -384,6 +384,9 @@ elif isa == 'riscv':
     env['ASFLAGS'] += ['-march=rv64imafdc', '-mabi=lp64d']
 musl_isa = 'riscv64' if isa == 'riscv' else isa
 env['CPPPATH'] += [
+    # cross directories only to make clangd happy
+    crossdir + '/' + cross[:-1] + '/include/c++/' + crossver,
+    crossdir + '/' + cross[:-1] + '/include/c++/' + crossver + '/' + cross[:-1],
     'src/libs/musl/arch/' + musl_isa,
     'src/libs/musl/arch/generic',
     'src/libs/musl/m3/include/' + isa,
