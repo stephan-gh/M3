@@ -71,23 +71,11 @@ pub struct RISCVCPU {}
 
 impl CPUOps for RISCVCPU {
     unsafe fn read8b(addr: *const u64) -> u64 {
-        let res: u64;
-        asm!(
-            "ld {0}, ({1})",
-            out(reg) res,
-            in(reg) addr as usize,
-            options(nostack),
-        );
-        res
+        addr.read_volatile()
     }
 
     unsafe fn write8b(addr: *mut u64, val: u64) {
-        asm!(
-            "sd {0}, ({1})",
-            in(reg) val,
-            in(reg) addr as usize,
-            options(nostack),
-        )
+        addr.write_volatile(val)
     }
 
     #[inline(always)]
