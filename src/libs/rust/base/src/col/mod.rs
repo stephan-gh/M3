@@ -32,6 +32,7 @@ pub use self::treap::Treap;
 
 pub use ::alloc::collections::binary_heap::BinaryHeap;
 pub use ::alloc::collections::btree_map::BTreeMap;
+pub use ::alloc::collections::btree_map::Entry as BTreeMapEntry;
 pub use ::alloc::collections::btree_set::BTreeSet;
 pub use ::alloc::collections::linked_list::LinkedList;
 pub use ::alloc::collections::vec_deque::VecDeque;
