@@ -1375,10 +1375,21 @@ impl TCU {
         size: usize,
         perm: Perm,
     ) {
+        Self::config_mem_raw(regs, act, Self::tileid_to_nocid(tile), addr, size, perm)
+    }
+
+    pub fn config_mem_raw(
+        regs: &mut [Reg],
+        act: ActId,
+        tile_noc_id: u16,
+        addr: GlobOff,
+        size: usize,
+        perm: Perm,
+    ) {
         regs[0] = (EpType::Memory as Reg)
             | ((act as Reg) << 3)
             | ((perm.bits() as Reg) << 19)
-            | ((Self::tileid_to_nocid(tile) as Reg) << 23);
+            | ((tile_noc_id as Reg) << 23);
         regs[1] = addr as Reg;
         regs[2] = size as Reg;
         #[cfg(not(any(feature = "hw22", feature = "hw23")))]
