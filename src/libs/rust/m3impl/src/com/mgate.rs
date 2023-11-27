@@ -27,7 +27,7 @@ use crate::com::gate::Gate;
 use crate::com::GateCap;
 use crate::errors::Error;
 use crate::kif::INVALID_SEL;
-use crate::mem::{self, GlobOff, MaybeUninit, VirtAddr};
+use crate::mem::{GlobOff, VirtAddr};
 use crate::syscalls;
 use crate::tcu;
 use crate::tiles::Activity;
@@ -366,17 +366,13 @@ impl MemGate {
     /// Uses the TCU read command to read from the memory region at offset `off` and stores the read
     /// data into the slice `data`. The number of bytes to read is defined by `data`.
     pub fn read<T>(&self, data: &mut [T], off: GlobOff) -> Result<(), Error> {
-        self.read_bytes(data.as_mut_ptr() as *mut u8, mem::size_of_val(data), off)
+        tcu::TCU::read_slice(self.gate.ep().id(), data, off)
     }
 
     /// Reads `mem::size_of::<T>()` bytes via the TCU read command from the memory region at offset
     /// `off` and returns the data as an object of `T`.
     pub fn read_obj<T>(&self, off: GlobOff) -> Result<T, Error> {
-        #[allow(clippy::uninit_assumed_init)]
-        // safety: will be initialized in read_bytes
-        let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
-        self.read_bytes(&mut obj as *mut T as *mut u8, mem::size_of::<T>(), off)?;
-        Ok(obj)
+        tcu::TCU::read_obj(self.gate.ep().id(), off)
     }
 
     /// Reads `size` bytes via the TCU read command from the memory region at offset `off` and
@@ -387,12 +383,12 @@ impl MemGate {
 
     /// Writes `data` with the TCU write command to the memory region at offset `off`.
     pub fn write<T>(&self, data: &[T], off: GlobOff) -> Result<(), Error> {
-        self.write_bytes(data.as_ptr() as *const u8, mem::size_of_val(data), off)
+        tcu::TCU::write_slice(self.gate.ep().id(), data, off)
     }
 
     /// Writes `obj` via the TCU write command to the memory region at offset `off`.
     pub fn write_obj<T>(&self, obj: &T, off: GlobOff) -> Result<(), Error> {
-        self.write_bytes(obj as *const T as *const u8, mem::size_of::<T>(), off)
+        tcu::TCU::write_obj(self.gate.ep().id(), obj, off)
     }
 
     /// Writes the `size` bytes at `data` via the TCU write command to the memory region at offset

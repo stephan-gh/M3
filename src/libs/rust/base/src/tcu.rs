@@ -38,7 +38,7 @@ use crate::cfg;
 use crate::env;
 use crate::errors::{Code, Error};
 use crate::kif::{PageFlags, Perm};
-use crate::mem::{self, GlobOff, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
+use crate::mem::{self, GlobOff, MaybeUninit, PhysAddr, PhysAddrRaw, VirtAddr, VirtAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tmif;
 use crate::util::math;
@@ -578,12 +578,44 @@ impl TCU {
         res
     }
 
+    /// Uses the TCU read command to read from the memory region denoted by the endpoint at offset
+    /// `off` and stores the read data into the slice `data`. The number of bytes to read is defined
+    /// by `data`.
+    pub fn read_slice<T>(ep: EpId, data: &mut [T], off: GlobOff) -> Result<(), Error> {
+        Self::read(
+            ep,
+            data.as_mut_ptr() as *mut u8,
+            mem::size_of_val(data),
+            off,
+        )
+    }
+
+    /// Reads `mem::size_of::<T>()` bytes via the TCU read command from the memory region
+    /// denoted by the endpoint at offset `off` and returns the data as an object of `T`.
+    pub fn read_obj<T>(ep: EpId, off: GlobOff) -> Result<T, Error> {
+        #[allow(clippy::uninit_assumed_init)]
+        // safety: will be initialized in read_bytes
+        let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
+        Self::read(ep, &mut obj as *mut T as *mut u8, mem::size_of::<T>(), off)?;
+        Ok(obj)
+    }
+
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     #[inline(always)]
     pub fn write(ep: EpId, data: *const u8, size: usize, off: GlobOff) -> Result<(), Error> {
         // ensure that the TCU is not reading the data before the CPU has written everything
         atomic::fence(atomic::Ordering::SeqCst);
         Self::perform_transfer(ep, VirtAddr::from(data), size, off, CmdOpCode::Write)
+    }
+
+    /// Writes `data` to offset `off` in the memory region denoted by the endpoint.
+    pub fn write_slice<T>(ep: EpId, data: &[T], off: GlobOff) -> Result<(), Error> {
+        Self::write(ep, data.as_ptr() as *const u8, mem::size_of_val(data), off)
+    }
+
+    /// Writes `obj` to offset `off` in the memory region denoted by the endpoint.
+    pub fn write_obj<T>(ep: EpId, obj: &T, off: GlobOff) -> Result<(), Error> {
+        Self::write(ep, obj as *const T as *const u8, mem::size_of::<T>(), off)
     }
 
     #[inline(always)]
