@@ -50,7 +50,7 @@ bitflags! {
 
 /// ELF header
 #[derive(Default, Debug)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct ElfHeader {
     /// ELF magic: ['\x7F', 'E', 'L', 'F']
     pub ident: [u8; EI_NIDENT],
@@ -81,10 +81,15 @@ pub struct ElfHeader {
     /// Section header string table index
     pub sh_string_idx: u16,
 }
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(crate::mem::size_of::<ElfHeader>() == 52);
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(crate::mem::size_of::<ElfHeader>() == 64);
 
 /// Program header for 32-bit ELF files
 #[derive(Default, Debug)]
-#[repr(C, packed)]
+#[repr(C)]
+#[cfg(target_pointer_width = "32")]
 pub struct ProgramHeader32 {
     /// Program header type
     pub ty: u32,
@@ -103,10 +108,13 @@ pub struct ProgramHeader32 {
     /// Alignment
     pub align: u32,
 }
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(crate::mem::size_of::<ProgramHeader32>() == 32);
 
 /// Program header for 64-bit ELF files
 #[derive(Default, Debug)]
-#[repr(C, packed)]
+#[repr(C)]
+#[cfg(target_pointer_width = "64")]
 pub struct ProgramHeader64 {
     /// Program header type
     pub ty: u32,
@@ -125,6 +133,8 @@ pub struct ProgramHeader64 {
     /// Alignment
     pub align: u64,
 }
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(crate::mem::size_of::<ProgramHeader64>() == 56);
 
 /// Program header (64-bit)
 #[cfg(target_pointer_width = "64")]

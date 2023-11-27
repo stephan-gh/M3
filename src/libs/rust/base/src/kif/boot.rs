@@ -26,7 +26,7 @@ const MAX_MODNAME_LEN: usize = 64;
 const MAX_SERVNAME_LEN: usize = 32;
 
 /// The boot information
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Info {
     /// The number of boot modules
@@ -38,9 +38,10 @@ pub struct Info {
     /// The number of services
     pub serv_count: u64,
 }
+const _: () = assert!(crate::mem::size_of::<Info>() == 8 * 4);
 
 /// A boot module
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Mod {
     /// The global address of the module
@@ -49,6 +50,7 @@ pub struct Mod {
     pub size: u64,
     name: [u8; MAX_MODNAME_LEN],
 }
+const _: () = assert!(crate::mem::size_of::<Mod>() == 8 * 2 + MAX_MODNAME_LEN);
 
 impl Mod {
     /// Creates a new boot module
@@ -126,12 +128,13 @@ impl fmt::Debug for Tile {
 }
 
 /// A memory region
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Default, Copy, Clone)]
 pub struct Mem {
     addr: u64,
     size: u64,
 }
+const _: () = assert!(crate::mem::size_of::<Mem>() == 8 * 2);
 
 impl Mem {
     /// Creates a new memory region of given size.
@@ -172,12 +175,13 @@ impl fmt::Debug for Mem {
 }
 
 /// A service with a certain number of sessions to create
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Default, Copy, Clone)]
 pub struct Service {
     sessions: u32,
     name: [u8; MAX_SERVNAME_LEN],
 }
+const _: () = assert!(crate::mem::size_of::<Service>() == 4 + MAX_SERVNAME_LEN);
 
 impl Service {
     /// Creates a new service
