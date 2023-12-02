@@ -190,7 +190,10 @@ pub fn init() {
 
                 // boot modules
                 let last_mod = mods.last().unwrap();
-                let mods_end = (last_mod.addr() + last_mod.size).offset();
+                let mods_end = math::round_up(
+                    (last_mod.addr() + last_mod.size).offset(),
+                    cfg::PAGE_SIZE as GlobOff,
+                );
                 // ensure that we can actually reach the memory with 30-bit physical addresses
                 assert!(mods_end < MAX_PHYS_ADDR_SIZE);
                 mem.add(MemMod::new(MemType::OCCUPIED, tile.id, 0, mods_end));
