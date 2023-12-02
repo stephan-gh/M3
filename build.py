@@ -138,8 +138,9 @@ class M3Env(Env):
             env.install(gen, env['MEMDIR'], hex)
 
         env.install(gen, env['BINDIR'], bin)
+        stripped = env.strip(gen, out=BuildPath(env['BINDIRSTRIP'] + '/' + out), input=bin)
         if dir is not None:
-            bins[dir].append(bin)
+            bins[dir].append(stripped)
         return bin
 
     def m3_rust_exe(self, gen, out, libs=[], dir='bin', startup=None,
@@ -256,8 +257,7 @@ class M3Env(Env):
         global bins
         for dirname, dirbins in bins.items():
             for b in dirbins:
-                dst = BuildPath.new(self, dirname + '/' + os.path.basename(b))
-                self.strip(gen, out=dst, input=b)
+                dst = self.install(gen, outdir=BuildPath.new(self, dirname), input=b)
                 deps += [dst]
 
         dir_env = self.clone()
@@ -325,6 +325,7 @@ env['ISA'] = isa
 env['BUILD'] = btype
 env['BUILDDIR'] = builddir
 env['BINDIR'] = builddir + '/bin'
+env['BINDIRSTRIP'] = builddir + '/bin/stripped'
 env['LIBDIR'] = builddir + '/bin'
 env['LXLIBDIR'] = builddir + '/lxlib'
 env['MEMDIR'] = builddir + '/mem'

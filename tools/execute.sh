@@ -10,7 +10,11 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ] || [ "$1" = "-?" ]; then
 fi
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
-bindir=$build/bin
+if [ "$M3_BUILD" = "debug" ]; then
+    bindir=$build/bin
+else
+    bindir=$build/bin/stripped
+fi
 crossdir="./build/cross-$M3_ISA/host/bin"
 
 if [ $# -lt 2 ]; then
@@ -25,6 +29,8 @@ for p in "$@"; do
     case $p in
         --debug=*)
             debug=${p#--debug=}
+            # Force use of not stripped binaries
+            bindir=$build/bin
             ;;
     esac
 done
@@ -193,19 +199,10 @@ get_mods() {
             print(m[1])
         }
     '); do
-        # use the stripped binary from the default fs on hw to save time during loading
-        if [ "$2" = "hw" ]; then
-            if [ -f "$build/src/fs/default/bin/$name" ]; then
-                path="$build/src/fs/default/bin/$name"
-            else
-                path="$build/src/fs/default/sbin/$name"
-            fi
-        else
-            if [ "$name" = "disk" ] && [ "$M3_GEM5_HDD" = "" ]; then
-                echo "Please specify the HDD image to use via M3_GEM5_HDD." >&2 && exit 1
-            fi
-            path="$bindir/$name"
+        if [ "$2" != "hw" ] && [ "$name" = "disk" ] && [ "$M3_GEM5_HDD" = "" ]; then
+            echo "Please specify the HDD image to use via M3_GEM5_HDD." >&2 && exit 1
         fi
+        path="$bindir/$name"
         if [ ! -f "$path" ]; then
             echo "Binary '$path' does not exist." >&2 && exit 1
         fi
