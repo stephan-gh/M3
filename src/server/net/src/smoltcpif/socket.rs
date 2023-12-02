@@ -452,7 +452,7 @@ impl Socket {
         let socket = self.socket;
         let ty = self.ty;
         let sd = self.sd;
-        #[allow(clippy::blocks_in_if_conditions)]
+        #[allow(clippy::blocks_in_conditions)]
         while self
             .send_queue
             .next_data(usize::MAX, &mut |data, ep: Endpoint| {

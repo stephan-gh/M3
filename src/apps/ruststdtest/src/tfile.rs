@@ -52,11 +52,7 @@ fn basics(t: &mut dyn WvTester) {
     }
 
     {
-        let mut file = wv_assert_ok!(File::options()
-            .read(true)
-            .write(true)
-            .append(true)
-            .open("test.txt"));
+        let mut file = wv_assert_ok!(File::options().read(true).append(true).open("test.txt"));
         let mut buf = [0u8; 30];
         wv_assert!(t, matches!(file.write(&TEST_CONTENT), Ok(15)));
         wv_assert_ok!(file.rewind());
