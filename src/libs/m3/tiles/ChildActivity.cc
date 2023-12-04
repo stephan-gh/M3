@@ -50,7 +50,12 @@ ChildActivity::ChildActivity(const Reference<class Tile> &tile, const std::strin
       _files(),
       _mounts(),
       _exec() {
-    // create pager first, to create session and obtain gate cap
+    // create activity
+    const auto [eps_start, id] = Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel());
+    _eps_start = eps_start;
+    _id = id;
+
+    // determine and initialize pager
     if(_tile->desc().has_virtmem()) {
         if(args._pager)
             _pager = args._pager;
@@ -59,24 +64,10 @@ ChildActivity::ChildActivity(const Reference<class Tile> &tile, const std::strin
         // we need a pager on VM tiles
         else
             throw Exception(Errors::NOT_SUP);
-    }
-
-    if(_pager) {
-        // now create activity, which implicitly obtains the gate cap from us
-        const auto [eps_start, id] =
-            Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel());
-        _eps_start = eps_start;
-        _id = id;
-        // delegate activity cap to pager
         _pager->init(*this);
     }
-    else {
-        const auto [eps_start, id] =
-            Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel());
-        _eps_start = eps_start;
-        _id = id;
-    }
 
+    // clone resource manager
     capsel_t sgate_sel = SelSpace::get().alloc_sel();
     _resmng = Activity::own().resmng()->clone(*this, sgate_sel, name);
 }

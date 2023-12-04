@@ -163,9 +163,15 @@ impl ChildActivity {
             mounts: Vec::new(),
         };
 
-        // determine pager
-        let pager = if act.tile_desc().has_virtmem() {
-            if let Some(p) = args.pager {
+        // create activity
+        let (id, eps_start) =
+            syscalls::create_activity(sel, args.name, tile.sel(), act.kmem().sel())?;
+        act.id = id;
+        act.eps_start = eps_start;
+
+        // determine and initialize pager
+        act.pager = if act.tile_desc().has_virtmem() {
+            let pager = if let Some(p) = args.pager {
                 Some(p)
             }
             else if let Some(p) = Activity::own().pager() {
@@ -173,22 +179,14 @@ impl ChildActivity {
             }
             else {
                 None
+            };
+            match pager {
+                Some(mut pg) => {
+                    pg.init(&act)?;
+                    Some(pg)
+                },
+                None => None,
             }
-        }
-        else {
-            None
-        };
-
-        // actually create activity via syscall
-        let (id, eps_start) =
-            syscalls::create_activity(sel, args.name, tile.sel(), act.kmem().sel())?;
-        act.id = id;
-        act.eps_start = eps_start;
-
-        // initialize pager
-        act.pager = if let Some(mut pg) = pager {
-            pg.init(&act)?;
-            Some(pg)
         }
         else {
             None
