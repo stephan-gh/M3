@@ -367,18 +367,19 @@ void Syscalls::tile_set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool ove
     send_receive_throw(req_buf);
 }
 
-KIF::Syscall::MuxType Syscalls::tile_mux_info(capsel_t tile) {
+std::tuple<KIF::Syscall::MuxType, TileId, TileDesc> Syscalls::tile_info(capsel_t tile) {
     MsgBuf req_buf;
-    auto &req = req_buf.cast<KIF::Syscall::TileMuxInfo>();
-    req.opcode = KIF::Syscall::TILE_MUX_INFO;
+    auto &req = req_buf.cast<KIF::Syscall::TileInfo>();
+    req.opcode = KIF::Syscall::TILE_INFO;
     req.tile_sel = tile;
 
-    auto reply = send_receive<KIF::Syscall::TileMuxInfoReply>(req_buf);
+    auto reply = send_receive<KIF::Syscall::TileInfoReply>(req_buf);
 
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::SUCCESS)
         throw SyscallException(res, static_cast<KIF::Syscall::Operation>(req.opcode));
-    return static_cast<KIF::Syscall::MuxType>(reply->type);
+    return std::make_tuple(static_cast<KIF::Syscall::MuxType>(reply->type),
+                           TileId::from_raw(reply->id), TileDesc(reply->desc));
 }
 
 void Syscalls::tile_mem(capsel_t dst, capsel_t tile) {

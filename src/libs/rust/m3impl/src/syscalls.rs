@@ -19,6 +19,7 @@
 //! Contains the system call wrapper functions
 
 use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
+use base::tcu::TileId;
 
 use core::mem::MaybeUninit;
 
@@ -466,17 +467,15 @@ pub fn tile_mem(dst: Selector, tile: Selector) -> Result<(), Error> {
     send_receive_result(&buf)
 }
 
-/// Requests information about the running multiplexer on the given tile
-pub fn tile_mux_info(tile: Selector) -> Result<syscalls::MuxType, Error> {
+/// Requests information about the given tile
+pub fn tile_info(tile: Selector) -> Result<(syscalls::MuxType, TileId, kif::TileDesc), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    build_vmsg!(
-        buf,
-        syscalls::Operation::TileMuxInfo,
-        syscalls::TileMuxInfo { tile }
-    );
+    build_vmsg!(buf, syscalls::Operation::TileInfo, syscalls::TileInfo {
+        tile
+    });
 
-    let reply: Reply<syscalls::TileMuxInfoReply> = send_receive(&buf)?;
-    Ok(reply.data.ty)
+    let reply: Reply<syscalls::TileInfoReply> = send_receive(&buf)?;
+    Ok((reply.data.ty, reply.data.id, reply.data.desc))
 }
 
 /// Resets the given tile.

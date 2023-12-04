@@ -232,12 +232,9 @@ pub fn tile_reset_async(
 }
 
 #[inline(never)]
-pub fn tile_mux_info_async(
-    act: &Rc<Activity>,
-    msg: &'static tcu::Message,
-) -> Result<(), VerboseError> {
-    let r: syscalls::TileMuxInfo = get_request(msg)?;
-    sysc_log!(act, "tile_mux_info(tile={})", r.tile);
+pub fn tile_info_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+    let r: syscalls::TileInfo = get_request(msg)?;
+    sysc_log!(act, "tile_info(tile={})", r.tile);
 
     let act_caps = act.obj_caps().borrow();
     let tile = get_kobj_ref!(act_caps, r.tile, Tile);
@@ -252,8 +249,10 @@ pub fn tile_mux_info_async(
     };
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::Success, kif::syscalls::TileMuxInfoReply {
+    build_vmsg!(kreply, Code::Success, kif::syscalls::TileInfoReply {
         ty,
+        id: tile.tile(),
+        desc: platform::tile_desc(tile.tile()),
     });
     send_reply(msg, &kreply);
 

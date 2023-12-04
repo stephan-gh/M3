@@ -23,10 +23,10 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::errors::Code;
-use crate::kif::{tilemux::QuotaId, CapRngDesc, CapSel, Perm};
+use crate::kif::{tilemux::QuotaId, CapRngDesc, CapSel, Perm, TileDesc};
 use crate::mem::{GlobAddr, GlobOff, VirtAddr};
 use crate::serialize::{Deserialize, Serialize};
-use crate::tcu::{ActId, EpId, Label};
+use crate::tcu::{ActId, EpId, Label, TileId};
 
 /// The maximum number of arguments for the exchange syscalls
 pub const MAX_EXCHG_ARGS: usize = 8;
@@ -65,7 +65,7 @@ pub enum Operation {
     TileSetQuota,
     TileSetPMP,
     TileMem,
-    TileMuxInfo,
+    TileInfo,
     TileReset,
     SemCtrl,
 
@@ -310,15 +310,17 @@ pub enum MuxType {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-pub struct TileMuxInfo {
+pub struct TileInfo {
     pub tile: CapSel,
 }
 
-/// The tile mux info reply message
+/// The tile info reply message
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-pub struct TileMuxInfoReply {
+pub struct TileInfoReply {
     pub ty: MuxType,
+    pub id: TileId,
+    pub desc: TileDesc,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -253,7 +253,7 @@ impl Tile {
 
     /// Returns the multiplexer type that runs on this tile
     pub fn mux_type(&self) -> Result<MuxType, Error> {
-        syscalls::tile_mux_info(self.sel())
+        syscalls::tile_info(self.sel()).map(|(muxtype, _id, _desc)| muxtype)
     }
 
     /// Returns the EP, time, and page table quota

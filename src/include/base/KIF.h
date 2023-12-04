@@ -184,7 +184,7 @@ struct KIF {
             TILE_SET_QUOTA,
             TILE_SET_PMP,
             TILE_MEM,
-            TILE_MUX_INFO,
+            TILE_INFO,
             TILE_RESET,
             SEM_CTRL,
 
@@ -415,12 +415,14 @@ struct KIF {
             LINUX,
         };
 
-        struct TileMuxInfo : public DefaultRequest {
+        struct TileInfo : public DefaultRequest {
             xfer_t tile_sel;
         } PACKED;
 
-        struct TileMuxInfoReply : public DefaultReply {
+        struct TileInfoReply : public DefaultReply {
             xfer_t type;
+            xfer_t id;
+            xfer_t desc;
         } PACKED;
 
         struct TileMem : public DefaultRequest {
