@@ -262,7 +262,7 @@ impl Env {
     }
 
     pub fn set_pager(&mut self, pager: &Pager) {
-        self.base.pager_sess = pager.sel();
+        self.base.pager_sess = pager.sess_sel();
         self.base.pager_sgate = pager.sgate_sel();
     }
 }

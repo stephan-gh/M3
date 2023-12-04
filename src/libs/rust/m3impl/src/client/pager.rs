@@ -126,7 +126,7 @@ impl Pager {
         )?;
 
         // delegate session and sgate caps to child
-        act.delegate_obj(self.sel())?;
+        act.delegate_obj(self.sess_sel())?;
         act.delegate_obj(self.sgate_sel())?;
 
         // we only need to do that for clones
@@ -141,7 +141,7 @@ impl Pager {
     }
 
     /// Returns the sessions capability selector.
-    pub fn sel(&self) -> cap::Selector {
+    pub(crate) fn sess_sel(&self) -> cap::Selector {
         self.sess.sel()
     }
 
@@ -273,6 +273,6 @@ impl Pager {
 
 impl fmt::Debug for Pager {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "Pager[sel: {}]", self.sel(),)
+        write!(f, "Pager[sel: {}]", self.sess_sel(),)
     }
 }
