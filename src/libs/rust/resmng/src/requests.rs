@@ -214,7 +214,17 @@ impl Requests {
     ) -> Result<(), Error> {
         let req: resmng::AddChildReq = is.pop()?;
 
-        childs.add_child(res, id, req.id, req.sel, &self.rgate, req.sgate, req.name)
+        childs.add_child(
+            res,
+            &self.rgate,
+            id,
+            req.id,
+            req.act,
+            req.tile,
+            req.kmem,
+            req.sgate,
+            req.name,
+        )
     }
 
     fn rem_child_async(

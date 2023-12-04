@@ -109,7 +109,9 @@ pub struct GetInfoReq {
 #[serde(crate = "base::serde")]
 pub struct AddChildReq {
     pub id: ActId,
-    pub sel: Selector,
+    pub act: Selector,
+    pub tile: Selector,
+    pub kmem: Selector,
     pub sgate: Selector,
     pub name: String,
 }
@@ -177,7 +179,9 @@ impl ResMng {
     ) -> Result<ResMngChild, Error> {
         Self::send_receive(&self.sgate, opcodes::ResMng::AddChild, AddChildReq {
             id: act.id(),
-            sel: act.sel(),
+            act: act.sel(),
+            tile: act.tile().sel(),
+            kmem: act.kmem().sel(),
             sgate,
             name: name.to_string(),
         })

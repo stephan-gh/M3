@@ -119,7 +119,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         res: &mut Resources,
         child: &mut OwnChild,
     ) -> Result<(), VerboseError> {
-        let tile = child.child_tile().unwrap().tile_obj().clone();
+        let tile = child.child_tile().tile_obj().clone();
 
         // if TileMux is running on that tile, we have control about the activity's virtual address
         // space and can thus load the program into the address space.
@@ -143,7 +143,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             tile,
             ActivityArgs::new(child.name())
                 .resmng(resmng_scap)
-                .kmem(child.kmem().unwrap()),
+                .kmem(child.kmem()),
         )
         .map_err(|e| VerboseError::new(e.code(), "Unable to create Activity".to_string()))?;
 

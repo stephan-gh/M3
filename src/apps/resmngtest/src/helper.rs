@@ -36,7 +36,7 @@ impl ChildStarter for TestStarter {
         child: &mut OwnChild,
     ) -> Result<(), VerboseError> {
         let act = wv_assert_ok!(ChildActivity::new(
-            child.child_tile().unwrap().tile_obj().clone(),
+            child.child_tile().tile_obj().clone(),
             child.name(),
         ));
 

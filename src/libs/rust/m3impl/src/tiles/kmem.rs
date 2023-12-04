@@ -40,7 +40,8 @@ pub struct KMem {
 }
 
 impl KMem {
-    pub(crate) fn new(sel: Selector) -> Self {
+    /// Creates a new `KMem` object that is bound to given selector.
+    pub fn new_bind(sel: Selector) -> Self {
         KMem {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
         }

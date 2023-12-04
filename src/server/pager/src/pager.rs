@@ -99,13 +99,13 @@ impl subsys::ChildStarter for PagedChildStarter {
         };
 
         // create child activity
-        let tile = child.child_tile().unwrap().tile_obj().clone();
+        let tile = child.child_tile().tile_obj().clone();
         let mut act = ChildActivity::new_with(
             tile.clone(),
             ActivityArgs::new(child.name())
                 .resmng(resmng_scap)
                 .pager(Pager::new(child_sess, pager_sgate, child_sgate)?)
-                .kmem(child.kmem().unwrap()),
+                .kmem(child.kmem()),
         )?;
 
         // pass subsystem info to child, if it's a subsystem

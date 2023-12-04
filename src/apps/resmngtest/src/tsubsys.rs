@@ -256,11 +256,11 @@ fn start_resource_split(t: &mut dyn WvTester) {
 
             // kernel memory
             {
-                let c1_kmem = wv_assert_ok!(c1.kmem().unwrap().quota());
-                let c2_kmem = wv_assert_ok!(c2.kmem().unwrap().quota());
-                let c3_kmem = wv_assert_ok!(c3.kmem().unwrap().quota());
-                let c4_kmem = wv_assert_ok!(c4.kmem().unwrap().quota());
-                let c5_kmem = wv_assert_ok!(c5.kmem().unwrap().quota());
+                let c1_kmem = wv_assert_ok!(c1.kmem().quota());
+                let c2_kmem = wv_assert_ok!(c2.kmem().quota());
+                let c3_kmem = wv_assert_ok!(c3.kmem().quota());
+                let c4_kmem = wv_assert_ok!(c4.kmem().quota());
+                let c5_kmem = wv_assert_ok!(c5.kmem().quota());
                 // different domains have different kernel memory quotas
                 wv_assert!(t, c1_kmem.id() != c2_kmem.id());
                 wv_assert!(t, c3_kmem.id() != c2_kmem.id());
@@ -297,11 +297,11 @@ fn start_resource_split(t: &mut dyn WvTester) {
 
             // endpoints
             {
-                let c1_tile = c1.child_tile().unwrap();
-                let c2_tile = c2.child_tile().unwrap();
-                let c3_tile = c3.child_tile().unwrap();
-                let c4_tile = c4.child_tile().unwrap();
-                let c5_tile = c5.child_tile().unwrap();
+                let c1_tile = c1.child_tile();
+                let c2_tile = c2.child_tile();
+                let c3_tile = c3.child_tile();
+                let c4_tile = c4.child_tile();
+                let c5_tile = c5.child_tile();
                 // check tile sharing
                 wv_assert!(t, c1_tile.tile_id() != c2_tile.tile_id());
                 wv_assert!(t, c1_tile.tile_id() != c3_tile.tile_id());
@@ -326,11 +326,11 @@ fn start_resource_split(t: &mut dyn WvTester) {
 
             // pagetables
             {
-                let c1_tile = c1.child_tile().unwrap();
-                let c2_tile = c2.child_tile().unwrap();
-                let c3_tile = c3.child_tile().unwrap();
-                let c4_tile = c4.child_tile().unwrap();
-                let c5_tile = c5.child_tile().unwrap();
+                let c1_tile = c1.child_tile();
+                let c2_tile = c2.child_tile();
+                let c3_tile = c3.child_tile();
+                let c4_tile = c4.child_tile();
+                let c5_tile = c5.child_tile();
                 // check pagetable quota sharing
                 let c1_quota = *wv_assert_ok!(c1_tile.tile_obj().quota()).page_tables();
                 let c2_quota = *wv_assert_ok!(c2_tile.tile_obj().quota()).page_tables();
@@ -351,11 +351,11 @@ fn start_resource_split(t: &mut dyn WvTester) {
 
             // time
             {
-                let c1_tile = c1.child_tile().unwrap();
-                let c2_tile = c2.child_tile().unwrap();
-                let c3_tile = c3.child_tile().unwrap();
-                let c4_tile = c4.child_tile().unwrap();
-                let c5_tile = c5.child_tile().unwrap();
+                let c1_tile = c1.child_tile();
+                let c2_tile = c2.child_tile();
+                let c3_tile = c3.child_tile();
+                let c4_tile = c4.child_tile();
+                let c5_tile = c5.child_tile();
                 // check time quota sharing
                 let c1_quota = *wv_assert_ok!(c1_tile.tile_obj().quota()).time();
                 let c2_quota = *wv_assert_ok!(c2_tile.tile_obj().quota()).time();

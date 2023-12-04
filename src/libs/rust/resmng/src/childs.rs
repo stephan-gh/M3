@@ -33,7 +33,7 @@ use m3::rc::Rc;
 use m3::serialize::M3Deserializer;
 use m3::syscalls;
 use m3::tcu;
-use m3::tiles::{Activity, KMem, RunningActivity, TileQuota};
+use m3::tiles::{Activity, KMem, RunningActivity, Tile};
 use m3::util::math;
 use m3::{cfg, env};
 
@@ -145,7 +145,7 @@ pub trait Child {
     fn foreign(&self) -> bool;
 
     fn our_tile(&self) -> &TileUsage;
-    fn child_tile(&self) -> Option<&TileUsage>;
+    fn child_tile(&self) -> &TileUsage;
     fn activity_sel(&self) -> Selector;
     fn activity_id(&self) -> tcu::ActId;
     fn remove_activity(&mut self);
@@ -156,7 +156,7 @@ pub trait Child {
     fn cfg(&self) -> Rc<AppConfig>;
     fn res(&self) -> &ChildResources;
     fn res_mut(&mut self) -> &mut ChildResources;
-    fn kmem(&self) -> Option<Rc<KMem>>;
+    fn kmem(&self) -> Rc<KMem>;
 
     fn delegate(&self, src: Selector, dst: Selector) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::Object, src, 1);
@@ -731,7 +731,7 @@ impl OwnChild {
             LogFlags::Info,
             "Starting '{}' on {} with arguments {:?}",
             self.name(),
-            self.child_tile().unwrap().tile_id(),
+            self.child_tile().tile_id(),
             &self.args[1..]
         );
 
@@ -782,8 +782,8 @@ impl Child for OwnChild {
         &self.our_tile
     }
 
-    fn child_tile(&self) -> Option<&TileUsage> {
-        Some(&self.child_tile)
+    fn child_tile(&self) -> &TileUsage {
+        &self.child_tile
     }
 
     fn activity_id(&self) -> tcu::ActId {
@@ -822,8 +822,8 @@ impl Child for OwnChild {
         &mut self.res
     }
 
-    fn kmem(&self) -> Option<Rc<KMem>> {
-        Some(self.kmem.clone())
+    fn kmem(&self) -> Rc<KMem> {
+        self.kmem.clone()
     }
 }
 
@@ -848,6 +848,8 @@ pub struct ForeignChild {
     layer: u32,
     name: String,
     parent_tile: TileUsage,
+    child_tile: TileUsage,
+    kmem: Rc<KMem>,
     cfg: Rc<AppConfig>,
     mem: Rc<ChildMem>,
     res: ChildResources,
@@ -863,6 +865,8 @@ impl ForeignChild {
         layer: u32,
         name: String,
         parent_tile: TileUsage,
+        child_tile: TileUsage,
+        kmem: Rc<KMem>,
         act_id: tcu::ActId,
         act_sel: Selector,
         scap: SendCap,
@@ -876,6 +880,8 @@ impl ForeignChild {
             layer,
             name,
             parent_tile,
+            child_tile,
+            kmem,
             cfg,
             mem,
             res: ChildResources::default(),
@@ -915,8 +921,8 @@ impl Child for ForeignChild {
         &self.parent_tile
     }
 
-    fn child_tile(&self) -> Option<&TileUsage> {
-        None
+    fn child_tile(&self) -> &TileUsage {
+        &self.child_tile
     }
 
     fn activity_id(&self) -> tcu::ActId {
@@ -954,8 +960,8 @@ impl Child for ForeignChild {
         &mut self.res
     }
 
-    fn kmem(&self) -> Option<Rc<KMem>> {
-        None
+    fn kmem(&self) -> Rc<KMem> {
+        self.kmem.clone()
     }
 }
 
@@ -1234,14 +1240,8 @@ impl ChildManager {
                     idx += 1;
                 };
 
-                let kmem_quota = act
-                    .kmem()
-                    .map(|km| km.quota())
-                    .unwrap_or_else(|| Ok(Quota::default()))?;
-                let tile_quota = act
-                    .child_tile()
-                    .map(|tile| tile.tile_obj().quota())
-                    .unwrap_or_else(|| Ok(TileQuota::default()))?;
+                let kmem_quota = act.kmem().quota()?;
+                let tile_quota = act.child_tile().tile_obj().quota()?;
                 Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
                     id: act.activity_id(),
                     layer: parent_layer + act.layer(),
@@ -1256,7 +1256,7 @@ impl ChildManager {
                     eps: *tile_quota.endpoints(),
                     time: *tile_quota.time(),
                     pts: *tile_quota.page_tables(),
-                    tile: act.our_tile().tile_id(),
+                    tile: act.child_tile().tile_id(),
                 }))
             }
         }
@@ -1270,24 +1270,32 @@ impl ChildManager {
     pub fn add_child(
         &mut self,
         res: &Resources,
+        rgate: &RecvGate,
         id: Id,
         act_id: tcu::ActId,
         act_sel: Selector,
-        rgate: &RecvGate,
+        tile_sel: Selector,
+        kmem_sel: Selector,
         sgate_sel: Selector,
         name: String,
     ) -> Result<(), Error> {
         let nid = self.next_id();
         let child = self.child_by_id_mut(id).unwrap();
-        let our_sel = child.obtain(act_sel)?;
+        // TODO it would be better to disallow activity creation for childs and do that for them so
+        // that they can't lie about the used activity/tile/kmem selector.
+        let our_act = child.obtain(act_sel)?;
+        let our_tile = child.obtain(tile_sel)?;
+        let our_kmem = child.obtain(kmem_sel)?;
         let child_name = format!("{}.{}", child.name(), name);
 
         log!(
             LogFlags::ResMngChild,
-            "{}: add_child(act={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+            "{}: add_child(name={}, act={}, tile={}, kmem={}, sgate_sel={}) -> child(id={}, name={})",
             child.name(),
-            act_sel,
             name,
+            act_sel,
+            tile_sel,
+            kmem_sel,
             sgate_sel,
             nid,
             child_name
@@ -1296,6 +1304,8 @@ impl ChildManager {
         if child.res().childs.iter().any(|c| c.1 == act_sel) {
             return Err(Error::new(Code::Exists));
         }
+
+        let (_mux, tile_id, tile_desc) = syscalls::tile_info(our_tile)?;
 
         let sgate = SendCap::new_with(
             SGateArgs::new(rgate)
@@ -1313,8 +1323,10 @@ impl ChildManager {
             // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
             // of childs.
             child.our_tile().clone(),
+            TileUsage::new_obj(Rc::new(Tile::new_bind(tile_id, tile_desc, our_tile))),
+            Rc::new(KMem::new_bind(our_kmem)),
             act_id,
-            our_sel,
+            our_act,
             sgate,
             child.cfg(),
             child.mem().clone(),

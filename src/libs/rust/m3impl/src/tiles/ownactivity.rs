@@ -67,7 +67,7 @@ impl OwnActivity {
                 eps_start: env.first_std_ep(),
                 pager: env.load_pager(),
                 data: env.load_data(),
-                kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
+                kmem: Rc::new(KMem::new_bind(kif::SEL_KMEM)),
             },
             rmng: env.load_rmng(),
             // mounts first; files depend on mounts

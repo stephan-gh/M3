@@ -142,9 +142,10 @@ public:
     }
 
 private:
-    void clone(actid_t act_id, capsel_t act_sel, capsel_t sgate_sel, const std::string_view &name) {
-        GateIStream reply =
-            send_receive_vmsg(_sgate, opcodes::ResMng::ADD_CHILD, act_id, act_sel, sgate_sel, name);
+    void clone(actid_t act_id, capsel_t act_sel, capsel_t tile_sel, capsel_t kmem_sel,
+               capsel_t sgate_sel, const std::string_view &name) {
+        GateIStream reply = send_receive_vmsg(_sgate, opcodes::ResMng::ADD_CHILD, act_id, act_sel,
+                                              tile_sel, kmem_sel, sgate_sel, name);
         retrieve_result(opcodes::ResMng::ADD_CHILD, reply);
     }
 
@@ -186,7 +187,7 @@ private:
 
 inline std::unique_ptr<ResMngChild> ResMng::clone(ChildActivity &act, capsel_t sgate_sel,
                                                   const std::string_view &name) {
-    clone(act.id(), act.sel(), sgate_sel, name);
+    clone(act.id(), act.sel(), act.tile()->sel(), act.kmem()->sel(), sgate_sel, name);
     return std::make_unique<ResMngChild>(sgate_sel, act.sel());
 }
 
