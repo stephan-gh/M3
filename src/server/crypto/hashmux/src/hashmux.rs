@@ -532,9 +532,6 @@ impl HashSession {
             return Err(Error::new(Code::Exists));
         }
 
-        // FIXME: Let client obtain EP capability directly with first obtain() below
-        // Right now this is not possible because mgate.activate() returns an EP
-        // from the EpMng which does not allow binding it to a specified capability selector.
         let ep = EpMng::get().acquire(0)?;
         let ep_sel = ep.sel();
         hash.mem = Some(ep);
