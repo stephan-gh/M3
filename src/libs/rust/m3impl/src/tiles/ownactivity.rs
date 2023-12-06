@@ -59,7 +59,7 @@ impl OwnActivity {
             base: Activity {
                 id: env.activity_id(),
                 cap: Capability::new(kif::SEL_ACT, CapFlags::KEEP_CAP),
-                tile: Rc::new(Tile::new_bind(
+                tile: Rc::new(Tile::new_bind_with(
                     env.tile_id(),
                     env.tile_desc(),
                     kif::SEL_TILE,

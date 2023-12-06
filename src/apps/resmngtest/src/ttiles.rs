@@ -25,17 +25,17 @@ use resmng::resources::tiles::TileManager;
 
 fn create_tiles() -> TileManager {
     let mut mng = TileManager::default();
-    mng.add(Rc::new(Tile::new_bind(
+    mng.add(Rc::new(Tile::new_bind_with(
         TileId::new(0, 1),
         TileDesc::new(TileType::Comp, TileISA::RISCV, 0),
         64,
     )));
-    mng.add(Rc::new(Tile::new_bind(
+    mng.add(Rc::new(Tile::new_bind_with(
         TileId::new(0, 2),
         TileDesc::new_with_attr(TileType::Comp, TileISA::ARM, 32 * 1024, TileAttr::IMEM),
         65,
     )));
-    mng.add(Rc::new(Tile::new_bind(
+    mng.add(Rc::new(Tile::new_bind_with(
         TileId::new(0, 3),
         TileDesc::new(TileType::Mem, TileISA::None, 1024 * 1024),
         66,

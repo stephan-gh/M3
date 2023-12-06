@@ -162,12 +162,12 @@ fn gates(t: &mut dyn WvTester) {
 
 fn tiles(t: &mut dyn WvTester) {
     let mut res = Resources::default();
-    res.tiles_mut().add(Rc::new(Tile::new_bind(
+    res.tiles_mut().add(Rc::new(Tile::new_bind_with(
         TileId::new(0, 1),
         TileDesc::new(TileType::Comp, TileISA::RISCV, 0),
         64,
     )));
-    res.tiles_mut().add(Rc::new(Tile::new_bind(
+    res.tiles_mut().add(Rc::new(Tile::new_bind_with(
         TileId::new(0, 2),
         TileDesc::new_with_attr(TileType::Comp, TileISA::AccelIndir, 0, TileAttr::IMEM),
         65,

@@ -1305,8 +1305,6 @@ impl ChildManager {
             return Err(Error::new(Code::Exists));
         }
 
-        let (_mux, tile_id, tile_desc) = syscalls::tile_info(our_tile)?;
-
         let sgate = SendCap::new_with(
             SGateArgs::new(rgate)
                 .credits(1)
@@ -1323,7 +1321,7 @@ impl ChildManager {
             // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
             // of childs.
             child.our_tile().clone(),
-            TileUsage::new_obj(Rc::new(Tile::new_bind(tile_id, tile_desc, our_tile))),
+            TileUsage::new_obj(Rc::new(Tile::new_bind(our_tile)?)),
             Rc::new(KMem::new_bind(our_kmem)),
             act_id,
             our_act,
