@@ -13,7 +13,6 @@ from fpga_utils import FPGA_Error
 
 import loader
 import term
-import utils
 
 
 timeout_ev = threading.Event()
@@ -55,9 +54,9 @@ def main():
     parser.add_argument('--timeout', type=int)
     args = parser.parse_args()
 
-    mon = NoCmonitor()
+    NoCmonitor()
     if args.timeout is not None:
-        timeout = TimeoutThread(args.timeout)
+        TimeoutThread(args.timeout)
 
     # connect to FPGA
     fpga_inst = fpga_top.FPGA_TOP(args.version, args.fpga, args.reset)
@@ -122,7 +121,7 @@ def main():
             # check for output
             try:
                 bytes = fpga_inst.nocif.receive_bytes(timeout_ns=10_000_000)
-            except:
+            except Exception:
                 continue
 
             fdout.write(bytes)
@@ -133,7 +132,7 @@ def main():
                 msg = bytes.decode()
                 if "Shutting down" in msg:
                     break
-            except:
+            except Exception:
                 pass
     except KeyboardInterrupt:
         timed_out = True
@@ -173,7 +172,7 @@ def main():
                 tile.tcu_reset()
                 try:
                     tile.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log', all=True)
-                except:
+                except Exception:
                     pass
 
         # extract instruction trace
@@ -186,7 +185,7 @@ def main():
             tile.tcu_reset()
             try:
                 tile.rocket_printTrace('log/pm' + str(i) + '-instrs.log', all=True)
-            except:
+            except Exception:
                 pass
 
         tile.stop()
@@ -194,7 +193,7 @@ def main():
 
 try:
     main()
-except FPGA_Error as e:
+except FPGA_Error:
     sys.stdout.flush()
     traceback.print_exc()
 except Exception:

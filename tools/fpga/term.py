@@ -21,7 +21,8 @@ class Term:
 
 
 class TCUTerm(Term):
-    # inspired by MiniTerm (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
+    # inspired by Miniterm
+    # (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
     def __init__(self, dram: memory, nocif: NoCethernet):
         self.fd = sys.stdin.fileno()
         # make stdin nonblocking
@@ -90,7 +91,8 @@ class LxTerm(Term):
             else:
                 return repr(character)
 
-        sys.stderr.write('--- Miniterm on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
+        sys.stderr.write('--- Miniterm on {p.name}'.format(p=self.miniterm.serial))
+        sys.stderr.write('   {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
             p=self.miniterm.serial))
         sys.stderr.write('--- Quit: {} ---\n'.format(key_description(self.miniterm.exit_character)))
 
