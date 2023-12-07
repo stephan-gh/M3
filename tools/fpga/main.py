@@ -40,6 +40,110 @@ class TimeoutThread(threading.Thread):
             os._exit(1)
 
 
+def run_loop(fpga_inst, serial, timeout_ev):
+    if serial is not None:
+        terminal = term.LxTerm(serial)
+    else:
+        terminal = term.TCUTerm(fpga_inst.dram1, fpga_inst.nocif)
+
+    # write in binary to stdout (we get individual bytes from Linux, for example)
+    fdout = os.fdopen(sys.stdout.fileno(), "wb", closefd=False)
+
+    timed_out = False
+    try:
+        while True:
+            # check for timeout
+            if timeout_ev.is_set():
+                timed_out = True
+                break
+
+            # check if there is input to pass to the FPGA
+            if terminal.should_stop():
+                # force-extract logs on ctrl+]
+                timed_out = True
+                break
+
+            # check for output
+            try:
+                bytes = fpga_inst.nocif.receive_bytes(timeout_ns=10_000_000)
+            except Exception:
+                continue
+
+            fdout.write(bytes)
+            fdout.flush()
+
+            # stop when we see the shutdown message from the M³ kernel
+            try:
+                msg = bytes.decode()
+                if "Shutting down" in msg:
+                    break
+            except Exception:
+                pass
+    except KeyboardInterrupt:
+        timed_out = True
+
+    terminal.cleanup()
+
+    return timed_out
+
+
+def extract_tcu_stats(tile, no: int):
+    try:
+        dropped_packets = tile.nocarq.get_arq_drop_packet_count()
+        total_packets = tile.nocarq.get_arq_packet_count()
+        print("PM{}: NoC dropped/total packets: {}/{} ({:.0f}%)".format(no,
+              dropped_packets, total_packets, dropped_packets/total_packets*100))
+    except Exception as e:
+        print("PM{}: unable to read number of dropped NoC packets: {}".format(no, e))
+
+    try:
+        print("PM{}: TCU dropped/error flits: {}/{}".format(no,
+              tile.tcu_drop_flit_count(), tile.tcu_error_flit_count()))
+    except Exception as e:
+        print("PM{}: unable to read number of TCU dropped flits: {}".format(no, e))
+
+
+def extract_tcu_log(tile, no: int):
+    print("PM{}: reading TCU log...".format(no))
+    sys.stdout.flush()
+    try:
+        tile.tcu_print_log('log/pm' + str(no) + '-tcu-cmds.log')
+    except Exception as e:
+        print("PM{}: unable to read TCU log: {}".format(no, e))
+        print("PM{}: resetting TCU and reading all logs...".format(no))
+        sys.stdout.flush()
+        tile.tcu_reset()
+        try:
+            tile.tcu_print_log('log/pm' + str(no) + '-tcu-cmds.log', all=True)
+        except Exception:
+            pass
+
+
+def extract_instr_trace(tile, no: int):
+    try:
+        tile.rocket_printTrace('log/pm' + str(no) + '-instrs.log')
+    except Exception as e:
+        print("PM{}: unable to read instruction trace: {}".format(no, e))
+        print("PM{}: resetting TCU and reading all logs...".format(no))
+        sys.stdout.flush()
+        tile.tcu_reset()
+        try:
+            tile.rocket_printTrace('log/pm' + str(no) + '-instrs.log', all=True)
+        except Exception:
+            pass
+
+
+def stop_tiles(fpga_inst, timed_out):
+    print("Stopping all tiles...")
+    for i, tile in enumerate(fpga_inst.pms, 0):
+        extract_tcu_stats(tile, i)
+        if timed_out:
+            extract_tcu_log(tile, i)
+        extract_instr_trace(tile, i)
+
+        tile.stop()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--fpga', type=int)
@@ -94,101 +198,15 @@ def main():
         ready.write('1')
         ready.close()
 
-    if args.serial is not None:
-        terminal = term.LxTerm(args.serial)
-    else:
-        terminal = term.TCUTerm(fpga_inst.dram1, fpga_inst.nocif)
-
-    # write in binary to stdout (we get individual bytes from Linux, for example)
-    fdout = os.fdopen(sys.stdout.fileno(), "wb", closefd=False)
-
     # wait for prints
     started_ev.set()
-    timed_out = False
-    try:
-        while True:
-            # check for timeout
-            if timeout_ev.is_set():
-                timed_out = True
-                break
 
-            # check if there is input to pass to the FPGA
-            if terminal.should_stop():
-                # force-extract logs on ctrl+]
-                timed_out = True
-                break
-
-            # check for output
-            try:
-                bytes = fpga_inst.nocif.receive_bytes(timeout_ns=10_000_000)
-            except Exception:
-                continue
-
-            fdout.write(bytes)
-            fdout.flush()
-
-            # stop when we see the shutdown message from the M³ kernel
-            try:
-                msg = bytes.decode()
-                if "Shutting down" in msg:
-                    break
-            except Exception:
-                pass
-    except KeyboardInterrupt:
-        timed_out = True
-
-    terminal.cleanup()
+    timed_out = run_loop(fpga_inst, args.serial, timeout_ev)
 
     # disable NoC ARQ again for post-processing
     fpga_inst.set_arq_enable(False)
 
-    # stop all tiles
-    print("Stopping all tiles...")
-    for i, tile in enumerate(fpga_inst.pms, 0):
-        try:
-            dropped_packets = tile.nocarq.get_arq_drop_packet_count()
-            total_packets = tile.nocarq.get_arq_packet_count()
-            print("PM{}: NoC dropped/total packets: {}/{} ({:.0f}%)".format(i,
-                  dropped_packets, total_packets, dropped_packets/total_packets*100))
-        except Exception as e:
-            print("PM{}: unable to read number of dropped NoC packets: {}".format(i, e))
-
-        try:
-            print("PM{}: TCU dropped/error flits: {}/{}".format(i,
-                  tile.tcu_drop_flit_count(), tile.tcu_error_flit_count()))
-        except Exception as e:
-            print("PM{}: unable to read number of TCU dropped flits: {}".format(i, e))
-
-        # extract TCU log on timeouts
-        if timed_out:
-            print("PM{}: reading TCU log...".format(i))
-            sys.stdout.flush()
-            try:
-                tile.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log')
-            except Exception as e:
-                print("PM{}: unable to read TCU log: {}".format(i, e))
-                print("PM{}: resetting TCU and reading all logs...".format(i))
-                sys.stdout.flush()
-                tile.tcu_reset()
-                try:
-                    tile.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log', all=True)
-                except Exception:
-                    pass
-
-        # extract instruction trace
-        try:
-            tile.rocket_printTrace('log/pm' + str(i) + '-instrs.log')
-        except Exception as e:
-            print("PM{}: unable to read instruction trace: {}".format(i, e))
-            print("PM{}: resetting TCU and reading all logs...".format(i))
-            sys.stdout.flush()
-            tile.tcu_reset()
-            try:
-                tile.rocket_printTrace('log/pm' + str(i) + '-instrs.log', all=True)
-            except Exception:
-                pass
-
-        tile.stop()
+    stop_tiles(fpga_inst, timed_out)
 
 
 try:
