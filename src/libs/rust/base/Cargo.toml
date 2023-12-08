@@ -15,8 +15,13 @@ static_assertions = "1.1.0"
 num_enum = { version = "0.6.1", default-features = false }
 serde = { version = "1.0.152", default-features = false, features = ["derive", "alloc"] }
 serde_repr = "0.1.12"
+minicov = { version = "0.3.1", optional = true }
 
-[target.'cfg(target_arch = "riscv64")'.dependencies]
+# This is not actually used but just here to keep minicov always present in
+# Cargo.lock. At the moment cargo does not properly understand optional
+# dependencies that can be only triggered via --features on command line.
+# See: https://github.com/rust-lang/cargo/issues/3629
+[target.riscv64-linux-m3-dummy.dependencies]
 minicov = "0.3.1"
 
 [target.riscv64gc-unknown-linux-gnu.dependencies]
@@ -29,6 +34,7 @@ default-features = false
 [features]
 default = []
 bench = []
+coverage = ['dep:minicov']
 linux = []
 gem5 = []
 hw = []

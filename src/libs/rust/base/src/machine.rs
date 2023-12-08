@@ -23,10 +23,10 @@ use crate::env;
 use crate::errors::Error;
 use crate::tcu;
 
-#[cfg(target_arch = "riscv64")]
+#[cfg(feature = "coverage")]
 struct Gem5CovWriter(u64);
 
-#[cfg(target_arch = "riscv64")]
+#[cfg(feature = "coverage")]
 impl minicov::CoverageWriter for Gem5CovWriter {
     fn write(&mut self, data: &[u8]) -> Result<(), minicov::CoverageWriteError> {
         tcu::TCU::write_coverage(data, self.0);
@@ -41,7 +41,7 @@ extern "C" {
 }
 
 pub fn write_coverage(_act: u64) {
-    #[cfg(target_arch = "riscv64")]
+    #[cfg(feature = "coverage")]
     if env::boot().platform == env::Platform::Gem5 {
         // safety: the function is not thread-safe, but we are always single threaded.
         unsafe {

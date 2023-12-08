@@ -89,9 +89,10 @@ class M3Env(Env):
             # make sure that embedded C-code or similar (minicov with llvm-profile library)
             # for Rust is built with soft-float as well
             cflags = os.environ.get('TARGET_CFLAGS')
-            cflags = cflags.replace('-march=rv64imafdc', '-march=rv64imac')
-            cflags = cflags.replace('-mabi=lp64d', '-mabi=lp64')
-            self['CRGENV']['TARGET_CFLAGS'] = cflags
+            if cflags:
+                cflags = cflags.replace('-march=rv64imafdc', '-march=rv64imac')
+                cflags = cflags.replace('-mabi=lp64d', '-mabi=lp64')
+                self['CRGENV']['TARGET_CFLAGS'] = cflags
         # use the soft-float target spec for rust
         self['TRIPLE'] += 'sf'
 
@@ -177,6 +178,8 @@ class M3Env(Env):
     def add_rust_features(self):
         if self['BUILD'] == 'bench':
             self['CRGFLAGS'] += ['--features', 'base/bench']
+        if self['BUILD'] == 'coverage' and self['ISA'] == 'riscv':
+            self['CRGFLAGS'] += ['--features', 'base/coverage']
         self['CRGFLAGS'] += ['--features', 'base/' + self['TGT']]
 
     def rust_deps(self):

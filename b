@@ -77,7 +77,7 @@ rust_target_args=(
 )
 
 # configure TARGET_CFLAGS for llvmprofile within minicov (only used with RISC-V)
-if [ "$M3_ISA" = "riscv" ]; then
+if [[ "$M3_ISA" = "riscv" && "$M3_BUILD" = "coverage" ]]; then
     flags="-march=rv64imafdc -mabi=lp64d"
     # add C include paths to ensure that these instead of the include paths for the clang host
     # compiler will be used
