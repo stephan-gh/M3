@@ -1,0 +1,70 @@
+name: Check
+on: [push, pull_request]
+
+jobs:
+  #  -- build --
+  build-gem5:
+    # Using format() here prevents the matrix elements from being implicitly
+    # appended to the name, which is already handled through the included
+    # workflow. That way all builds are grouped under a single "build" job.
+    name: ${{ format('build') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        isa: [riscv, x86_64, arm]
+    uses: ./.github/workflows/build.yaml
+    with:
+      isa: ${{ matrix.isa }}
+  build-hw:
+    name: ${{ format('build') }}
+    # Build hw separately to avoid wasting time for the cross-compiler
+    # and common build errors
+    needs: build-gem5
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [hw, hw22, hw23]
+    uses: ./.github/workflows/build.yaml
+    with:
+      target: ${{ matrix.target }}
+
+  #  -- maintenance --
+  checkboot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nixbuild/nix-quick-install-action@v26
+      - name: Setup Nix environment
+        run: nix develop -ic true
+      - name: Run ./b checkboot
+        run: nix develop -ic ./b -n checkboot 2>&1 | tee checkboot.log
+      - name: Check for failures
+        run: '! grep --color=none -B1 "fails to validate" checkboot.log'
+  clippy:
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nixbuild/nix-quick-install-action@v26
+      - name: Setup Nix environment
+        run: nix develop -ic true
+      - name: Run ./b clippy
+        run: nix develop -ic env CLICOLOR_FORCE=1 ./b -n clippy 2>&1 | tee clippy.log
+      - name: Check for warnings/errors
+        run: '! grep --color=none -EA1 "^[^\s]*(warning|error)" clippy.log'
+  fmt:
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nixbuild/nix-quick-install-action@v26
+      - name: Setup Nix environment
+        run: nix develop -ic true
+      - name: Run ./b fmt
+        run: nix develop -ic ./b -n fmt
+      - name: Check for differences
+        run: git diff --exit-code --color=always
+
+defaults:
+  run:
+    shell: bash

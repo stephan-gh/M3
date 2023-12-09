@@ -1,0 +1,69 @@
+name: Build
+on:
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        default: gem5
+      isa:
+        type: string
+        default: riscv
+
+jobs:
+  build:
+    name: ${{ inputs.target }} (${{ inputs.isa }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1
+          tools/ninjapie src/apps/bsdutils src/libs/musl src/libs/flac src/libs/leveldb
+          src/libs/crypto/kecacc-xkcp
+      - uses: nixbuild/nix-quick-install-action@v26
+      - name: Setup Nix environment
+        run: nix develop -ic true
+
+      # Build cross-compiler and cache it to save time
+      - id: buildroot
+        name: Determine Buildroot version
+        run: echo "commit=$(git ls-tree HEAD cross/buildroot | awk '{print $3}')" >> "$GITHUB_OUTPUT"
+      - id: cross-cache
+        name: Cache cross-compiler
+        uses: actions/cache@v4
+        with:
+          path: build/cross-${{ inputs.isa }}/host
+          key: ${{ format('cross-{0}-{1}-{2}-{3}',
+            inputs.isa, steps.buildroot.outputs.commit,
+            hashFiles('flake.lock', 'cross/build.sh', format('cross/config-{0}', inputs.isa)),
+            github.workspace) }}
+      - name: Build cross-compiler
+        if: steps.cross-cache.outputs.cache-hit != 'true'
+        run: |
+          # Fetch buildroot from GitHub instead to avoid "Direct fetching of that commit failed"
+          git config --global url.https://github.com/buildroot/.insteadOf https://git.buildroot.net/
+          git submodule update --init --depth 1 cross/buildroot
+          nix develop -ic sh -c 'cd cross && CLICOLOR_FORCE=1 ./build.sh ${{ inputs.isa }} toolchain'
+          rm -rf build/cross-${{ inputs.isa }}/build
+
+      # Build M3 in all different modes
+      - name: Build (release)
+        run: nix develop -ic env M3_TARGET=${{ inputs.target }} M3_ISA=${{ inputs.isa }}
+          M3_BUILD=release CLICOLOR_FORCE=1 sh -c './b && ./b clean' 2>&1 | tee build/release.log
+      - name: Build (debug)
+        run: nix develop -ic env M3_TARGET=${{ inputs.target }} M3_ISA=${{ inputs.isa }}
+          M3_BUILD=debug CLICOLOR_FORCE=1 sh -c './b && ./b clean' 2>&1 | tee build/debug.log
+      - name: Build (bench)
+        if: false  # Skip to save build time for now, very similar to release
+        run: nix develop -ic env M3_TARGET=${{ inputs.target }} M3_ISA=${{ inputs.isa }}
+          M3_BUILD=bench CLICOLOR_FORCE=1 sh -c './b && ./b clean' 2>&1 | tee build/bench.log
+      - name: Build (coverage)
+        if: inputs.isa == 'riscv' && inputs.target == 'gem5'
+        run: nix develop -ic env M3_TARGET=${{ inputs.target }} M3_ISA=${{ inputs.isa }}
+          M3_BUILD=coverage CLICOLOR_FORCE=1 sh -c './b && ./b clean' 2>&1 | tee build/coverage.log
+      - name: Check for warnings
+        run: '! grep --color=none -C1 warning build/*.log'
+        continue-on-error: false
+
+defaults:
+  run:
+    shell: bash
