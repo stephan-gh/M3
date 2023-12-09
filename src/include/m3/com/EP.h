@@ -53,7 +53,8 @@ public:
     static EP bind(epid_t id) noexcept;
 
     EP &operator=(EP &&ep) noexcept;
-    EP(EP &&ep) noexcept
+    EP(EP &&ep)
+    noexcept
         : SListItem(std::move(ep)),
           ObjCap(std::move(ep)),
           _id(ep._id),
