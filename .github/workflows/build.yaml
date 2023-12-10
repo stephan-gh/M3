@@ -45,6 +45,12 @@ jobs:
           nix develop -ic sh -c 'cd cross && CLICOLOR_FORCE=1 ./build.sh ${{ inputs.isa }} toolchain'
           rm -rf build/cross-${{ inputs.isa }}/build
 
+      # Rust is normally installed automatically but there is currently a race
+      # condition that causes installation failures when Ninja runs two CARGO
+      # commands in parallel. Forcing early installation works around this.
+      - name: Setup Rust toolchain
+        run: nix develop -ic cargo version
+
       # Build M3 in all different modes
       - name: Build (release)
         run: nix develop -ic env M3_TARGET=${{ inputs.target }} M3_ISA=${{ inputs.isa }}
