@@ -335,7 +335,7 @@ env['RUSTLIBS'] = builddir + '/rust/libs'
 hostenv = env.clone()
 hostenv['CXXFLAGS'] += ['-std=c++11']
 hostenv['CPPFLAGS'] += ['-D__tools__']
-if btype == 'release':
+if btype != 'debug':
     hostenv.remove_flag('CXXFLAGS', '-flto')
     hostenv.remove_flag('CFLAGS', '-flto')
     hostenv.remove_flag('LINKFLAGS', '-flto')
