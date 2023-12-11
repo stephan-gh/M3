@@ -200,7 +200,7 @@ help() {
     echo "    M3_GEM5_LOG:             the log flags for gem5 (--debug-flags)."
     echo "    M3_GEM5_LOGSTART:        when to start logging for gem5 (--debug-start)."
     echo "    M3_GEM5_CFG:             the gem5 configuration (config/default.py by default)."
-    echo "    M3_GEM5_CPU:             the CPU model (detailed by default)."
+    echo "    M3_GEM5_CPU:             the CPU model (DerivO3CPU by default)."
     echo "    M3_GEM5_CPUFREQ:         the CPU frequency (1GHz by default)."
     echo "    M3_GEM5_MEMFREQ:         the memory frequency (333MHz by default)."
     echo "    M3_GEM5_PAUSE:           pause the tile with given id until GDB connects"
