@@ -577,7 +577,7 @@ impl AppConfig {
         self.sessions[idx].used.replace(false);
     }
 
-    pub fn get_pe_idx(&self, desc: kif::TileDesc) -> Result<usize, Error> {
+    pub fn get_tile_idx(&self, desc: kif::TileDesc) -> Result<usize, Error> {
         let idx = self
             .tiles
             .iter()

@@ -550,7 +550,7 @@ pub trait Child {
         );
 
         let cfg = self.cfg();
-        let idx = cfg.get_pe_idx(desc)?;
+        let idx = cfg.get_tile_idx(desc)?;
         let mut tile_usage = res.tiles().find(desc)?;
 
         if init {
