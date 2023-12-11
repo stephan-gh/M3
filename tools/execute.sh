@@ -178,8 +178,8 @@ get_mods() {
                 path="$build/src/fs/default/sbin/$name"
             fi
         else
-            if [ "$name" = "disk" ] && [ "$M3_HDD" = "" ]; then
-                echo "Please specify the HDD image to use via M3_HDD." >&2 && exit 1
+            if [ "$name" = "disk" ] && [ "$M3_GEM5_HDD" = "" ]; then
+                echo "Please specify the HDD image to use via M3_GEM5_HDD." >&2 && exit 1
             fi
             path="$bindir/$name"
         fi
@@ -222,15 +222,15 @@ build_params_gem5() {
             M3_GEM5_CPU="DerivO3CPU"
         fi
     fi
-    if [ "$M3_HDD" != "" ] && [ ! -f "$M3_HDD" ]; then
-        echo "Hard disk image '$M3_HDD' does not exist." >&2 && exit 1
+    if [ "$M3_GEM5_HDD" != "" ] && [ ! -f "$M3_GEM5_HDD" ]; then
+        echo "Hard disk image '$M3_GEM5_HDD' does not exist." >&2 && exit 1
     fi
 
-    M3_CORES=${M3_CORES:-16}
+    M3_GEM5_CORES=${M3_GEM5_CORES:-16}
 
     cmd=$kernels
     c=$(echo -n "$cmd" | sed 's/[^,]//g' | wc -c)
-    while [ "$c" -lt "$M3_CORES" ]; do
+    while [ "$c" -lt "$M3_GEM5_CORES" ]; do
         cmd="$cmd,"
         c=$((c + 1))
     done
@@ -238,8 +238,8 @@ build_params_gem5() {
     M3_GEM5_CPUFREQ=${M3_GEM5_CPUFREQ:-1GHz}
     M3_GEM5_MEMFREQ=${M3_GEM5_MEMFREQ:-333MHz}
     M3_GEM5_CFG=${M3_GEM5_CFG:-config/default.py}
-    export M3_GEM5_TILES=$M3_CORES
-    export M3_GEM5_IDE_DRIVE=$M3_HDD
+    export M3_GEM5_TILES=$M3_GEM5_CORES
+    export M3_GEM5_IDE_DRIVE=$M3_GEM5_HDD
 
     params=()
     params=("${params[@]}" --outdir="$M3_OUT" --debug-file=gem5.log --debug-flags="$M3_GEM5_LOG")
