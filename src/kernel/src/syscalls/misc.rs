@@ -60,7 +60,7 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
     }
 
     let mut tilemux = tilemng::tilemux(dst_act.tile_id());
-    let epid = if r.epid == tcu::TOTAL_EPS {
+    let epid = if r.epid == tcu::INVALID_EP {
         match tilemux.find_eps(ep_count) {
             Ok(epid) => epid,
             Err(e) => sysc_err!(e.code(), "No free EP range for {} EPs", ep_count),

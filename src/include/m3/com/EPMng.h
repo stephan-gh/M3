@@ -48,7 +48,7 @@ public:
      * @param replies the number of reply slots (default = 0)
      * @return the endpoint
      */
-    EP *acquire(epid_t ep = TOTAL_EPS, uint replies = 0);
+    EP *acquire(epid_t ep = TCU::INVALID_EP, uint replies = 0);
 
     /**
      * Releases the given endpoint. If <invalidate> is true, the endpoint will be invalidate.

@@ -19,7 +19,7 @@ use crate::cap::{CapFlags, Capability, SelSpace, Selector};
 use crate::errors::Error;
 use crate::kif;
 use crate::syscalls;
-use crate::tcu::{EpId, TOTAL_EPS};
+use crate::tcu::{EpId, INVALID_EP};
 
 bitflags! {
     #[derive(Copy, Clone, Debug)]
@@ -55,7 +55,7 @@ impl Default for EPArgs {
     /// Creates a new `EPArgs` with default arguments (any EP and no reply slots)
     fn default() -> Self {
         Self {
-            epid: TOTAL_EPS,
+            epid: INVALID_EP,
             act: kif::SEL_ACT,
             replies: 0,
         }
@@ -105,7 +105,7 @@ impl EP {
 
     /// Allocates a new endpoint with custom arguments
     pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
-        let flags = if args.epid == TOTAL_EPS && args.replies == 0 {
+        let flags = if args.epid == INVALID_EP && args.replies == 0 {
             EPFlags::CACHEABLE
         }
         else {
@@ -140,7 +140,7 @@ impl EP {
     pub(crate) fn destructing_move(&mut self) -> Self {
         let (ep, flags) = (self.ep, self.cap.flags());
         self.cap.set_flags(CapFlags::KEEP_CAP);
-        self.ep = TOTAL_EPS;
+        self.ep = INVALID_EP;
         Self {
             cap: Capability::new(self.sel(), flags),
             ep,

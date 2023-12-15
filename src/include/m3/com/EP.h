@@ -49,7 +49,7 @@ class EP : public SListItem, public ObjCap {
 
 public:
     static EP alloc(uint replies = 0);
-    static EP alloc_for(capsel_t act, epid_t ep = TOTAL_EPS, uint replies = 0);
+    static EP alloc_for(capsel_t act, epid_t ep = TCU::INVALID_EP, uint replies = 0);
     static EP bind(epid_t id) noexcept;
 
     EP &operator=(EP &&ep) noexcept;

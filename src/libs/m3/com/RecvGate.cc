@@ -70,7 +70,7 @@ RecvGate RecvCap::activate() {
     auto buf = RecvBufs::get().alloc(1UL << _order);
     size_t buf_addr = buf->addr();
 
-    auto rep = EPMng::get().acquire(TOTAL_EPS, slots());
+    auto rep = EPMng::get().acquire(TCU::INVALID_EP, slots());
     Gate::activate_on(sel(), *rep, buf->mem(), buf->off());
 
     // prevent that we revoke the cap

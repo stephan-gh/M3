@@ -24,7 +24,7 @@ use crate::errors::Error;
 use crate::kif;
 use crate::mem::GlobOff;
 use crate::syscalls;
-use crate::tcu::TOTAL_EPS;
+use crate::tcu::INVALID_EP;
 
 /// Represents a gate capability that can be turned into a usable gate (e.g., `SendCap` to
 /// `SendGate`).
@@ -137,7 +137,7 @@ impl Gate {
 
     pub(crate) fn release(&mut self, force_inval: bool) {
         // the destructing move sets the ep id to invalid to ensure that we release the EP just once
-        if self.ep.id() != TOTAL_EPS {
+        if self.ep.id() != INVALID_EP {
             let ep = self.ep.destructing_move();
             EpMng::get().release(
                 ep,

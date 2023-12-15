@@ -27,7 +27,7 @@ use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_ACT, SEL_KMEM, SEL_TIL
 use m3::mem::{GlobOff, VirtAddr};
 use m3::server::{CapExchange, Handler, Server, ServerSession, SessId, SessionContainer};
 use m3::syscalls;
-use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
+use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, INVALID_EP, TOTAL_EPS};
 use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
 use m3::time::TimeDuration;
@@ -409,7 +409,7 @@ fn alloc_ep(t: &mut dyn WvTester) {
         {
             let tile = wv_assert_ok!(Tile::get("compat"));
             let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
-            wv_assert_ok!(syscalls::alloc_ep(sel, act.sel(), TOTAL_EPS, 1));
+            wv_assert_ok!(syscalls::alloc_ep(sel, act.sel(), INVALID_EP, 1));
         }
 
         let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
@@ -423,13 +423,13 @@ fn alloc_ep(t: &mut dyn WvTester) {
     // invalid dest selector
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(SEL_ACT, Activity::own().tile().sel(), TOTAL_EPS, 1),
+        syscalls::alloc_ep(SEL_ACT, Activity::own().tile().sel(), INVALID_EP, 1),
         Code::InvArgs
     );
     // invalid activity selector
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, SEL_TILE, TOTAL_EPS, 1),
+        syscalls::alloc_ep(sel, SEL_TILE, INVALID_EP, 1),
         Code::InvArgs
     );
     // invalid reply count
@@ -440,12 +440,17 @@ fn alloc_ep(t: &mut dyn WvTester) {
     );
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 2, TOTAL_EPS as u32),
+        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 2, INVALID_EP as u32),
         Code::InvArgs
     );
 
     // any EP
-    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, Activity::own().sel(), TOTAL_EPS, 1));
+    let ep = wv_assert_ok!(syscalls::alloc_ep(
+        sel,
+        Activity::own().sel(),
+        INVALID_EP,
+        1
+    ));
     wv_assert!(t, ep >= FIRST_USER_EP);
     wv_assert!(t, ep < TOTAL_EPS);
     wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::Object, sel, 1), false));
@@ -488,7 +493,7 @@ fn alloc_ep(t: &mut dyn WvTester) {
         .remaining();
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, Activity::own().sel(), TOTAL_EPS, ep_quota + 1),
+        syscalls::alloc_ep(sel, Activity::own().sel(), INVALID_EP, ep_quota + 1),
         Code::NoSpace
     );
 }
