@@ -62,6 +62,11 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
             unsafe {
                 // put the string on the stack to prevent that gem5_writefile causes a pagefault
                 let file: [u8; 7] = *b"stdout\0";
+                // make sure the string is actually written before we call gem5_writefile
+                // without this it might end up in the store buffer, where gem5 doesn't see it.
+                // note that the fence is only effective together with the volatile reads below
+                // because it just controls ordering of memory accesses and not instructions.
+                core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
                 // touch the string first to cause a page fault, if required. gem5 assumes that it's mapped
                 let _b = file.as_ptr().read_volatile();
                 let _b = file.as_ptr().add(6).read_volatile();
