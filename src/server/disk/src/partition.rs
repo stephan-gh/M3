@@ -26,6 +26,15 @@ pub struct Partition {
 }
 
 impl Partition {
+    pub fn new_whole_disk(size: u32) -> Self {
+        Partition {
+            id: 0,
+            present: true,
+            start: 0,
+            size,
+        }
+    }
+
     pub fn id(&self) -> usize {
         self.id
     }

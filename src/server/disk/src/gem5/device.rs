@@ -244,6 +244,16 @@ impl Device {
                 dev.parts.push(p);
             }
         }
+        // If no partitions exist just expose the whole disk
+        if dev.parts.is_empty() {
+            log!(
+                LogFlags::DiskDev,
+                "chan[{}] no partitions found, using whole disk",
+                chan.id(),
+            );
+            dev.parts
+                .push(Partition::new_whole_disk(dev.capacity as u32));
+        }
 
         Ok(dev)
     }
