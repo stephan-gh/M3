@@ -60,9 +60,8 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
     {
         if env::boot().platform == env::Platform::Gem5 {
             unsafe {
-                // put the string on the stack to prevent that gem5_writefile causes a pagefault
-                let file: [u8; 7] = *b"stdout\0";
-                // make sure the string is actually written before we call gem5_writefile
+                let file = b"stdout\0";
+                // make sure the buffer is actually written before we call gem5_writefile
                 // without this it might end up in the store buffer, where gem5 doesn't see it.
                 // note that the fence is only effective together with the volatile reads below
                 // because it just controls ordering of memory accesses and not instructions.
