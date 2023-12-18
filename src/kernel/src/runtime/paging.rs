@@ -88,6 +88,7 @@ pub fn init() {
     let rw = PageFlags::RW;
     map_ident(&mut aspace, tcu::MMIO_ADDR, tcu::MMIO_SIZE, rw);
     map_ident(&mut aspace, tcu::MMIO_PRIV_ADDR, tcu::MMIO_PRIV_SIZE, rw);
+    map_ident(&mut aspace, tcu::MMIO_EPS_ADDR, tcu::MMIO_EPS_SIZE, rw);
 
     // map text, data, and bss
     unsafe {

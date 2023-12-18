@@ -22,6 +22,7 @@ namespace m3lx {
 
 enum MemType {
     TCU,
+    TCUEps,
     Environment,
     StdRecvBuf,
     Custom,

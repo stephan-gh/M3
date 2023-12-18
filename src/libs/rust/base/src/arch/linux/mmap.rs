@@ -10,6 +10,7 @@ use crate::mem::VirtAddr;
 #[repr(usize)]
 pub enum MemType {
     TCU,
+    TCUEPs,
     Environment,
     StdRecvBuf,
     Custom,

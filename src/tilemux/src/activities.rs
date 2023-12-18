@@ -974,6 +974,13 @@ impl Activity {
             kif::PageFlags::U | rw,
         )
         .unwrap();
+        self.map(
+            tcu::MMIO_EPS_ADDR,
+            GlobAddr::new(tcu::MMIO_EPS_ADDR.as_goff()),
+            tcu::MMIO_EPS_SIZE / cfg::PAGE_SIZE,
+            kif::PageFlags::U | kif::PageFlags::R,
+        )
+        .unwrap();
 
         // map text, data, and bss
         let rx = kif::PageFlags::RX;

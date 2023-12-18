@@ -84,6 +84,15 @@ pub fn init() {
     )
     .expect("Unable to map TCU MMIO region");
 
+    mmap::mmap_tcu(
+        tcu_fd(),
+        tcu::MMIO_EPS_ADDR,
+        tcu::MMIO_EPS_SIZE,
+        mmap::MemType::TCUEPs,
+        Perm::R,
+    )
+    .expect("Unable to map TCU-EPs MMIO region");
+
     let (rbuf_virt_addr, rbuf_size) = TileDesc::new_from(env::boot().tile_desc).rbuf_std_space();
     mmap::mmap_tcu(
         tcu_fd(),

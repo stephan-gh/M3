@@ -152,11 +152,14 @@ pub const UNLIM_CREDITS: u32 = 0x3F;
 /// The base address of the TCU's MMIO area
 pub const MMIO_ADDR: VirtAddr = VirtAddr::new(0xF000_0000);
 /// The size of the TCU's MMIO area
-pub const MMIO_SIZE: usize = cfg::PAGE_SIZE * 2;
-/// The base address of the TCU's private MMIO area
+pub const MMIO_SIZE: usize = cfg::PAGE_SIZE;
+/// The base address of the TCU's privileged MMIO area
 pub const MMIO_PRIV_ADDR: VirtAddr = VirtAddr::new(MMIO_ADDR.as_raw() + MMIO_SIZE as VirtAddrRaw);
-/// The size of the TCU's private MMIO area (including config space on HW)
-pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE * 2;
+/// The size of the TCU's privileged MMIO area
+pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
+pub const MMIO_EPS_ADDR: VirtAddr =
+    VirtAddr::new(MMIO_PRIV_ADDR.as_raw() + MMIO_PRIV_SIZE as VirtAddrRaw);
+pub const MMIO_EPS_SIZE: usize = cfg::PAGE_SIZE * 2;
 
 cfg_if! {
     if #[cfg(feature = "hw22")] {
@@ -774,7 +777,7 @@ impl TCU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) -> usize {
-        let regs = EXT_REGS + UNPRIV_REGS + EP_REGS * TOTAL_EPS as usize;
+        let regs = EXT_REGS + UNPRIV_REGS as usize;
 
         let s = &s[0..cmp::min(s.len(), PRINT_REGS * mem::size_of::<Reg>() - 1)];
 
@@ -1076,16 +1079,24 @@ impl TCU {
     }
 
     fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
-        Self::read_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize + reg)
+        Self::read_reg(
+            (MMIO_EPS_ADDR.as_local() - MMIO_ADDR.as_local()) / mem::size_of::<Reg>()
+                + EP_REGS * ep as usize
+                + reg,
+        )
     }
 
     fn read_priv_reg(reg: PrivReg) -> Reg {
-        Self::read_reg(((cfg::PAGE_SIZE * 2) / mem::size_of::<Reg>()) + reg as usize)
+        Self::read_reg(
+            ((MMIO_PRIV_ADDR.as_local() - MMIO_ADDR.as_local()) / mem::size_of::<Reg>())
+                + reg as usize,
+        )
     }
 
     fn write_priv_reg(reg: PrivReg, val: Reg) {
         Self::write_reg(
-            ((cfg::PAGE_SIZE * 2) / mem::size_of::<Reg>()) + reg as usize,
+            ((MMIO_PRIV_ADDR.as_local() - MMIO_ADDR.as_local()) / mem::size_of::<Reg>())
+                + reg as usize,
             val,
         )
     }
@@ -1218,9 +1229,9 @@ impl TCU {
 
     /// Configures the given endpoint
     pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
-        let off = EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize;
+        let off = EP_REGS * ep as usize;
         unsafe {
-            let addr = (MMIO_ADDR.as_mut_ptr::<Reg>()).add(off);
+            let addr = (MMIO_EPS_ADDR.as_mut_ptr::<Reg>()).add(off);
             for (i, r) in regs.iter().enumerate() {
                 CPU::write8b(addr.add(i), *r);
             }
@@ -1234,6 +1245,6 @@ impl TCU {
 
     /// Returns the MMIO address of the given endpoint registers
     pub fn ep_regs_addr(ep: EpId) -> VirtAddr {
-        MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize) * mem::size_of::<Reg>()
+        MMIO_EPS_ADDR + (EP_REGS * ep as usize) * mem::size_of::<Reg>()
     }
 }

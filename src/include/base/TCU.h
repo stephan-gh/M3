@@ -180,9 +180,9 @@ public:
     typedef uint64_t reg_t;
 
     static const uintptr_t MMIO_ADDR = 0xF000'0000;
-    static const size_t MMIO_SIZE = PAGE_SIZE * 2;
-    static const uintptr_t MMIO_PRIV_ADDR = MMIO_ADDR + MMIO_SIZE;
-    static const size_t MMIO_PRIV_SIZE = PAGE_SIZE;
+    static const size_t MMIO_SIZE = PAGE_SIZE;
+    static const uintptr_t MMIO_EPS_ADDR = MMIO_ADDR + PAGE_SIZE * 2;
+    static const size_t MMIO_EPS_SIZE = PAGE_SIZE * 2;
 
     static const reg_t INVALID_EP = 0xFFFF;
     static const reg_t INVALID_ACT = 0xFFFF;
@@ -458,13 +458,13 @@ private:
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(PrivRegs reg) {
-        return read_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg));
+        return read_reg((PAGE_SIZE / sizeof(reg_t)) + static_cast<size_t>(reg));
     }
     static reg_t read_reg(UnprivRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(epid_t ep, size_t idx) {
-        return read_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep + idx);
+        return read_reg(((MMIO_EPS_ADDR - MMIO_ADDR) / sizeof(reg_t)) + EP_REGS * ep + idx);
     }
     static reg_t read_reg(size_t idx) {
         return CPU::read8b(MMIO_ADDR + idx * sizeof(reg_t));
@@ -474,7 +474,7 @@ private:
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(PrivRegs reg, reg_t value) {
-        write_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg), value);
+        write_reg((PAGE_SIZE / sizeof(reg_t)) + static_cast<size_t>(reg), value);
     }
     static void write_reg(UnprivRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
@@ -505,7 +505,7 @@ private:
         return MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
-        size_t regCount = EXT_REGS + UNPRIV_REGS + TOTAL_EPS * EP_REGS;
+        size_t regCount = EXT_REGS + UNPRIV_REGS;
         return MMIO_ADDR + regCount * sizeof(reg_t);
     }
 
@@ -554,7 +554,8 @@ private:
     }
 
     static void write_reg(epid_t ep, size_t idx, reg_t value) {
-        size_t off = m3::TCU::EXT_REGS + m3::TCU::UNPRIV_REGS + m3::TCU::EP_REGS * ep + idx;
+        size_t off = ((m3::TCU::MMIO_EPS_ADDR - m3::TCU::MMIO_ADDR) / sizeof(reg_t)) +
+                     m3::TCU::EP_REGS * ep + idx;
         m3::TCU::write_reg(off, value);
     }
 
