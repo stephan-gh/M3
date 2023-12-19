@@ -185,7 +185,7 @@ static void test_msg_errors() {
 
         // now we should still have credits and the msg should still be unread
         ASSERT_EQ(kernel::TCU::credits(RPLEP), 1);
-        uint32_t unread, occupied;
+        TCU::rep_bitmask_t unread, occupied;
         kernel::TCU::recv_masks(REP, &unread, &occupied);
         ASSERT_EQ(unread, 0x1);
         ASSERT_EQ(occupied, 0x1);
@@ -557,22 +557,23 @@ static void test_msg_receive() {
 
     logln("SEND+FETCH and verify unread/occupied/rpos/wpos"_cf);
 
-    char rbuffer[32 * 64];
+    char rbuffer[TCU::MAX_RB_SIZE * 64];
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
 
-    kernel::TCU::config_recv(REP, buf, 5 + 6 /* 32 * 64 */, 6 /* 64 */, TCU::NO_REPLIES, 0, 0);
+    kernel::TCU::config_recv(REP, buf, nextlog2<TCU::MAX_RB_SIZE>::val + 6 /* 64 */, 6 /* 64 */,
+                             TCU::NO_REPLIES, 0, 0);
     kernel::TCU::config_send(SEP, 0x5678, own_tile, REP, 6 /* 64 */, TCU::UNLIM_CREDITS);
 
     uint8_t expected_rpos = 0, expected_wpos = 0;
-    uint32_t expected_unread = 0, expected_occupied = 0;
-    for(int j = 0; j < 32; ++j) {
+    TCU::rep_bitmask_t expected_unread = 0, expected_occupied = 0;
+    for(size_t j = 0; j < TCU::MAX_RB_SIZE; ++j) {
         MsgBuf msg;
         msg.cast<uint64_t>() = 0xDEAD'BEEF;
 
         // send all messages
-        for(int i = 0; i < j; ++i) {
+        for(size_t i = 0; i < j; ++i) {
             uint8_t rpos, wpos;
-            uint32_t unread, occupied;
+            TCU::rep_bitmask_t unread, occupied;
             kernel::TCU::recv_pos(REP, &rpos, &wpos);
             kernel::TCU::recv_masks(REP, &unread, &occupied);
             ASSERT_EQ(rpos, expected_rpos);
@@ -582,25 +583,25 @@ static void test_msg_receive() {
 
             ASSERT_EQ(kernel::TCU::send(SEP, msg, static_cast<label_t>(i + 1), TCU::NO_REPLIES),
                       Errors::SUCCESS);
-            if(wpos == 32) {
-                expected_unread |= 1 << 0;
-                expected_occupied |= 1 << 0;
+            if(wpos == TCU::MAX_RB_SIZE) {
+                expected_unread |= static_cast<uint64_t>(1) << 0;
+                expected_occupied |= static_cast<uint64_t>(1) << 0;
             }
             else {
-                expected_unread |= 1 << wpos;
-                expected_occupied |= 1 << wpos;
+                expected_unread |= static_cast<uint64_t>(1) << wpos;
+                expected_occupied |= static_cast<uint64_t>(1) << wpos;
             }
 
-            if(expected_wpos == 32)
+            if(expected_wpos == TCU::MAX_RB_SIZE)
                 expected_wpos = 1;
             else
                 expected_wpos++;
         }
 
         // fetch all messages
-        for(int i = 0; i < j; ++i) {
+        for(size_t i = 0; i < j; ++i) {
             uint8_t rpos, wpos;
-            uint32_t unread, occupied;
+            TCU::rep_bitmask_t unread, occupied;
             kernel::TCU::recv_pos(REP, &rpos, &wpos);
             kernel::TCU::recv_masks(REP, &unread, &occupied);
             ASSERT_EQ(rpos, expected_rpos);
@@ -611,12 +612,12 @@ static void test_msg_receive() {
             const TCU::Message *rmsg = kernel::TCU::fetch_msg(REP, buf);
             ASSERT(rmsg != nullptr);
 
-            if(rpos == 32)
-                expected_unread &= ~(1U << 0);
+            if(rpos == TCU::MAX_RB_SIZE)
+                expected_unread &= ~(static_cast<uint64_t>(1) << 0);
             else
-                expected_unread &= ~(1U << rpos);
+                expected_unread &= ~(static_cast<uint64_t>(1) << rpos);
 
-            if(expected_rpos == 32)
+            if(expected_rpos == TCU::MAX_RB_SIZE)
                 expected_rpos = 1;
             else
                 expected_rpos++;
@@ -632,10 +633,10 @@ static void test_msg_receive() {
             // free slot
             ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, rmsg), Errors::SUCCESS);
 
-            if(rpos == 32)
-                expected_occupied &= ~(1U << 0);
+            if(rpos == TCU::MAX_RB_SIZE)
+                expected_occupied &= ~(static_cast<uint64_t>(1) << 0);
             else
-                expected_occupied &= ~(1U << rpos);
+                expected_occupied &= ~(static_cast<uint64_t>(1) << rpos);
         }
     }
 }

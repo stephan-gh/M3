@@ -26,24 +26,24 @@ public:
 
     static int credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
-        return (r0 >> 19) & 0x3F;
+        return (r0 >> 19) & 0x7F;
     }
 
     static int max_credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
-        return (r0 >> 25) & 0x3F;
+        return (r0 >> 26) & 0x7F;
     }
 
     static void recv_pos(epid_t ep, uint8_t *rpos, uint8_t *wpos) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
-        *rpos = (r0 >> 53) & 0x3F;
-        *wpos = (r0 >> 47) & 0x3F;
+        *rpos = (r0 >> 55) & 0x7F;
+        *wpos = (r0 >> 48) & 0x7F;
     }
 
-    static void recv_masks(epid_t ep, uint32_t *unread, uint32_t *occupied) {
-        reg_t r2 = m3::TCU::read_reg(ep, 2);
-        *unread = r2 >> 32;
-        *occupied = r2 & 0xFFFF'FFFF;
+    static void recv_masks(epid_t ep, m3::TCU::rep_bitmask_t *unread,
+                           m3::TCU::rep_bitmask_t *occupied) {
+        *occupied = m3::TCU::read_reg(ep, 2);
+        *unread = m3::TCU::read_reg(ep, 3);
     }
 
     static const m3::TCU::Message *fetch_msg(epid_t ep, uintptr_t base) {
@@ -107,7 +107,8 @@ public:
     }
 
     static void config_recv(epid_t ep, goff_t buf, unsigned order, unsigned msgorder,
-                            unsigned reply_eps, uint32_t occupied = 0, uint32_t unread = 0) {
+                            unsigned reply_eps, m3::TCU::rep_bitmask_t occupied = 0,
+                            m3::TCU::rep_bitmask_t unread = 0) {
         m3::TCU::config_recv(ep, buf, order, msgorder, reply_eps, occupied, unread);
     }
 
@@ -122,7 +123,7 @@ public:
     }
 
     static m3::Errors::Code invalidate_ep_remote(m3::TileId tile, epid_t ep, bool force,
-                                                 uint32_t *unread = nullptr) {
+                                                 m3::TCU::rep_bitmask_t *unread = nullptr) {
         reg_t cmd = static_cast<reg_t>(m3::TCU::ExtCmdOpCode::INV_EP) |
                     (static_cast<reg_t>(ep) << 9) | (static_cast<reg_t>(force) << 25);
         return perform_ext_cmd(tile, cmd, unread);
@@ -130,7 +131,7 @@ public:
 
 private:
     static m3::Errors::Code perform_ext_cmd(m3::TileId tile, reg_t cmd,
-                                            uint32_t *unread = nullptr) {
+                                            m3::TCU::rep_bitmask_t *unread = nullptr) {
         size_t addr = m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD);
         config_mem(TMP_EP, tile, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
         m3::Errors::Code err = write(TMP_EP, &cmd, sizeof(cmd), 0);

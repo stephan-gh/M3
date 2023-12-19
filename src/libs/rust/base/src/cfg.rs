@@ -23,7 +23,7 @@ pub const MAX_CHIPS: usize = 2;
 #[cfg(any(feature = "hw", feature = "hw22"))]
 pub const MAX_ACTS: usize = 16;
 #[cfg(not(any(feature = "hw", feature = "hw22")))]
-pub const MAX_ACTS: usize = 32;
+pub const MAX_ACTS: usize = 64;
 
 pub const PAGE_BITS: usize = 12;
 pub const PAGE_SIZE: usize = 1 << PAGE_BITS;
@@ -39,7 +39,7 @@ pub const RBUF_ADDR: VirtAddr =
     VirtAddr::new(RBUF_STD_ADDR.as_raw() + RBUF_STD_SIZE as VirtAddrRaw);
 pub const RBUF_SIZE: usize = 0x1000_0000 - RBUF_STD_SIZE;
 pub const RBUF_SIZE_SPM: usize = 0xE000;
-pub const MAX_RB_SIZE: usize = 32;
+pub const MAX_RB_SIZE: usize = 64;
 
 #[cfg(target_arch = "riscv64")]
 pub const MEM_OFFSET: usize = 0x1000_0000;

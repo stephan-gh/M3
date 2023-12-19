@@ -178,16 +178,19 @@ class TCU {
 
 public:
     typedef uint64_t reg_t;
+    typedef uint64_t rep_bitmask_t;
 
     static const uintptr_t MMIO_ADDR = 0xF000'0000;
     static const size_t MMIO_SIZE = PAGE_SIZE;
     static const uintptr_t MMIO_EPS_ADDR = MMIO_ADDR + PAGE_SIZE * 2;
     static const size_t MMIO_EPS_SIZE = PAGE_SIZE * 2;
 
+    static const size_t MAX_RB_SIZE = 64;
+
     static const reg_t INVALID_EP = 0xFFFF;
     static const reg_t INVALID_ACT = 0xFFFF;
     static const reg_t NO_REPLIES = INVALID_EP;
-    static const reg_t UNLIM_CREDITS = 0x3F;
+    static const reg_t UNLIM_CREDITS = 0x7F;
 
 private:
 #if defined(__hw22__)
@@ -200,7 +203,7 @@ private:
 #else
     static const size_t UNPRIV_REGS = 6;
 #endif
-    static const size_t EP_REGS = 3;
+    static const size_t EP_REGS = 4;
     static const size_t PRINT_REGS = 32;
 
     enum class ExtRegs {
@@ -335,20 +338,20 @@ public:
 
     bool has_missing_credits(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
-        uint16_t cur = (r0 >> 19) & 0x3F;
-        uint16_t max = (r0 >> 25) & 0x3F;
+        uint16_t cur = (r0 >> 19) & 0x7F;
+        uint16_t max = (r0 >> 26) & 0x7F;
         return cur < max;
     }
 
     uint credits(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
-        uint16_t cur = (r0 >> 19) & 0x3F;
+        uint16_t cur = (r0 >> 19) & 0x7F;
         return cur;
     }
 
     bool has_msgs(epid_t ep) const {
-        reg_t r2 = read_reg(ep, 2);
-        return (r2 >> 32) != 0;
+        reg_t r3 = read_reg(ep, 3);
+        return r3 != 0;
     }
 
     bool is_valid(epid_t ep) const {
@@ -418,13 +421,13 @@ private:
     void drop_msgs(size_t buf_addr, epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
-        word_t unread = read_reg(ep, 2) >> 32;
+        word_t unread = read_reg(ep, 3);
         if(unread == 0)
             return;
 
         reg_t r0 = read_reg(ep, 0);
-        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 35) & 0x3F);
-        size_t msgsize = (r0 >> 41) & 0x3F;
+        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 35) & 0x7F);
+        size_t msgsize = (r0 >> 42) & 0x3F;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {
                 const m3::TCU::Message *msg = offset_to_msg(buf_addr, i << msgsize);
@@ -517,19 +520,22 @@ private:
         write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::INVALID));
         write_reg(ep, 1, 0);
         write_reg(ep, 2, 0);
+        write_reg(ep, 3, 0);
     }
 
     static void config_recv(epid_t ep, goff_t buf, unsigned order, unsigned msgorder,
-                            unsigned reply_eps, uint32_t occupied = 0, uint32_t unread = 0) {
+                            unsigned reply_eps, rep_bitmask_t occupied = 0,
+                            rep_bitmask_t unread = 0) {
         reg_t bufSize = static_cast<reg_t>(order - msgorder);
         reg_t msgSize = static_cast<reg_t>(msgorder);
         write_reg(ep, 0,
                   static_cast<reg_t>(m3::TCU::EpType::RECEIVE) |
                       (static_cast<reg_t>(INVALID_ACT) << 3) |
                       (static_cast<reg_t>(reply_eps) << 19) | (static_cast<reg_t>(bufSize) << 35) |
-                      (static_cast<reg_t>(msgSize) << 41));
+                      (static_cast<reg_t>(msgSize) << 42));
         write_reg(ep, 1, buf);
-        write_reg(ep, 2, static_cast<reg_t>(unread) << 32 | occupied);
+        write_reg(ep, 2, occupied);
+        write_reg(ep, 3, unread);
     }
 
     static void config_send(epid_t ep, label_t lbl, TileId tile, epid_t dstep, unsigned msgorder,
@@ -537,11 +543,12 @@ private:
         write_reg(ep, 0,
                   static_cast<reg_t>(m3::TCU::EpType::SEND) |
                       (static_cast<reg_t>(INVALID_ACT) << 3) | (static_cast<reg_t>(credits) << 19) |
-                      (static_cast<reg_t>(credits) << 25) | (static_cast<reg_t>(msgorder) << 31) |
-                      (static_cast<reg_t>(crd_ep) << 37) | (static_cast<reg_t>(reply) << 53));
+                      (static_cast<reg_t>(credits) << 26) | (static_cast<reg_t>(msgorder) << 33) |
+                      (static_cast<reg_t>(crd_ep) << 39) | (static_cast<reg_t>(reply) << 55));
         write_reg(ep, 1,
                   static_cast<reg_t>(dstep) | (static_cast<reg_t>(tileid_to_nocid(tile)) << 16));
         write_reg(ep, 2, lbl);
+        write_reg(ep, 3, 0);
     }
 
     static void config_mem(epid_t ep, TileId tile, goff_t addr, size_t size, int perm) {
@@ -551,6 +558,7 @@ private:
                       (static_cast<reg_t>(tileid_to_nocid(tile)) << 23));
         write_reg(ep, 1, addr);
         write_reg(ep, 2, size);
+        write_reg(ep, 3, 0);
     }
 
     static void write_reg(epid_t ep, size_t idx, reg_t value) {

@@ -147,7 +147,7 @@ pub const INVALID_EP: EpId = 0xFFFF;
 /// The reply EP for messages that want to disable replies
 pub const NO_REPLIES: EpId = INVALID_EP;
 /// Represents unlimited credits for send EPs
-pub const UNLIM_CREDITS: u32 = 0x3F;
+pub const UNLIM_CREDITS: u32 = 0x7F;
 
 /// The base address of the TCU's MMIO area
 pub const MMIO_ADDR: VirtAddr = VirtAddr::new(0xF000_0000);
@@ -176,7 +176,7 @@ cfg_if! {
     }
 }
 /// The number of registers per EP
-pub const EP_REGS: usize = 3;
+pub const EP_REGS: usize = 4;
 /// The number of PRINT registers
 pub const PRINT_REGS: usize = 32;
 
@@ -646,8 +646,8 @@ impl TCU {
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
     #[inline(always)]
     pub fn has_msgs(ep: EpId) -> bool {
-        let r2 = Self::read_ep_reg(ep, 2);
-        (r2 >> 32) != 0
+        let r3 = Self::read_ep_reg(ep, 3);
+        r3 != 0
     }
 
     /// Returns true if the given endpoint is valid, i.e., a SEND, RECEIVE, or MEMORY endpoint
@@ -663,7 +663,7 @@ impl TCU {
         if (r0 & 0x7) != EpType::Send.into() {
             return Err(Error::new(Code::NoSEP));
         }
-        let cur = (r0 >> 19) & 0x3F;
+        let cur = (r0 >> 19) & 0x7F;
         Ok(cur as u32)
     }
 
@@ -673,8 +673,8 @@ impl TCU {
         if (r0 & 0x7) != EpType::Send.into() {
             return false;
         }
-        let cur = (r0 >> 19) & 0x3F;
-        let max = (r0 >> 25) & 0x3F;
+        let cur = (r0 >> 19) & 0x7F;
+        let max = (r0 >> 26) & 0x7F;
         cur < max
     }
 
@@ -757,14 +757,14 @@ impl TCU {
     pub fn drop_msgs_with(buf_addr: VirtAddr, ep: EpId, label: Label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
-        let unread = Self::read_ep_reg(ep, 2) >> 32;
+        let unread = Self::read_ep_reg(ep, 3);
         if unread == 0 {
             return;
         }
 
         let r0 = Self::read_ep_reg(ep, 0);
-        let buf_size = 1 << ((r0 >> 35) & 0x3F);
-        let msg_size = (r0 >> 41) & 0x3F;
+        let buf_size = 1 << ((r0 >> 35) & 0x7F);
+        let msg_size = (r0 >> 42) & 0x3F;
         for i in 0..buf_size {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::offset_to_msg(buf_addr, i << msg_size);
@@ -1188,9 +1188,10 @@ impl TCU {
             | ((act as Reg) << 3)
             | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
             | (((buf_ord - msg_ord) as Reg) << 35)
-            | ((msg_ord as Reg) << 41);
+            | ((msg_ord as Reg) << 42);
         regs[1] = buf.as_raw() as Reg;
         regs[2] = 0;
+        regs[3] = 0;
     }
 
     pub fn config_send(
@@ -1205,10 +1206,11 @@ impl TCU {
         regs[0] = (EpType::Send as Reg)
             | ((act as Reg) << 3)
             | ((credits as Reg) << 19)
-            | ((credits as Reg) << 25)
-            | ((msg_order as Reg) << 31);
+            | ((credits as Reg) << 26)
+            | ((msg_order as Reg) << 33);
         regs[1] = (dst_ep as Reg) | ((Self::tileid_to_nocid(tile) as Reg) << 16);
         regs[2] = lbl as Reg;
+        regs[3] = 0;
     }
 
     pub fn config_mem(
@@ -1225,6 +1227,7 @@ impl TCU {
             | ((Self::tileid_to_nocid(tile) as Reg) << 23);
         regs[1] = addr as Reg;
         regs[2] = size as Reg;
+        regs[3] = 0;
     }
 
     /// Configures the given endpoint

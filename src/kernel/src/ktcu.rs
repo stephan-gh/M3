@@ -371,7 +371,7 @@ pub fn glob_to_phys_remote(
     flags: kif::PageFlags,
 ) -> Result<PhysAddr, Error> {
     glob.to_phys_with(flags, |ep| {
-        let mut regs = [0; 3];
+        let mut regs = [0; EP_REGS];
         if read_ep_remote(tile, ep, &mut regs).is_ok() {
             TCU::unpack_mem_regs(&regs)
         }
@@ -385,7 +385,7 @@ pub fn unpack_mem_ep_remote(
     tile: TileId,
     ep: EpId,
 ) -> Result<(TileId, GlobOff, GlobOff, kif::Perm), Error> {
-    let mut regs = [0; 3];
+    let mut regs = [0; EP_REGS];
     read_ep_remote(tile, ep, &mut regs)?;
     TCU::unpack_mem_regs(&regs).ok_or_else(|| Error::new(Code::NoMEP))
 }
@@ -434,12 +434,12 @@ pub fn inv_reply_remote(
     read_ep_remote(recv_tile, recv_ep, &mut regs)?;
 
     // if there is no occupied slot, there can't be any reply EP we have to invalidate
-    let occupied = regs[2] & 0xFFFF_FFFF;
+    let occupied = regs[2];
     if occupied == 0 {
         return Ok(());
     }
 
-    let buf_size = 1 << ((regs[0] >> 35) & 0x3F);
+    let buf_size = 1 << ((regs[0] >> 35) & 0x7F);
     let reply_eps = ((regs[0] >> 19) & 0xFFFF) as EpId;
     for i in 0..buf_size {
         if (occupied & (1 << i)) != 0 {

@@ -81,7 +81,7 @@ static void test_inv_ep() {
         kernel::TCU::config_recv(REP, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0x1, 0x1);
 
         // invalidation gives us the unread mask
-        uint32_t unread;
+        TCU::rep_bitmask_t unread;
         ASSERT_EQ(kernel::TCU::invalidate_ep_remote(own_tile, REP, false, &unread),
                   Errors::SUCCESS);
         ASSERT_EQ(unread, 0x1);

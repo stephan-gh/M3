@@ -41,7 +41,7 @@
 #else
 #    define TOTAL_EPS 192
 #    define AVAIL_EPS TOTAL_EPS
-#    define MAX_ACTS  32
+#    define MAX_ACTS  64
 #endif
 
 #if defined(__riscv)

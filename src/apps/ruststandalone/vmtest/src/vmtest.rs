@@ -257,12 +257,12 @@ fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
         helper::config_local_ep(REP1, |regs| {
             TCU::config_recv(regs, OWN_ACT, rbuf1_phys, 6, 6, Some(RPLEP));
             // make the message occupied
-            regs[2] = 0 << 32 | 1;
+            regs[2] = 1;
         });
         helper::config_local_ep(RPLEP, |regs| {
             TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
             // make it a reply EP
-            regs[0] |= 1 << 53;
+            regs[0] |= 1 << 55;
         });
         let buf_addr = unsafe { buf.bytes.as_ptr().add(cfg::PAGE_SIZE - 16) };
         assert_eq!(
