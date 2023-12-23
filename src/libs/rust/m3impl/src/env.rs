@@ -17,7 +17,6 @@
  */
 
 use core::cmp;
-use core::intrinsics;
 use core::ptr;
 
 use crate::cap::Selector;
@@ -223,11 +222,7 @@ impl Env {
     pub fn load_closure(&self) -> Option<fn() -> Result<(), Error>> {
         if self.base.closure != 0 {
             // safety: we trust our loader
-            unsafe {
-                Some(intrinsics::transmute(
-                    self.base.closure as *mut u8 as *mut _,
-                ))
-            }
+            unsafe { Some(core::mem::transmute(self.base.closure as *mut u8 as *mut _)) }
         }
         else {
             None
