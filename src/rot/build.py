@@ -54,6 +54,7 @@ def build(gen, env):
         env['CRGENV']['TARGET_CFLAGS'] += ' --target=riscv64-unknown-none-elf'
 
     cargo_ws(env, gen, outs=outs)
+    env.sub_build(gen, 'ubrom')
 
 
 def cargo_ws(env, gen, outs):
