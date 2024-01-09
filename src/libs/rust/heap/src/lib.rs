@@ -15,7 +15,9 @@
 
 #![no_std]
 
+use base::io::LogFlags;
 use base::libc;
+use base::log;
 
 extern "C" {
     /// Allocates `size` bytes on the heap
@@ -36,11 +38,14 @@ extern "C" {
 
 #[no_mangle]
 extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    unsafe { malloc(size) }
+    let res = unsafe { malloc(size) };
+    log!(LogFlags::LibHeap, "heap::alloc({}) -> {:?}", size, res);
+    res
 }
 
 #[no_mangle]
 extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
+    log!(LogFlags::LibHeap, "heap::free({:?})", ptr);
     unsafe { free(ptr) };
 }
 
@@ -53,10 +58,20 @@ extern "C" fn __rdl_realloc(
     _new_align: usize,
     _err: *mut u8,
 ) -> *mut libc::c_void {
-    unsafe { realloc(ptr, new_size) }
+    let res = unsafe { realloc(ptr, new_size) };
+    log!(
+        LogFlags::LibHeap,
+        "heap::realloc({:?}, {}) -> {:?}",
+        ptr,
+        new_size,
+        res
+    );
+    res
 }
 
 #[no_mangle]
 extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    unsafe { calloc(size, 1) }
+    let res = unsafe { calloc(size, 1) };
+    log!(LogFlags::LibHeap, "heap::calloc({}) -> {:?}", size, res);
+    res
 }

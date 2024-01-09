@@ -61,9 +61,11 @@ bitflags! {
         const LibSQueue     = 1 << (Self::__lib_start.bits() + 6);
         /// libraries: direct pipe
         const LibDirPipe    = 1 << (Self::__lib_start.bits() + 7);
+        /// libraries: heap (in rust applications)
+        const LibHeap       = 1 << (Self::__lib_start.bits() + 8);
 
         #[doc(hidden)]
-        const __kern_start = Self::__lib_start.bits() + 8;
+        const __kern_start = Self::__lib_start.bits() + 9;
 
         /// Kernel: endpoint configurations for user tiles
         const KernEPs       = 1 << (Self::__kern_start.bits() + 0);
