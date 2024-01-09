@@ -416,7 +416,7 @@ case "$cmd" in
                 else
                     tile=$(printf "C0T%02d" "$M3_GEM5_PAUSE")
                 fi
-                port=$(grep --text "$tile.remote_gdb" "$M3_OUT/log.txt" | cut -d ' ' -f 9)
+                port=$(grep --text "$tile.remote_gdb" "$M3_OUT/log.txt" | cut -d ' ' -f 7)
                 if [ "$port" = "" ]; then
                     if [ $attemps -gt 5 ]; then
                         echo "Unable to find port for tile '$tile' after 5 attempts."
