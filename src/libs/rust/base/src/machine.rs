@@ -79,10 +79,11 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
 /// The caller needs to ensure that cfg::TILE_MEM_BASE is mapped and readable. The area needs to be
 /// at least 512 KiB large.
 pub unsafe fn flush_cache() {
+    // * 2 just to be sure (this code is also touching memory)
     #[cfg(any(feature = "hw", feature = "hw22"))]
-    let (cacheline_size, cache_size) = (64, 512 * 1024);
+    let (cacheline_size, cache_size) = (64, 512 * 1024 * 2);
     #[cfg(not(any(feature = "hw", feature = "hw22")))]
-    let (cacheline_size, cache_size) = (64, (32 + 256) * 1024);
+    let (cacheline_size, cache_size) = (64, (32 + 256) * 1024 * 2);
 
     // ensure that we replace all cachelines in cache
     let mut addr = cfg::TILE_MEM_BASE.as_ptr::<u64>();
