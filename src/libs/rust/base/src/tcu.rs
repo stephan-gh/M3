@@ -1239,6 +1239,8 @@ impl TCU {
                 CPU::write8b(addr.add(i), *r);
             }
         }
+        // ensure that all accesses are finished before we try to use the EP
+        atomic::fence(atomic::Ordering::SeqCst);
     }
 
     /// Returns the MMIO address for the given external register
