@@ -103,9 +103,10 @@ pub struct BaseEnv {
 ///
 /// Returns a tuple of the strings, pointers, and the final address (for a another call of
 /// `collect_args`).
-pub fn collect_args<S>(args: &[S], addr: VirtAddr) -> (Vec<u8>, Vec<VirtAddr>, VirtAddr)
+pub fn collect_args<S, I>(args: I, addr: VirtAddr) -> (Vec<u8>, Vec<VirtAddr>, VirtAddr)
 where
     S: AsRef<str>,
+    I: IntoIterator<Item = S>,
 {
     let mut arg_ptr = Vec::<VirtAddr>::new();
     let mut arg_buf = Vec::new();
