@@ -155,9 +155,32 @@ generate_m3lx_deps() {
 }
 
 get_kernel() {
-    gawk 'match($0, /<kernel\s.*args="(.*?)"/, m) {
+    # extract kernel arguments
+    kernels=$(gawk 'match($0, /<kernel\s.*args="(.*?)"/, m) {
         printf("%s/%s,", "'"$bindir"'", m[1])
-    }' < "$1"
+    }' < "$1")
+    count="${kernels//[^,]}"
+
+    # if there is just one kernel, pass root arguments to it
+    if [ "$count" = "1" ]; then
+        # remove trailing ","
+        echo -n "${kernels:0:-1}"
+
+        # extract root arguments and pass the supported ones as kernel arguments
+        xmllint --xpath "//config/dom/app/@*" "$1" | gawk 'match($0, /(\S+?)="(.*?)"/, m) {
+            if (m[1] != "args") {
+                if (m[1] == "eps")
+                    printf(" -r:%s %s", m[1], m[2])
+                else {
+                    print("Unsupported argument for root:", m[1]) > "/dev/stderr"
+                    exit 1
+                }
+            }
+        }' || exit 1
+        echo -n ","
+    else
+        echo "$kernels"
+    fi
 }
 
 get_mods() {
@@ -209,7 +232,7 @@ build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
     generate_m3lx_deps "$1" || exit 1
 
-    kernels=$(get_kernel "$1")
+    kernels=$(get_kernel "$1") || exit 1
     mods="$(get_mods "$1" "gem5"),tilemux=$bindir/tilemux" || exit 1
 
     if [ "$M3_GEM5_LOG" = "" ]; then

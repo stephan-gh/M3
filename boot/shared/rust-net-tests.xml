@@ -5,7 +5,7 @@
     </mods>
     <kernel args="kernel" />
     <dom>
-        <app args="root">
+        <app args="root" eps="512">
             <app args="m3fs mem" daemon="1">
                 <serv name="m3fs" />
                 <mod name="fs" />

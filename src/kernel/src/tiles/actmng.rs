@@ -182,7 +182,7 @@ impl ActivityMng {
             None
         }
         else {
-            Some(cfg::DEF_EP_COUNT)
+            Some(args::get().root_eps)
         };
 
         // load and start tilemux

@@ -18,9 +18,18 @@ use base::cfg;
 use base::col::Vec;
 use base::env;
 
-#[derive(Default)]
 pub struct Args {
     pub kmem: usize,
+    pub root_eps: usize,
+}
+
+impl Default for Args {
+    fn default() -> Self {
+        Self {
+            kmem: 64 * 1024 * 1024,
+            root_eps: cfg::DEF_EP_COUNT,
+        }
+    }
 }
 
 static ARGS: LazyStaticRefCell<Args> = LazyStaticRefCell::default();
@@ -30,21 +39,31 @@ pub fn get() -> Ref<'static, Args> {
 }
 
 pub fn parse() {
-    let mut args = Args {
-        kmem: 64 * 1024 * 1024,
+    let mut args = Args::default();
+
+    let get_size_arg = |argv: &Vec<&str>, i: &mut usize| -> usize {
+        let size_str = argv.get(*i + 1).unwrap_or_else(|| usage());
+        let size = parse_size(size_str).unwrap_or_else(|| usage());
+        *i += 1;
+        size
     };
 
     let mut i = 1;
     let argv: Vec<&str> = env::args().collect();
     while i < argv.len() {
         if argv[i] == "-m" {
-            let size_str = argv.get(i + 1).unwrap_or_else(|| usage());
-            let size = parse_size(size_str).unwrap_or_else(|| usage());
-            if size <= cfg::FIXED_KMEM {
+            let kmem = get_size_arg(&argv, &mut i);
+            if kmem <= cfg::FIXED_KMEM {
                 usage();
             }
-            args.kmem = size;
-            i += 1;
+            args.kmem = kmem;
+        }
+        else if argv[i] == "-r:eps" {
+            let ep_count = get_size_arg(&argv, &mut i);
+            if ep_count == 0 {
+                usage();
+            }
+            args.root_eps = ep_count;
         }
         i += 1;
     }
