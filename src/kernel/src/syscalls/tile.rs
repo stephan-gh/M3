@@ -23,9 +23,9 @@ use base::rc::Rc;
 use base::tcu;
 
 use crate::cap::{Capability, KObject, MGateObject};
-use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
 use crate::tiles::{tilemng, Activity, TileMux, INVAL_ID};
+use crate::{ktcu, platform};
 
 #[inline(never)]
 pub fn tile_quota_async(
@@ -165,13 +165,17 @@ pub fn tile_set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
             sysc_err!(e.code(), "Unable to invalidate PMP EP");
         }
     }
+
+    let ep_obj = tilemux
+        .pmp_ep(r.ep)
+        .ok_or_else(|| Error::new(Code::InvState))?;
+
     // if overwrite is disabled, the EP needs to be invalid
-    else if tilemux.pmp_ep(r.ep).is_configured() && !r.overwrite {
+    if r.mgate != kif::INVALID_SEL && ep_obj.is_configured() && !r.overwrite {
         sysc_err!(Code::Exists, "PMP EP is already set");
     }
 
     // deconfigure the EP first to ensure that it is not already configured for another gate
-    let ep_obj = tilemux.pmp_ep(r.ep);
     if let Err(e) = ep_obj.deconfigure(false) {
         sysc_err!(e.code(), "Unable to deconfigure PMP EP");
     }
@@ -199,7 +203,13 @@ pub fn tile_reset_async(
     msg: &'static tcu::Message,
 ) -> Result<(), VerboseError> {
     let r: syscalls::TileReset = get_request(msg)?;
-    sysc_log!(act, "tile_reset(tile={}, mux_mem={})", r.tile, r.mux_mem);
+    sysc_log!(
+        act,
+        "tile_reset(tile={}, mux_mem={}, ep_count={:?})",
+        r.tile,
+        r.mux_mem,
+        r.ep_count
+    );
 
     let act_caps = act.obj_caps().borrow();
     let tile = get_kobj_ref!(act_caps, r.tile, Tile);
@@ -212,6 +222,12 @@ pub fn tile_reset_async(
         None
     }
     else {
+        // tiles that have internal EPs do not support external EPs and tiles without internal EPs need
+        // external EPs.
+        if platform::tile_desc(tile.tile()).has_internal_eps() != r.ep_count.is_none() {
+            sysc_err!(Code::InvArgs, "Tile-internal EPs vs. external EP range");
+        }
+
         Some(
             act_caps
                 .get(r.mux_mem)
@@ -225,7 +241,7 @@ pub fn tile_reset_async(
     };
     drop(act_caps);
 
-    TileMux::reset_async(tile_id, mux_mem)?;
+    TileMux::reset_async(tile_id, mux_mem, r.ep_count)?;
 
     reply_success(msg);
     Ok(())
@@ -253,6 +269,7 @@ pub fn tile_info_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result
         ty,
         id: tile.tile(),
         desc: platform::tile_desc(tile.tile()),
+        ep_count: ktcu::get_ep_count(tile.tile())?,
     });
     send_reply(msg, &kreply);
 

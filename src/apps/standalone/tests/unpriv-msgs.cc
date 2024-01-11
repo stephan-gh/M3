@@ -25,6 +25,8 @@ static constexpr epid_t RPLEP = TCU::FIRST_USER_EP + 3; // could be multiple EPs
 static void test_msg_errors() {
     auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
+    const size_t TOTAL_EPS = kernel::TCU::endpoint_num();
+
     char buffer[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
 

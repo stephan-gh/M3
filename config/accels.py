@@ -9,7 +9,6 @@ root = createRoot(options)
 
 cmd_list = options.cmd.split(",")
 
-num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_mem = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 accs = ['indir', 'indir', 'indir', 'indir', 'copy', 'copy', 'copy', 'copy', 'rot13']
@@ -25,8 +24,7 @@ for i in range(0, num_tiles):
                           cmdline=cmd_list[i],
                           memTile=mem_tile if cmd_list[i] != "" else None,
                           l1size='32kB',
-                          l2size='256kB',
-                          epCount=num_eps)
+                          l2size='256kB')
     tiles.append(tile)
 
 options.cpu_clock = '1GHz'
@@ -38,8 +36,7 @@ for i in range(0, len(accs)):
                            id=TileId(0, num_tiles + i),
                            accel=accs[i],
                            memTile=None,
-                           spmsize='32MB',
-                           epCount=num_eps)
+                           spmsize='32MB')
     tiles.append(tile)
 
 # create the memory tiles
@@ -47,16 +44,14 @@ for i in range(0, num_mem):
     tile = createMemTile(noc=root.noc,
                          options=options,
                          id=TileId(0, num_tiles + len(accs) + i),
-                         size='3072MB',
-                         epCount=num_eps)
+                         size='3072MB')
     tiles.append(tile)
 
 # create tile for serial input
 tile = createSerialTile(noc=root.noc,
                         options=options,
                         id=TileId(0, num_tiles + len(accs) + num_mem),
-                        memTile=None,
-                        epCount=num_eps)
+                        memTile=None)
 tiles.append(tile)
 
 runSimulation(root, options, tiles)

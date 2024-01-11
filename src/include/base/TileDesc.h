@@ -57,7 +57,8 @@ enum TileAttr {
     NIC = 1 << 2,
     SERIAL = 1 << 3,
     IMEM = 1 << 4,
-    KECACC = 1 << 5,
+    IEPS = 1 << 5,
+    KECACC = 1 << 6,
 };
 
 /**
@@ -153,6 +154,13 @@ struct TileDesc {
      */
     bool has_virtmem() const {
         return !has_memory() && !is_device();
+    }
+
+    /**
+     * @return true if the tile has internal endpoints
+     */
+    bool has_internal_eps() const {
+        return (attr() & TileAttr::IEPS) != 0;
     }
 
     /**

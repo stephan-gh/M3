@@ -320,8 +320,6 @@ fn start_resource_split(t: &mut dyn WvTester) {
                 // check ep quotas
                 wv_assert_eq!(t, c5_quota.total(), 16);
                 wv_assert_eq!(t, c1_quota.total(), c2_quota.total());
-                wv_assert_eq!(t, c1_quota.total(), c3_quota.total());
-                wv_assert_eq!(t, c1_quota.total(), c4_quota.total());
             }
 
             // pagetables

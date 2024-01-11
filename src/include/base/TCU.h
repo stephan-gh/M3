@@ -196,7 +196,7 @@ private:
 #if defined(__hw22__)
     static const size_t EXT_REGS = 2;
 #else
-    static const size_t EXT_REGS = 3;
+    static const size_t EXT_REGS = 5;
 #endif
 #if defined(__hw22__)
     static const size_t UNPRIV_REGS = 5;
@@ -213,6 +213,8 @@ private:
 #else
         TILE_DESC = 1,
         EXT_CMD = 2,
+        EPS_ADDR = 3,
+        EPS_SIZE = 4,
 #endif
     };
 

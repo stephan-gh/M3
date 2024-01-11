@@ -40,7 +40,7 @@ bitflags! {
 pub struct EP {
     cap: Capability,
     ep: EpId,
-    replies: u32,
+    replies: usize,
     flags: EPFlags,
 }
 
@@ -48,7 +48,7 @@ pub struct EP {
 pub struct EPArgs {
     epid: EpId,
     act: Selector,
-    replies: u32,
+    replies: usize,
 }
 
 impl Default for EPArgs {
@@ -76,7 +76,7 @@ impl EPArgs {
     }
 
     /// Sets the number of reply slots to `slots`.
-    pub fn replies(mut self, slots: u32) -> Self {
+    pub fn replies(mut self, slots: usize) -> Self {
         self.replies = slots;
         self
     }
@@ -86,7 +86,7 @@ impl EP {
     const fn create(
         sel: Selector,
         ep: EpId,
-        replies: u32,
+        replies: usize,
         cflags: CapFlags,
         flags: EPFlags,
     ) -> Self {
@@ -160,7 +160,7 @@ impl EP {
     }
 
     /// Returns the number of reply slots
-    pub fn replies(&self) -> u32 {
+    pub fn replies(&self) -> usize {
         self.replies
     }
 
@@ -184,7 +184,7 @@ impl EP {
         syscalls::activate(self.sel(), kif::INVALID_SEL, kif::INVALID_SEL, 0)
     }
 
-    fn alloc_cap(epid: EpId, act: Selector, replies: u32) -> Result<(Selector, EpId), Error> {
+    fn alloc_cap(epid: EpId, act: Selector, replies: usize) -> Result<(Selector, EpId), Error> {
         let sel = SelSpace::get().alloc_sel();
         let id = syscalls::alloc_ep(sel, act, epid, replies)?;
         Ok((sel, id))

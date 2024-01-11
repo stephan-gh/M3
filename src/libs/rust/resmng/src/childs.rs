@@ -557,6 +557,8 @@ pub trait Child {
             tile_usage.state_mut().load_mux(
                 "tilemux",
                 cfg::FIXED_TILEMUX_MEM,
+                // TODO make that customizable
+                cfg::DEF_EP_COUNT,
                 None,
                 None,
                 |size| match self.alloc_local(size as GlobOff, Perm::RWX) {

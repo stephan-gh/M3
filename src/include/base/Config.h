@@ -35,13 +35,9 @@
 #define MAX_CHIPS     2
 
 #if defined(__hw__) || defined(__hw22__)
-#    define TOTAL_EPS 128
-#    define AVAIL_EPS TOTAL_EPS
-#    define MAX_ACTS  8
+#    define MAX_ACTS 8
 #else
-#    define TOTAL_EPS 192
-#    define AVAIL_EPS TOTAL_EPS
-#    define MAX_ACTS  64
+#    define MAX_ACTS 64
 #endif
 
 #if defined(__riscv)

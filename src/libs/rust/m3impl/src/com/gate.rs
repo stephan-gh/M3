@@ -102,7 +102,7 @@ impl Gate {
         flags: CapFlags,
         mem: Option<Selector>,
         addr: GlobOff,
-        replies: u32,
+        replies: usize,
     ) -> Result<Self, Error> {
         let ep = EpMng::get().acquire(replies)?;
         syscalls::activate(ep.sel(), sel, mem.unwrap_or(kif::INVALID_SEL), addr)?;

@@ -141,8 +141,13 @@ Reference<Tile> Tile::derive(Option<uint> eps, Option<TimeDuration> time, Option
     return Reference<Tile>(new Tile(sel, desc(), 0, false));
 }
 
+size_t Tile::ep_count() const {
+    auto [mux_type, id, desc, ep_count] = Syscalls::tile_info(sel());
+    return ep_count;
+}
+
 KIF::Syscall::MuxType Tile::mux_type() const {
-    auto [mux_type, id, desc] = Syscalls::tile_info(sel());
+    auto [mux_type, id, desc, ep_count] = Syscalls::tile_info(sel());
     return mux_type;
 }
 

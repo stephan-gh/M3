@@ -17,7 +17,7 @@
  */
 
 use m3::cap::{SelSpace, Selector};
-use m3::cfg::PAGE_SIZE;
+use m3::cfg::{self, PAGE_SIZE};
 use m3::client::M3FS;
 use m3::com::{EpMng, GateCap, MemCap, MemGate, RecvCap, RecvGate, SendCap};
 use m3::cpu::{CPUOps, CPU};
@@ -27,7 +27,7 @@ use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_ACT, SEL_KMEM, SEL_TIL
 use m3::mem::{GlobOff, VirtAddr};
 use m3::server::{CapExchange, Handler, Server, ServerSession, SessId, SessionContainer};
 use m3::syscalls;
-use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, INVALID_EP, TOTAL_EPS};
+use m3::tcu::{EpId, FIRST_USER_EP, INVALID_EP};
 use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
 use m3::time::TimeDuration;
@@ -403,6 +403,7 @@ fn create_sem(t: &mut dyn WvTester) {
 
 fn alloc_ep(t: &mut dyn WvTester) {
     let sel = SelSpace::get().alloc_sel();
+    let ep_count = wv_assert_ok!(Activity::own().tile().ep_count()) as EpId;
 
     // try to use the EP object after the activity we allocated it for is gone
     {
@@ -435,12 +436,22 @@ fn alloc_ep(t: &mut dyn WvTester) {
     // invalid reply count
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 2, !0),
+        syscalls::alloc_ep(
+            sel,
+            Activity::own().sel(),
+            ep_count - 2,
+            cfg::MAX_RB_SIZE + 1
+        ),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 2, INVALID_EP as u32),
+        syscalls::alloc_ep(
+            sel,
+            Activity::own().sel(),
+            ep_count - 2,
+            INVALID_EP as usize
+        ),
         Code::InvArgs
     );
 
@@ -452,28 +463,28 @@ fn alloc_ep(t: &mut dyn WvTester) {
         1
     ));
     wv_assert!(t, ep >= FIRST_USER_EP);
-    wv_assert!(t, ep < TOTAL_EPS);
+    wv_assert!(t, ep < ep_count);
     wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::Object, sel, 1), false));
 
     // specific EP
     let ep = wv_assert_ok!(syscalls::alloc_ep(
         sel,
         Activity::own().sel(),
-        AVAIL_EPS - 2,
+        ep_count - 2,
         1
     ));
-    wv_assert_eq!(t, ep, AVAIL_EPS - 2);
+    wv_assert_eq!(t, ep, ep_count - 2);
     wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::Object, sel, 1), false));
 
     // specific, but invalid EP
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS + 1, 0),
+        syscalls::alloc_ep(sel, Activity::own().sel(), ep_count + 1, 0),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 5, 10),
+        syscalls::alloc_ep(sel, Activity::own().sel(), ep_count - 5, 10),
         Code::InvArgs
     );
 
@@ -484,16 +495,15 @@ fn alloc_ep(t: &mut dyn WvTester) {
         Code::InvArgs
     );
 
+    // create new child activity with a small number of EPs (allocate new tile to make it work even
+    // if we cannot share tiles)
+    let tile = wv_assert_ok!(Tile::get("core"));
+    let tile = wv_assert_ok!(tile.derive(Some(16), None, None));
+    let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
     // not enough quota
-    let ep_quota = Activity::own()
-        .tile()
-        .quota()
-        .unwrap()
-        .endpoints()
-        .remaining();
     wv_assert_err!(
         t,
-        syscalls::alloc_ep(sel, Activity::own().sel(), INVALID_EP, ep_quota + 1),
+        syscalls::alloc_ep(sel, act.sel(), INVALID_EP, 20),
         Code::NoSpace
     );
 }

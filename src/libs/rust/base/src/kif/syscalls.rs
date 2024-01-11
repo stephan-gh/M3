@@ -158,7 +158,7 @@ pub struct AllocEP {
     pub dst: CapSel,
     pub act: CapSel,
     pub epid: EpId,
-    pub replies: u32,
+    pub replies: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -218,7 +218,7 @@ pub struct DeriveKMem {
 pub struct DeriveTile {
     pub tile: CapSel,
     pub dst: CapSel,
-    pub eps: Option<u32>,
+    pub eps: Option<usize>,
     pub time: Option<u64>,
     pub pts: Option<usize>,
 }
@@ -321,6 +321,7 @@ pub struct TileInfoReply {
     pub ty: MuxType,
     pub id: TileId,
     pub desc: TileDesc,
+    pub ep_count: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -328,6 +329,7 @@ pub struct TileInfoReply {
 pub struct TileReset {
     pub tile: CapSel,
     pub mux_mem: CapSel,
+    pub ep_count: Option<usize>,
 }
 
 /// The operations for the `sem_ctrl` system call
@@ -440,8 +442,8 @@ pub struct KMemQuotaReply {
 #[repr(C)]
 pub struct TileQuotaReply {
     pub eps_id: QuotaId,
-    pub eps_total: u32,
-    pub eps_left: u32,
+    pub eps_total: usize,
+    pub eps_left: usize,
     pub time_id: QuotaId,
     pub time_total: u64,
     pub time_left: u64,

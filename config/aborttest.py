@@ -6,7 +6,6 @@ from tcu_fs import *
 options = getOptions()
 root = createRoot(options)
 
-num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_tiles = 1
 mem_tile = TileId(0, num_tiles)
 tiles = []
@@ -16,8 +15,7 @@ for i in range(0, num_tiles):
                                options=options,
                                id=TileId(0, i),
                                memTile=mem_tile,
-                               spmsize='64MB',
-                               epCount=num_eps)
+                               spmsize='64MB')
     # use 64 bytes as the block size here to test whether it works with multiple memory accesses
     tile.tcu.block_size = "64B"
     tiles.append(tile)
@@ -25,8 +23,7 @@ for i in range(0, num_tiles):
 tile = createMemTile(noc=root.noc,
                      options=options,
                      id=TileId(0, num_tiles),
-                     size='3072MB',
-                     epCount=num_eps)
+                     size='3072MB')
 
 tiles.append(tile)
 

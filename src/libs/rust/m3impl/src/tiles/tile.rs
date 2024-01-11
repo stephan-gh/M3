@@ -59,19 +59,19 @@ pub struct Tile {
 /// Contains the different quotas for a tile
 #[derive(Default)]
 pub struct TileQuota {
-    eps: Quota<u32>,
+    eps: Quota<usize>,
     time: Quota<TimeDuration>,
     pts: Quota<usize>,
 }
 
 impl TileQuota {
     /// Creates a new `TileQuota` object from given quotas.
-    pub fn new(eps: Quota<u32>, time: Quota<TimeDuration>, pts: Quota<usize>) -> Self {
+    pub fn new(eps: Quota<usize>, time: Quota<TimeDuration>, pts: Quota<usize>) -> Self {
         Self { eps, time, pts }
     }
 
     /// Returns the endpoint quota
-    pub fn endpoints(&self) -> &Quota<u32> {
+    pub fn endpoints(&self) -> &Quota<usize> {
         &self.eps
     }
 
@@ -145,7 +145,7 @@ impl Tile {
     /// Performs the `tile_info` system call to obtain the tile id and description from the
     /// capability denoted by the selector.
     pub fn new_bind(sel: Selector) -> Result<Self, Error> {
-        let (_mux, tile_id, tile_desc) = syscalls::tile_info(sel)?;
+        let (_mux, tile_id, tile_desc, _ep_count) = syscalls::tile_info(sel)?;
         Ok(Self::new_bind_with(tile_id, tile_desc, sel))
     }
 
@@ -231,7 +231,7 @@ impl Tile {
     /// tables.
     pub fn derive(
         &self,
-        eps: Option<u32>,
+        eps: Option<usize>,
         time: Option<TimeDuration>,
         pts: Option<usize>,
     ) -> Result<Rc<Self>, Error> {
@@ -260,9 +260,14 @@ impl Tile {
         self.desc
     }
 
-    /// Returns the multiplexer type that runs on this tile
+    /// Returns the number of endpoints available on this tile (via syscall)
+    pub fn ep_count(&self) -> Result<usize, Error> {
+        syscalls::tile_info(self.sel()).map(|(_muxtype, _id, _desc, ep_count)| ep_count)
+    }
+
+    /// Returns the multiplexer type that runs on this tile (via syscall)
     pub fn mux_type(&self) -> Result<MuxType, Error> {
-        syscalls::tile_info(self.sel()).map(|(muxtype, _id, _desc)| muxtype)
+        syscalls::tile_info(self.sel()).map(|(muxtype, _id, _desc, _ep_count)| muxtype)
     }
 
     /// Returns the EP, time, and page table quota

@@ -164,11 +164,11 @@ impl ActivityMng {
         let tile = tilemng::tilemux(tile_id).tile().clone();
         let tile_desc = platform::tile_desc(tile_id);
 
+        // allocate memory for tilemux itself
         let mux_mem = if tile_desc.has_memory() {
             tile.memory()
         }
         else {
-            // allocate some memory for the tilemux
             let mux_mem_size = cfg::FIXED_TILEMUX_MEM as GlobOff;
             mem::borrow_mut().allocate(
                 mem::MemType::ROOT,
@@ -177,13 +177,21 @@ impl ActivityMng {
             )?
         };
 
+        // allocate memory for the tile's EPs
+        let ep_count = if tile_desc.has_internal_eps() {
+            None
+        }
+        else {
+            Some(cfg::DEF_EP_COUNT)
+        };
+
         // load and start tilemux
-        loader::load_mux_async(tile.tile(), &mux_mem).expect("Unable to load TileMux");
+        loader::load_mux_async(tile_id, &mux_mem).expect("Unable to load TileMux");
         let mux_mgate = GateObject::Mem(MGateObject::new(mux_mem, Perm::RWX, false));
         // note that we provide access to the entire ROOT memory pool via PMP down below and
         // therefore provide access to parts of this pool twice. that's currently required, because
         // TileMux reads PMP EP0 to discover the available memory.
-        TileMux::reset_async(tile.tile(), Some(mux_mgate)).expect("Tile reset failed");
+        TileMux::reset_async(tile_id, Some(mux_mgate), ep_count).expect("Tile reset failed");
 
         // create root activity
         let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
@@ -249,7 +257,7 @@ impl ActivityMng {
         let mut mem_ep = 1;
 
         for m in mem::borrow_mut().mods() {
-            if m.mem_type() != mem::MemType::KERNEL {
+            if m.mem_type() != mem::MemType::KERNEL && m.mem_type() != mem::MemType::EPS {
                 let alloc = Allocation::new(m.addr(), m.capacity());
                 // create a derive MGateObject to prevent freeing the memory if it's of type ROOT
                 let mgate_obj = MGateObject::new(alloc, kif::Perm::RWX, true);

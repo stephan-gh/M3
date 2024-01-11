@@ -16,11 +16,10 @@
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::RefCell;
-use m3::cfg::{self, PAGE_SIZE};
+use m3::cfg::{self, DEF_EP_COUNT, PAGE_SIZE};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateCap, MemCap, MemGate};
 use m3::errors::{Code, Error, VerboseError};
-use m3::format;
 use m3::io::LogFlags;
 use m3::kif::{boot, CapRngDesc, CapType, Perm, TileDesc, FIRST_FREE_SEL};
 use m3::log;
@@ -31,6 +30,7 @@ use m3::tcu::TileId;
 use m3::tiles::{Activity, ChildActivity, Tile, TileArgs};
 use m3::time::TimeDuration;
 use m3::util::math;
+use m3::{format, tcu};
 
 use crate::childs;
 use crate::config;
@@ -49,7 +49,7 @@ const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
 const DEF_RESMNG_MEM: GlobOff = 32 * 1024 * 1024;
 const DEF_TIME_SLICE: TimeDuration = TimeDuration::from_millis(1);
-const OUR_EPS: u32 = 16;
+const OUR_EPS: usize = 64;
 
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
 
@@ -362,6 +362,11 @@ impl Subsystem {
                 },
             )?));
 
+            let mut domain_total_eps = tcu::PMEM_PROT_EPS + tcu::TILEMUX_EPS;
+            for cfg in dom.apps() {
+                domain_total_eps += cfg.eps().unwrap_or(DEF_EP_COUNT);
+            }
+
             // if the activities should run on our own tile, all PMP EPs are already installed
             if tile_usage.tile_id() != Activity::own().tile_id() {
                 let mux = dom.mux().unwrap_or("tilemux");
@@ -370,6 +375,7 @@ impl Subsystem {
                 tile_usage.state_mut().load_mux(
                     mux,
                     mux_mem,
+                    domain_total_eps,
                     dom.initrd(),
                     dom.dtb(),
                     |size| {

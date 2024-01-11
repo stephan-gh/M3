@@ -96,22 +96,8 @@ impl fmt::Display for TileId {
     }
 }
 
-cfg_if! {
-    if #[cfg(feature = "gem5")] {
-        /// The total number of endpoints in each TCU
-        pub const TOTAL_EPS: EpId = 192;
-        /// The number of available endpoints in each TCU
-        pub const AVAIL_EPS: EpId = TOTAL_EPS;
-    }
-    else {
-        /// The total number of endpoints in each TCU
-        pub const TOTAL_EPS: EpId = 128;
-        /// The number of available endpoints in each TCU
-        pub const AVAIL_EPS: EpId = TOTAL_EPS;
-    }
-}
-
 pub const PMEM_PROT_EPS: usize = 4;
+pub const TILEMUX_EPS: usize = 4;
 
 /// The send EP for kernel calls from TileMux
 pub const KPEX_SEP: EpId = PMEM_PROT_EPS as EpId + 0;
@@ -138,7 +124,7 @@ pub const PG_SEP_OFF: EpId = 5;
 pub const PG_REP_OFF: EpId = 6;
 
 /// The offset of the first user EP
-pub const FIRST_USER_EP: EpId = PMEM_PROT_EPS as EpId + 4;
+pub const FIRST_USER_EP: EpId = PMEM_PROT_EPS as EpId + TILEMUX_EPS as EpId;
 /// The number of standard EPs
 pub const STD_EPS_COUNT: usize = 7;
 
@@ -170,7 +156,7 @@ cfg_if! {
     }
     else {
         /// The number of external registers
-        pub const EXT_REGS: usize = 3;
+        pub const EXT_REGS: usize = 5;
         /// The number of unprivileged registers
         pub const UNPRIV_REGS: usize = 6;
     }
@@ -203,6 +189,10 @@ cfg_if! {
             TileDesc,
             /// For external commands
             ExtCmd,
+            /// The global address of the EP region
+            EpsAddr,
+            /// The size of the EP region in bytes
+            EpsSize,
         }
     }
 }

@@ -22,8 +22,8 @@ use base::kif;
 use base::log;
 use base::mem::{self, GlobAddr, GlobOff, PhysAddr, PhysAddrRaw, VirtAddr};
 use base::tcu::{
-    ActId, EpId, ExtCmdOpCode, ExtReg, Header, Label, Message, Reg, TileId, AVAIL_EPS, EP_REGS,
-    MMIO_ADDR, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
+    ActId, EpId, ExtCmdOpCode, ExtReg, Header, Label, Message, Reg, TileId, EP_REGS, MMIO_ADDR,
+    PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
 };
 
 use crate::platform;
@@ -163,7 +163,8 @@ fn rbuf_addrs(virt: VirtAddr) -> (VirtAddr, PhysAddr) {
 pub fn recv_msgs(ep: EpId, buf: VirtAddr, ord: u32, msg_ord: u32) -> Result<(), Error> {
     static REPS: StaticCell<EpId> = StaticCell::new(8);
 
-    if REPS.get() + (1 << (ord - msg_ord)) > AVAIL_EPS {
+    let ep_count = get_ep_count(platform::kernel_tile()).unwrap() as EpId;
+    if REPS.get() + (1 << (ord - msg_ord)) > ep_count {
         return Err(Error::new(Code::NoSpace));
     }
 
@@ -348,6 +349,22 @@ pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
     let mut features: u64 = try_read_obj(tile, reg_addr)?;
     features &= !1;
     try_write_slice(tile, reg_addr, &[features])
+}
+
+pub fn get_ep_count(tile: TileId) -> Result<usize, Error> {
+    let size: Reg = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::EpsSize).as_goff())?;
+    Ok(size as usize / (EP_REGS * mem::size_of::<Reg>()))
+}
+
+pub fn set_eps_region(tile: TileId, addr: GlobAddr, size: GlobOff) -> Result<(), Error> {
+    // clear this region to ensure that all endpoints are invalid
+    clear(addr.tile(), addr.offset(), size as usize)?;
+
+    let eps_addr = ((addr.tile().raw() as Reg) << 56) | addr.offset() as Reg;
+    try_write_slice(tile, TCU::ext_reg_addr(ExtReg::EpsAddr).as_goff(), &[
+        eps_addr,
+    ])?;
+    try_write_slice(tile, TCU::ext_reg_addr(ExtReg::EpsSize).as_goff(), &[size])
 }
 
 pub fn reset_tile(tile: TileId, start: bool) -> Result<(), Error> {

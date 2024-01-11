@@ -19,7 +19,8 @@ use base::col::Vec;
 use base::env;
 use base::kif::{self, boot, Perm, TileDesc, TileISA, TileType};
 use base::mem::{size_of, GlobAddr, GlobOff};
-use base::tcu::{ActId, EpId, TileId, TCU, UNLIM_CREDITS};
+use base::tcu::{ActId, EpId, TileId, EP_REGS, TCU, UNLIM_CREDITS};
+use base::util::math;
 use base::vec;
 
 use crate::args;
@@ -160,6 +161,17 @@ pub fn init() {
     let mut utiles = Vec::new();
     let mut tiles = Vec::new();
 
+    // determine size of EP memory region
+    let ep_mem_size = tile_descs.iter().fold(0, |acc, t| {
+        if !t.has_internal_eps() {
+            // we reserve space for the maximum endpoint count (2^(16+5) = 2MiB)
+            acc + 1 << (size_of::<EpId>() * 8 + math::next_log2(EP_REGS * 8) as usize)
+        }
+        else {
+            acc
+        }
+    });
+
     // register memory modules
     let mut kmem_idx = 0;
     let mut mem = mem::borrow_mut();
@@ -206,6 +218,11 @@ pub fn init() {
                     );
                 });
                 mem.add(kmem);
+
+                // endpoints memory
+                let ep_mem = MemMod::new(MemType::EPS, tile.id, used, ep_mem_size as GlobOff);
+                used += ep_mem_size as GlobOff;
+                mem.add(ep_mem);
 
                 // root memory
                 mem.add(MemMod::new(

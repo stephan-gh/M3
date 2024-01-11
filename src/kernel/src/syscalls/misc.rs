@@ -23,7 +23,7 @@ use base::rc::Rc;
 use base::tcu;
 
 use crate::cap::{Capability, KObject};
-use crate::cap::{EPObject, SemObject};
+use crate::cap::{EPCategory, EPObject, SemObject};
 use crate::ktcu;
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
@@ -44,11 +44,11 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
     if !act.obj_caps().borrow().unused(r.dst) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", r.dst);
     }
-    if r.replies >= tcu::AVAIL_EPS as u32 {
+    if r.replies > cfg::MAX_RB_SIZE {
         sysc_err!(Code::InvArgs, "Invalid reply count ({})", r.replies);
     }
 
-    let ep_count = 1 + r.replies;
+    let ep_count = 1 + r.replies as usize;
     let dst_act = get_kobj!(act, r.act, Activity).upgrade().unwrap();
     if !dst_act.tile().has_quota(ep_count) {
         sysc_err!(
@@ -67,7 +67,8 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
         }
     }
     else {
-        if r.epid > tcu::AVAIL_EPS || r.epid as u32 + ep_count > tcu::AVAIL_EPS as u32 {
+        let avail_eps = tilemux.ep_count().unwrap();
+        if r.epid as usize > avail_eps || r.epid as usize + ep_count > avail_eps {
             sysc_err!(
                 Code::InvArgs,
                 "Invalid endpoint id ({}:{})",
@@ -80,7 +81,7 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
                 Code::InvArgs,
                 "Endpoints {}..{} not free",
                 r.epid,
-                r.epid as u32 + ep_count - 1
+                r.epid as usize + ep_count - 1
             );
         }
         r.epid
@@ -89,7 +90,7 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
     let cap = Capability::new(
         r.dst,
         KObject::EP(EPObject::new(
-            false,
+            EPCategory::Custom,
             Rc::downgrade(&dst_act),
             epid,
             r.replies,

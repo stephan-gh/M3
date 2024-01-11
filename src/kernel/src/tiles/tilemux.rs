@@ -22,7 +22,7 @@ use base::errors::{Code, Error};
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{GlobAddr, GlobOff, MsgBuf, VirtAddr};
+use base::mem::{size_of, GlobAddr, GlobOff, MsgBuf, VirtAddr};
 use base::quota;
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{self, ActId, EpId, TileId};
@@ -31,57 +31,140 @@ use core::cmp;
 use core::convert::TryFrom;
 
 use crate::cap::{
-    EPObject, EPQuota, GateObject, MGateObject, RGateObject, SGateObject, TileObject,
+    EPCategory, EPObject, EPQuota, GateObject, MGateObject, RGateObject, SGateObject, TileObject,
 };
 use crate::ktcu;
+use crate::mem;
 use crate::platform;
 use crate::tiles::{tilemng, INVAL_ID};
+
+struct TileState {
+    pmp: Vec<Rc<EPObject>>,
+    eps_region: Option<mem::Allocation>,
+    eps: BitArray,
+}
+
+impl TileState {
+    fn new(tile: &SRc<TileObject>, ep_count: Option<usize>) -> Result<Self, Error> {
+        // create PMP EPObjects for this Tile
+        let mut pmp = Vec::new();
+        for ep in 0..tcu::PMEM_PROT_EPS as EpId {
+            pmp.push(EPObject::new(EPCategory::PMP, Weak::new(), ep, 0, tile));
+        }
+
+        assert!(platform::tile_desc(tile.tile()).has_internal_eps() == ep_count.is_none());
+        let (num, eps_region) = match ep_count {
+            Some(count) => {
+                // more EPs are not supported as we only have 16-bit for EP ids
+                if count < tcu::FIRST_USER_EP as usize || count >= tcu::INVALID_EP as usize {
+                    return Err(Error::new(Code::InvArgs));
+                }
+
+                let ep_reg_size = count * (tcu::EP_REGS * size_of::<tcu::Reg>());
+                let region =
+                    mem::borrow_mut().allocate(mem::MemType::EPS, ep_reg_size as GlobOff, 1)?;
+                ktcu::set_eps_region(tile.tile(), region.global(), region.size())?;
+                (count, Some(region))
+            },
+            None => (ktcu::get_ep_count(tile.tile())?, None),
+        };
+
+        tile.reset(num);
+
+        let mut state = TileState {
+            pmp,
+            eps_region,
+            eps: BitArray::new(num),
+        };
+
+        // first EP is reserved for TileMux's memory region
+        state.eps.set(0);
+        for ep in tcu::PMEM_PROT_EPS as EpId..tcu::FIRST_USER_EP {
+            state.eps.set(ep as usize);
+        }
+
+        Ok(state)
+    }
+
+    fn find_eps(&self, count: usize) -> Result<EpId, Error> {
+        // the PMP EPs cannot be allocated
+        let mut start = cmp::max(tcu::FIRST_USER_EP as usize, self.eps.first_clear());
+        let mut bit = start;
+        while bit < start + count as usize && bit < self.eps.size() {
+            if self.eps.is_set(bit) {
+                start = bit + 1;
+            }
+            bit += 1;
+        }
+
+        if bit != start + count as usize {
+            Err(Error::new(Code::NoSpace))
+        }
+        else {
+            Ok(start as EpId)
+        }
+    }
+
+    fn eps_free(&self, start: EpId, count: usize) -> bool {
+        for ep in start..start + count as EpId {
+            if self.eps.is_set(ep as usize) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn alloc_eps(&mut self, start: EpId, count: usize) {
+        for bit in start..start + count as EpId {
+            assert!(!self.eps.is_set(bit as usize));
+            self.eps.set(bit as usize);
+        }
+    }
+
+    fn free_eps(&mut self, start: EpId, count: usize) {
+        for bit in start..start + count as EpId {
+            assert!(self.eps.is_set(bit as usize));
+            self.eps.clear(bit as usize);
+        }
+    }
+}
+
+impl Drop for TileState {
+    fn drop(&mut self) {
+        if let Some(region) = self.eps_region {
+            mem::borrow_mut().free(&region);
+        }
+    }
+}
 
 pub struct TileMux {
     tile: SRc<TileObject>,
     acts: Vec<ActId>,
     queue: base::boxed::Box<crate::com::SendQueue>,
-    pmp: Vec<Rc<EPObject>>,
-    eps: BitArray,
-    initialized: bool,
+    state: Option<TileState>,
 }
 
 impl TileMux {
-    pub fn new(tile: TileId) -> Self {
-        let tile_obj = TileObject::new(
-            tile,
-            EPQuota::new((tcu::AVAIL_EPS - tcu::FIRST_USER_EP) as u32),
+    pub fn new(tile_id: TileId) -> Self {
+        let tile = TileObject::new(
+            tile_id,
+            // empty quota until reset
+            EPQuota::new(0),
             kif::tilemux::DEF_QUOTA_ID,
             kif::tilemux::DEF_QUOTA_ID,
             false,
         );
 
-        // create PMP EPObjects for this Tile
-        let mut pmp = Vec::new();
-        for ep in 0..tcu::PMEM_PROT_EPS as EpId {
-            pmp.push(EPObject::new(false, Weak::new(), ep, 0, &tile_obj));
-        }
-
-        let mut tilemux = TileMux {
-            tile: tile_obj,
+        TileMux {
+            tile,
             acts: Vec::new(),
-            queue: crate::com::SendQueue::new(crate::com::QueueId::TileMux(tile), tile),
-            pmp,
-            eps: BitArray::new(tcu::AVAIL_EPS as usize),
-            initialized: false,
-        };
-
-        tilemux.eps.set(0); // first EP is reserved for TileMux's memory region
-
-        for ep in tcu::PMEM_PROT_EPS as EpId..tcu::FIRST_USER_EP {
-            tilemux.eps.set(ep as usize);
+            queue: crate::com::SendQueue::new(crate::com::QueueId::TileMux(tile_id), tile_id),
+            state: None,
         }
-
-        tilemux
     }
 
     pub fn is_initialized(&self) -> bool {
-        self.initialized
+        self.state.is_some()
     }
 
     pub fn has_activities(&self) -> bool {
@@ -97,54 +180,74 @@ impl TileMux {
         self.acts.retain(|id| *id != act);
     }
 
-    fn init_eps(&mut self) {
-        // configure send EP
-        ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_SEP, |regs, tgtep| {
-            ktcu::config_send(
-                regs,
-                tgtep,
-                kif::tilemux::ACT_ID as ActId,
-                self.tile_id().raw() as tcu::Label,
-                platform::kernel_tile(),
-                ktcu::KPEX_EP,
-                cfg::KPEX_RBUF_ORD,
-                1,
-            );
-        })
-        .unwrap();
+    fn init_state(&mut self, ep_count: Option<usize>) {
+        assert!(self.state.is_none());
+        self.state = Some(TileState::new(&self.tile, ep_count).unwrap());
 
-        // configure receive EP
-        let mut rbuf = cfg::TILEMUX_RBUF_SPACE.as_phys();
-        ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_REP, |regs, tgtep| {
-            ktcu::config_recv(
-                regs,
-                tgtep,
-                kif::tilemux::ACT_ID as ActId,
-                rbuf,
-                cfg::KPEX_RBUF_ORD,
-                cfg::KPEX_RBUF_ORD,
-                None,
-            );
-        })
-        .unwrap();
-        rbuf += 1 << cfg::KPEX_RBUF_ORD;
+        if platform::tile_desc(self.tile_id()).supports_tilemux() {
+            // configure send EP
+            ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_SEP, |regs, tgtep| {
+                ktcu::config_send(
+                    regs,
+                    tgtep,
+                    kif::tilemux::ACT_ID as ActId,
+                    self.tile_id().raw() as tcu::Label,
+                    platform::kernel_tile(),
+                    ktcu::KPEX_EP,
+                    cfg::KPEX_RBUF_ORD,
+                    1,
+                );
+            })
+            .unwrap();
 
-        // configure upcall EP
-        ktcu::config_remote_ep(self.tile_id(), tcu::TMSIDE_REP, |regs, tgtep| {
-            ktcu::config_recv(
-                regs,
-                tgtep,
-                kif::tilemux::ACT_ID as ActId,
-                rbuf,
-                cfg::TMUP_RBUF_ORD,
-                cfg::TMUP_RBUF_ORD,
-                Some(tcu::TMSIDE_RPLEP),
-            );
-        })
-        .unwrap();
+            // configure receive EP
+            let mut rbuf = cfg::TILEMUX_RBUF_SPACE.as_phys();
+            ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_REP, |regs, tgtep| {
+                ktcu::config_recv(
+                    regs,
+                    tgtep,
+                    kif::tilemux::ACT_ID as ActId,
+                    rbuf,
+                    cfg::KPEX_RBUF_ORD,
+                    cfg::KPEX_RBUF_ORD,
+                    None,
+                );
+            })
+            .unwrap();
+            rbuf += 1 << cfg::KPEX_RBUF_ORD;
+
+            // configure upcall EP
+            ktcu::config_remote_ep(self.tile_id(), tcu::TMSIDE_REP, |regs, tgtep| {
+                ktcu::config_recv(
+                    regs,
+                    tgtep,
+                    kif::tilemux::ACT_ID as ActId,
+                    rbuf,
+                    cfg::TMUP_RBUF_ORD,
+                    cfg::TMUP_RBUF_ORD,
+                    Some(tcu::TMSIDE_RPLEP),
+                );
+            })
+            .unwrap();
+        }
     }
 
-    pub fn reset_async(tile: TileId, mux_mem: Option<GateObject>) -> Result<(), Error> {
+    fn deinit_state(&mut self) {
+        // now that the tile is stopped, deconfigure PMP EPs
+        for ep in 0..tcu::PMEM_PROT_EPS as tcu::EpId {
+            // cannot fail for memory EPs
+            let ep_obj = self.pmp_ep(ep).unwrap();
+            ep_obj.deconfigure(false).unwrap();
+        }
+
+        self.state = None;
+    }
+
+    pub fn reset_async(
+        tile: TileId,
+        mux_mem: Option<GateObject>,
+        ep_count: Option<usize>,
+    ) -> Result<(), Error> {
         let start = mux_mem.is_some();
 
         if tilemng::tilemux(tile).has_activities() {
@@ -161,15 +264,13 @@ impl TileMux {
         {
             let mut tilemux = tilemng::tilemux(tile);
             // reset can only be used in two ways: off -> on and on -> off
-            if (!tilemux.initialized && !start) || (tilemux.initialized && start) {
+            if (!tilemux.is_initialized() && !start) || (tilemux.is_initialized() && start) {
                 return Err(Error::new(Code::InvArgs));
             }
 
             // should we start and therefore initialize the tile?
-            if let Some(mux_mem) = mux_mem {
-                if platform::tile_desc(tile).supports_tilemux() {
-                    tilemux.init_eps();
-                }
+            if let (Some(mux_mem), ep_count) = (mux_mem, ep_count) {
+                tilemux.init_state(ep_count);
 
                 let mgate = match mux_mem {
                     GateObject::Mem(ref mg) => mg.clone(),
@@ -186,8 +287,6 @@ impl TileMux {
                     let trampoline: u64 = 0x0000_0000_0000_306f; // j _start (+0x3000)
                     ktcu::write_slice(mgate.tile_id(), mgate.offset(), &[trampoline]);
                 }
-
-                tilemux.initialized = true;
             }
             else {
                 // give tilemux the chance to shutdown properly
@@ -202,14 +301,7 @@ impl TileMux {
 
         if !start {
             let mut tilemux = tilemng::tilemux(tile);
-            tilemux.initialized = false;
-
-            // now that the tile is stopped, deconfigure PMP EPs
-            for ep in 0..tcu::PMEM_PROT_EPS as tcu::EpId {
-                // cannot fail for memory EPs
-                let ep_obj = tilemux.pmp_ep(ep);
-                ep_obj.deconfigure(false).unwrap();
-            }
+            tilemux.deinit_state();
         }
 
         Ok(())
@@ -223,8 +315,12 @@ impl TileMux {
         self.tile.tile()
     }
 
-    pub fn pmp_ep(&self, ep: EpId) -> &Rc<EPObject> {
-        &self.pmp[ep as usize]
+    pub fn ep_count(&self) -> Option<usize> {
+        self.state.as_ref().map(|state| state.eps.size())
+    }
+
+    pub fn pmp_ep(&self, ep: EpId) -> Option<&Rc<EPObject>> {
+        self.state.as_ref().map(|state| &state.pmp[ep as usize])
     }
 
     pub fn configure_pmp_ep(&mut self, ep: tcu::EpId, gate: GateObject) -> Result<(), Error> {
@@ -234,7 +330,7 @@ impl TileMux {
 
                 // remember that the MemGate is activated on this EP for the case that the MemGate gets
                 // revoked. If so, the EP is automatically invalidated.
-                let ep_obj = self.pmp_ep(ep);
+                let ep_obj = self.pmp_ep(ep).ok_or_else(|| Error::new(Code::InvState))?;
                 EPObject::configure_obj(ep_obj, gate);
             },
             _ => return Err(Error::new(Code::InvArgs)),
@@ -242,59 +338,45 @@ impl TileMux {
         Ok(())
     }
 
-    pub fn find_eps(&self, count: u32) -> Result<EpId, Error> {
-        // the PMP EPs cannot be allocated
-        let mut start = cmp::max(tcu::FIRST_USER_EP as usize, self.eps.first_clear());
-        let mut bit = start;
-        while bit < start + count as usize && bit < tcu::AVAIL_EPS as usize {
-            if self.eps.is_set(bit) {
-                start = bit + 1;
-            }
-            bit += 1;
-        }
+    pub fn find_eps(&self, count: usize) -> Result<EpId, Error> {
+        self.state
+            .as_ref()
+            .ok_or_else(|| Error::new(Code::InvState))?
+            .find_eps(count)
+    }
 
-        if bit != start + count as usize {
-            Err(Error::new(Code::NoSpace))
-        }
-        else {
-            Ok(start as EpId)
+    pub fn eps_free(&self, start: EpId, count: usize) -> bool {
+        self.state
+            .as_ref()
+            .map(|state| state.eps_free(start, count))
+            .unwrap_or(false)
+    }
+
+    pub fn alloc_eps(&mut self, start: EpId, count: usize) {
+        let tile_id = self.tile_id();
+        if let Some(state) = self.state.as_mut() {
+            log!(
+                LogFlags::KernEPs,
+                "TileMux[{}] allocating EPS {}..{}",
+                tile_id,
+                start,
+                start as usize + count - 1
+            );
+            state.alloc_eps(start, count);
         }
     }
 
-    pub fn eps_free(&self, start: EpId, count: u32) -> bool {
-        for ep in start..start + count as EpId {
-            if self.eps.is_set(ep as usize) {
-                return false;
-            }
-        }
-        true
-    }
-
-    pub fn alloc_eps(&mut self, start: EpId, count: u32) {
-        log!(
-            LogFlags::KernEPs,
-            "TileMux[{}] allocating EPS {}..{}",
-            self.tile_id(),
-            start,
-            start as u32 + count - 1
-        );
-        for bit in start..start + count as EpId {
-            assert!(!self.eps.is_set(bit as usize));
-            self.eps.set(bit as usize);
-        }
-    }
-
-    pub fn free_eps(&mut self, start: EpId, count: u32) {
-        log!(
-            LogFlags::KernEPs,
-            "TileMux[{}] freeing EPS {}..{}",
-            self.tile_id(),
-            start,
-            start as u32 + count - 1
-        );
-        for bit in start..start + count as EpId {
-            assert!(self.eps.is_set(bit as usize));
-            self.eps.clear(bit as usize);
+    pub fn free_eps(&mut self, start: EpId, count: usize) {
+        let tile_id = self.tile_id();
+        if let Some(state) = self.state.as_mut() {
+            log!(
+                LogFlags::KernEPs,
+                "TileMux[{}] freeing EPS {}..{}",
+                tile_id,
+                start,
+                start as usize + count - 1
+            );
+            state.free_eps(start, count);
         }
     }
 
@@ -547,7 +629,7 @@ impl TileMux {
         let msg = kif::tilemux::GetQuota { time, pts };
         build_vmsg!(buf, kif::tilemux::Sidecalls::GetQuota, &msg);
 
-        let tile_id = (tilemux.tile.tile().raw() as quota::Id) << 8;
+        let tile_id = (tilemux.tile_id().raw() as quota::Id) << 8;
         Self::send_receive_sidecall_async::<kif::tilemux::GetQuota>(tilemux, None, buf, &msg).map(
             |r| {
                 (
@@ -668,7 +750,7 @@ impl TileMux {
         use crate::tiles::{ActivityMng, State};
 
         // if tilemux is not initialized, we cannot talk to it
-        if !self.initialized {
+        if !self.is_initialized() {
             return Err(Error::new(Code::RecvGone));
         }
 

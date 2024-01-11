@@ -40,7 +40,7 @@ const FIRST_FREE_PMP_EP: EpId = 1;
 const DTB_OFFSET: usize = 0x1FF000;
 
 #[derive(Debug)]
-struct Mux {
+struct TileMem {
     mem: MemGate,
     alloc: Option<Allocation>,
 }
@@ -50,7 +50,7 @@ pub struct TileState {
     tile: Rc<Tile>,
     next_pmp_ep: EpId,
     pmp_regions: Vec<(MemCap, usize)>,
-    mux: Option<Mux>,
+    mux: Option<TileMem>,
 }
 
 impl TileState {
@@ -118,13 +118,14 @@ impl TileState {
         &mut self,
         name: &str,
         mem_size: usize,
+        ep_count: usize,
         initrd: Option<&str>,
         dtb: Option<&str>,
-        alloc_mem: A,
+        mut alloc_mem: A,
         mut get_mod: M,
     ) -> Result<(), Error>
     where
-        A: FnOnce(usize) -> Result<(MemGate, Option<Allocation>), Error>,
+        A: FnMut(usize) -> Result<(MemGate, Option<Allocation>), Error>,
         M: FnMut(&str) -> Result<MemGate, Error>,
     {
         if self.mux.is_some() {
@@ -132,21 +133,27 @@ impl TileState {
         }
 
         let mux = match self.tile.memory() {
-            Ok(mem) => Mux { mem, alloc: None },
+            Ok(mem) => TileMem { mem, alloc: None },
             Err(_) => {
                 let (mem, alloc) = alloc_mem(mem_size)?;
-                Mux { mem, alloc }
+                TileMem { mem, alloc }
             },
         };
         let mux_elf = get_mod(name)?;
         let mem_region = mux.mem.region()?;
 
+        let (desired_eps, avail_eps) = match self.tile.desc().has_internal_eps() {
+            false => (Some(ep_count), ep_count),
+            true => (None, self.tile.ep_count()?),
+        };
+
         log!(
             LogFlags::ResMngTiles,
-            "Loading multiplexer '{}' to ({}, {}M) for {}",
+            "Loading multiplexer '{}' to ({}, {}M) with EPs (#{}) for {}",
             name,
             mem_region.0,
             mem_region.1 / (1024 * 1024),
+            avail_eps,
             self.tile.id(),
         );
 
@@ -252,7 +259,7 @@ impl TileState {
         mux.mem
             .write_obj(&env, (cfg::ENV_START - cfg::MEM_OFFSET).as_goff())?;
 
-        syscalls::tile_reset(self.tile.sel(), mux.mem.sel())?;
+        syscalls::tile_reset(self.tile.sel(), mux.mem.sel(), desired_eps)?;
 
         self.mux = Some(mux);
         Ok(())
@@ -264,7 +271,7 @@ impl TileState {
     {
         // reset the tile before we drop the MemGate for its PMP EP
         if let Some(mux) = self.mux.take() {
-            syscalls::tile_reset(self.tile.sel(), INVALID_SEL)?;
+            syscalls::tile_reset(self.tile.sel(), INVALID_SEL, None)?;
             if let Some(alloc) = mux.alloc {
                 free(alloc);
             }
@@ -326,7 +333,7 @@ impl TileUsage {
 
     pub fn derive(
         &self,
-        eps: Option<u32>,
+        eps: Option<usize>,
         time: Option<TimeDuration>,
         pts: Option<usize>,
     ) -> Result<TileUsage, Error> {
@@ -393,10 +400,9 @@ impl TileManager {
             if self.tiles[idx].add_user() == 0 {
                 log!(
                     LogFlags::ResMngTiles,
-                    "Allocating {}: {:?} (eps={:?})",
+                    "Allocating {}: {:?}",
                     self.tiles[idx].id,
                     self.tiles[idx].tile.desc(),
-                    self.get(idx).quota().unwrap().endpoints(),
                 );
             }
         }

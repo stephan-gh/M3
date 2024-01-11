@@ -10,7 +10,6 @@ root = createRoot(options)
 
 cmd_list = options.cmd.split(",")
 
-num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_mem = 1
 num_sto = 1  # Number of tiles for IDE storage
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
@@ -34,8 +33,7 @@ for i in range(0, num_tiles):
                           cmdline=cmd_list[i],
                           memTile=mem_tile if cmd_list[i] != "" else None,
                           l1size='32kB',
-                          l2size='256kB',
-                          epCount=num_eps)
+                          l2size='256kB')
     tiles.append(tile)
 
 # create the persistent storage tiles
@@ -44,23 +42,20 @@ for i in range(0, num_sto):
                              options=options,
                              id=TileId(0, num_tiles + i),
                              memTile=None,
-                             img0=hard_disk0,
-                             epCount=num_eps)
+                             img0=hard_disk0)
     tiles.append(tile)
 
 # create ether tiles
 ether0 = createEtherTile(noc=root.noc,
                          options=options,
                          id=TileId(0, num_tiles + num_sto + 0),
-                         memTile=None,
-                         epCount=num_eps)
+                         memTile=None)
 tiles.append(ether0)
 
 ether1 = createEtherTile(noc=root.noc,
                          options=options,
                          id=TileId(0, num_tiles + num_sto + 1),
-                         memTile=None,
-                         epCount=num_eps)
+                         memTile=None)
 tiles.append(ether1)
 
 linkEthertiles(ether0, ether1)
@@ -71,8 +66,7 @@ for i in range(0, num_rot13):
                           id=TileId(0, num_tiles + num_sto + 2 + i),
                           accel='rot13',
                           memTile=None,
-                          spmsize='32MB',
-                          epCount=num_eps)
+                          spmsize='32MB')
     tiles.append(rpe)
 
 for i in range(0, num_kecacc):
@@ -81,8 +75,7 @@ for i in range(0, num_kecacc):
                             id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + i),
                             cmdline=cmd_list[1],  # FIXME
                             memTile=None,
-                            spmsize='64MB',
-                            epCount=num_eps)
+                            spmsize='64MB')
     tiles.append(tile)
 
 # create the memory tiles
@@ -90,16 +83,14 @@ for i in range(0, num_mem):
     tile = createMemTile(noc=root.noc,
                          options=options,
                          id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + num_kecacc + i),
-                         size='3072MB',
-                         epCount=num_eps)
+                         size='3072MB')
     tiles.append(tile)
 
 # create tile for serial input
 tile = createSerialTile(noc=root.noc,
                         options=options,
                         id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + num_kecacc + num_mem),
-                        memTile=None,
-                        epCount=num_eps)
+                        memTile=None)
 tiles.append(tile)
 
 runSimulation(root, options, tiles)

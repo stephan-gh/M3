@@ -105,7 +105,12 @@ public:
                            Option<size_t> pts = None);
 
     /**
-     * @return the multiplexer type that runs on this tile
+     * @return the number of endpoints available on this tile (via syscall)
+     */
+    size_t ep_count() const;
+
+    /**
+     * @return the multiplexer type that runs on this tile (via syscall)
      */
     KIF::Syscall::MuxType mux_type() const;
 

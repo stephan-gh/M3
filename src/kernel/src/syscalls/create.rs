@@ -24,7 +24,8 @@ use base::tcu;
 
 use crate::cap::{Capability, KObject, SelRange};
 use crate::cap::{
-    EPObject, MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject,
+    EPCategory, EPObject, MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject,
+    SessObject,
 };
 use crate::com::Service;
 use crate::mem;
@@ -278,7 +279,7 @@ pub fn create_activity_async(
     }
 
     let tile = get_kobj!(act, r.tile, Tile);
-    if !tile.has_quota(tcu::STD_EPS_COUNT as u32) {
+    if !tile.has_quota(tcu::STD_EPS_COUNT) {
         sysc_err!(
             Code::InvArgs,
             "Tile cap has insufficient EPs (have {}, need {})",
@@ -293,7 +294,7 @@ pub fn create_activity_async(
     // find contiguous space for standard EPs
     let tile_id = tile.tile();
     let tilemux = tilemng::tilemux(tile_id);
-    let eps = match tilemux.find_eps(tcu::STD_EPS_COUNT as u32) {
+    let eps = match tilemux.find_eps(tcu::STD_EPS_COUNT) {
         Ok(eps) => eps,
         Err(e) => sysc_err!(e.code(), "No free range for standard EPs"),
     };
@@ -322,7 +323,13 @@ pub fn create_activity_async(
         {
             let scap = Capability::new(
                 r.dst + 1 + i as CapSel,
-                KObject::EP(EPObject::new(true, nact_rc.clone(), *ep, 0, nact.tile())),
+                KObject::EP(EPObject::new(
+                    EPCategory::Std,
+                    nact_rc.clone(),
+                    *ep,
+                    0,
+                    nact.tile(),
+                )),
             );
             try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(scap, r.dst));
         }

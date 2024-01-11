@@ -25,6 +25,8 @@ pub const MAX_ACTS: usize = 16;
 #[cfg(not(any(feature = "hw", feature = "hw22")))]
 pub const MAX_ACTS: usize = 64;
 
+pub const DEF_EP_COUNT: usize = 256;
+
 pub const PAGE_BITS: usize = 12;
 pub const PAGE_SIZE: usize = 1 << PAGE_BITS;
 pub const PAGE_MASK: usize = PAGE_SIZE - 1;

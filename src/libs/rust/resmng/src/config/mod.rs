@@ -421,7 +421,7 @@ pub struct AppConfig {
     pub(crate) cfg_range: (usize, usize),
     pub(crate) daemon: bool,
     pub(crate) getinfo: bool,
-    pub(crate) eps: Option<u32>,
+    pub(crate) eps: Option<usize>,
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
     pub(crate) time: Option<TimeDuration>,
@@ -469,7 +469,7 @@ impl AppConfig {
         self.serial.is_some()
     }
 
-    pub fn eps(&self) -> Option<u32> {
+    pub fn eps(&self) -> Option<usize> {
         self.eps
     }
 

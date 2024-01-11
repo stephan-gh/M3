@@ -80,8 +80,10 @@ bitflags! {
         const SERIAL        = 1 << 3;
         /// Contains internal memory (for memory tiles or SPM in compute tiles)
         const IMEM          = 1 << 4;
+        /// Contains internal endpoints
+        const IEPS          = 1 << 5;
         /// Contains a Keccak Accelerator (KecAcc)
-        const KECACC        = 1 << 5;
+        const KECACC        = 1 << 6;
     }
 }
 
@@ -181,6 +183,11 @@ impl TileDesc {
     /// Returns whether the tile has an internal memory (SPM, DRAM, ...)
     pub fn has_memory(self) -> bool {
         self.tile_type() == TileType::Mem || self.attr().contains(TileAttr::IMEM)
+    }
+
+    /// Returns whether the tile has internal endpoints
+    pub fn has_internal_eps(self) -> bool {
+        self.attr().contains(TileAttr::IEPS)
     }
 
     /// Returns whether the tile supports virtual memory

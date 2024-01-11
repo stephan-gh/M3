@@ -125,7 +125,7 @@ pub struct ActInfo {
     pub daemon: bool,
     pub umem: Quota<usize>,
     pub kmem: Quota<usize>,
-    pub eps: Quota<u32>,
+    pub eps: Quota<usize>,
     pub time: Quota<TimeDuration>,
     pub pts: Quota<usize>,
     pub tile: TileId,

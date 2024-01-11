@@ -9,7 +9,6 @@ root = Root(full_system=True)
 
 cmd_list = options.cmd.split(",")
 
-num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_mem = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 num_cores_per_chip = int(num_tiles / 2)
@@ -52,16 +51,14 @@ for i in range(0, num_cores_per_chip):
                           cmdline=cmd_list[i],
                           memTile=mem_tile if cmd_list[i] != "" else None,
                           l1size='32kB',
-                          l2size='256kB',
-                          epCount=num_eps)
+                          l2size='256kB')
     tiles.append(tile)
 
 # create tile for serial input
 tile = createSerialTile(noc=root.noc1,
                         options=options,
                         id=TileId(0, num_cores_per_chip),
-                        memTile=None,
-                        epCount=num_eps)
+                        memTile=None)
 tiles.append(tile)
 
 for i in range(0, num_cores_per_chip):
@@ -71,16 +68,14 @@ for i in range(0, num_cores_per_chip):
                           cmdline=cmd_list[num_cores_per_chip + i],
                           memTile=mem_tile if cmd_list[num_cores_per_chip + i] != "" else None,
                           l1size='32kB',
-                          l2size='256kB',
-                          epCount=num_eps)
+                          l2size='256kB')
     tiles.append(tile)
 
 # create the memory tile
 tile = createMemTile(noc=root.noc2,
                      options=options,
                      id=mem_tile,
-                     size='3072MB',
-                     epCount=num_eps)
+                     size='3072MB')
 tiles.append(tile)
 
 runSimulation(root, options, tiles)

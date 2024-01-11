@@ -129,8 +129,8 @@ impl Activity {
             ))?;
 
             // alloc standard EPs
-            tilemng::tilemux(act.tile_id()).alloc_eps(eps_start, STD_EPS_COUNT as u32);
-            act.tile.alloc(STD_EPS_COUNT as u32);
+            tilemng::tilemux(act.tile_id()).alloc_eps(eps_start, STD_EPS_COUNT);
+            act.tile.alloc(STD_EPS_COUNT);
 
             // add us to tile
             act.tile.add_activity();
@@ -543,8 +543,8 @@ impl Drop for Activity {
         self.state.set(State::DEAD);
 
         // free standard EPs
-        tilemng::tilemux(self.tile_id()).free_eps(self.eps_start, STD_EPS_COUNT as u32);
-        self.tile.free(STD_EPS_COUNT as u32);
+        tilemng::tilemux(self.tile_id()).free_eps(self.eps_start, STD_EPS_COUNT);
+        self.tile.free(STD_EPS_COUNT);
 
         // remove us from tile
         self.tile.rem_activity();

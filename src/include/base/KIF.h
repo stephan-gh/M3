@@ -407,6 +407,7 @@ struct KIF {
         struct TileReset : public DefaultRequest {
             xfer_t tile_sel;
             xfer_t mux_mem_sel;
+            xfer_t ep_count;
         } PACKED;
 
         enum MuxType {
@@ -423,6 +424,7 @@ struct KIF {
             xfer_t type;
             xfer_t id;
             xfer_t desc;
+            xfer_t ep_count;
         } PACKED;
 
         struct TileMem : public DefaultRequest {

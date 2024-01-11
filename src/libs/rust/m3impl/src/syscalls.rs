@@ -254,7 +254,7 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
 
 /// Allocates a new endpoint for the given activity at selector `dst`. Optionally, it can have `replies`
 /// reply slots attached to it (for receive gate activations).
-pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
+pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: usize) -> Result<EpId, Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::AllocEP, syscalls::AllocEP {
         dst,
@@ -312,7 +312,7 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
 pub fn derive_tile(
     tile: Selector,
     dst: Selector,
-    eps: Option<u32>,
+    eps: Option<usize>,
     time: Option<TimeDuration>,
     pts: Option<usize>,
 ) -> Result<(), Error> {
@@ -468,28 +468,39 @@ pub fn tile_mem(dst: Selector, tile: Selector) -> Result<(), Error> {
 }
 
 /// Requests information about the given tile
-pub fn tile_info(tile: Selector) -> Result<(syscalls::MuxType, TileId, kif::TileDesc), Error> {
+///
+/// Returns the multiplexer type, tile id, tile description, and the EP count.
+pub fn tile_info(
+    tile: Selector,
+) -> Result<(syscalls::MuxType, TileId, kif::TileDesc, usize), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::TileInfo, syscalls::TileInfo {
         tile
     });
 
     let reply: Reply<syscalls::TileInfoReply> = send_receive(&buf)?;
-    Ok((reply.data.ty, reply.data.id, reply.data.desc))
+    Ok((
+        reply.data.ty,
+        reply.data.id,
+        reply.data.desc,
+        reply.data.ep_count,
+    ))
 }
 
 /// Resets the given tile.
 ///
 /// In any case, this call will invalidate all PMP EPs. If mux_mem is not `INVALID_SEL`, `mux_mem`
 /// is installed as the first PMP EP and the multiplexer that has been loaded into
-/// `mux_mem` is started.
+/// `mux_mem` is started. If mux_mem is not `INVALID_SEL` and the tile does not have internal EPs,
+/// ep_count has to specify the desired number of available EPs.
 ///
 /// This call requires a non-derived tile capability.
-pub fn tile_reset(tile: Selector, mux_mem: Selector) -> Result<(), Error> {
+pub fn tile_reset(tile: Selector, mux_mem: Selector, ep_count: Option<usize>) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::TileReset, syscalls::TileReset {
         tile,
         mux_mem,
+        ep_count,
     });
     send_receive_result(&buf)
 }

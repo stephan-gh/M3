@@ -22,7 +22,14 @@ class TCU {
 public:
     typedef m3::TCU::reg_t reg_t;
 
-    static const epid_t TMP_EP = AVAIL_EPS - 1;
+    static epid_t tmpEp() {
+        return endpoint_num() - 1;
+    }
+
+    static size_t endpoint_num() {
+        return m3::TCU::read_reg(m3::TCU::ExtRegs::EPS_SIZE) /
+               (m3::TCU::EP_REGS * sizeof(m3::TCU::reg_t));
+    }
 
     static int credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
@@ -132,15 +139,16 @@ public:
 private:
     static m3::Errors::Code perform_ext_cmd(m3::TileId tile, reg_t cmd,
                                             m3::TCU::rep_bitmask_t *unread = nullptr) {
+        epid_t tmp_ep = tmpEp();
         size_t addr = m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD);
-        config_mem(TMP_EP, tile, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
-        m3::Errors::Code err = write(TMP_EP, &cmd, sizeof(cmd), 0);
+        config_mem(tmp_ep, tile, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
+        m3::Errors::Code err = write(tmp_ep, &cmd, sizeof(cmd), 0);
         if(err != m3::Errors::SUCCESS)
             return err;
 
         reg_t res;
         do {
-            err = read(TMP_EP, &res, sizeof(res), 0);
+            err = read(tmp_ep, &res, sizeof(res), 0);
             if(err != m3::Errors::SUCCESS)
                 return err;
         }

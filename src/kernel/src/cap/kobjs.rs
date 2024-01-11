@@ -547,19 +547,19 @@ impl fmt::Debug for SemObject {
 
 pub struct EPQuota {
     id: QuotaId,
-    total: u32,
-    left: Cell<u32>,
+    total: Cell<usize>,
+    left: Cell<usize>,
 }
 
 impl EPQuota {
-    pub fn new(eps: u32) -> Rc<Self> {
+    pub fn new(eps: usize) -> Rc<Self> {
         static NEXT_ID: StaticCell<QuotaId> = StaticCell::new(0);
         let id = NEXT_ID.get();
         NEXT_ID.set(id + 1);
 
         Rc::new(Self {
             id,
-            total: eps,
+            total: Cell::from(eps),
             left: Cell::from(eps),
         })
     }
@@ -568,11 +568,11 @@ impl EPQuota {
         self.id
     }
 
-    pub fn total(&self) -> u32 {
-        self.total
+    pub fn total(&self) -> usize {
+        self.total.get()
     }
 
-    pub fn left(&self) -> u32 {
+    pub fn left(&self) -> usize {
         self.left.get()
     }
 }
@@ -608,7 +608,7 @@ impl TileObject {
             tile,
             &*res as *const _ as usize,
             if derived { "derived" } else { "created" },
-            ep_quota.total,
+            ep_quota.total(),
             time_quota,
             pt_quota,
         );
@@ -639,7 +639,7 @@ impl TileObject {
         self.pt_quota
     }
 
-    pub fn has_quota(&self, eps: u32) -> bool {
+    pub fn has_quota(&self, eps: usize) -> bool {
         self.ep_quota.left() >= eps
     }
 
@@ -669,7 +669,7 @@ impl TileObject {
         }
     }
 
-    pub fn alloc(&self, eps: u32) {
+    pub fn alloc(&self, eps: usize) {
         log!(
             LogFlags::KernTiles,
             "Tile[{}, {:#x}]: allocating {} EPs ({} left)",
@@ -682,8 +682,8 @@ impl TileObject {
         self.ep_quota.left.set(self.ep_quota.left() - eps);
     }
 
-    pub fn free(&self, eps: u32) {
-        assert!(self.ep_quota.left() + eps <= self.ep_quota.total);
+    pub fn free(&self, eps: usize) {
+        assert!(self.ep_quota.left() + eps <= self.ep_quota.total());
         self.ep_quota.left.set(self.ep_quota.left() + eps);
         log!(
             LogFlags::KernTiles,
@@ -695,13 +695,25 @@ impl TileObject {
         );
     }
 
+    pub fn reset(&self, total_eps: usize) {
+        log!(
+            LogFlags::KernTiles,
+            "Tile[{}, {:#x}]: reset with EPs={}",
+            self.tile,
+            &*self as *const _ as usize,
+            total_eps,
+        );
+        self.ep_quota.total.set(total_eps);
+        self.ep_quota.left.set(total_eps);
+    }
+
     pub fn revoke_async(&self, parent: &TileObject) {
         // we free the EP quota if it's different from our parent's quota (only our own childs can
         // have the same EP quota, but they are already gone).
         if !Rc::ptr_eq(&self.ep_quota, &parent.ep_quota) {
             // grant the EPs back to our parent
             parent.free(self.ep_quota.left());
-            assert!(self.ep_quota.left() == self.ep_quota.total);
+            assert!(self.ep_quota.left() == self.ep_quota.total());
         }
 
         // same for time and pts: free the ones that are different
@@ -736,26 +748,33 @@ impl fmt::Debug for TileObject {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum EPCategory {
+    PMP,
+    Std,
+    Custom,
+}
+
 pub struct EPObject {
-    is_std: bool,
+    cat: EPCategory,
     gate: RefCell<Option<GateObject>>,
     act: Weak<Activity>,
     ep: EpId,
-    replies: u32,
+    replies: usize,
     tile: SRc<TileObject>,
 }
 
 impl EPObject {
     pub fn new(
-        is_std: bool,
+        cat: EPCategory,
         act: Weak<Activity>,
         ep: EpId,
-        replies: u32,
+        replies: usize,
         tile: &SRc<TileObject>,
     ) -> Rc<Self> {
         let maybe_act = act.upgrade();
         let ep = Rc::new(Self {
-            is_std,
+            cat,
             gate: RefCell::from(None),
             act,
             ep,
@@ -780,7 +799,7 @@ impl EPObject {
         self.ep
     }
 
-    pub fn replies(&self) -> u32 {
+    pub fn replies(&self) -> usize {
         self.replies
     }
 
@@ -849,7 +868,7 @@ impl EPObject {
 
 impl Drop for EPObject {
     fn drop(&mut self) {
-        if !self.is_std {
+        if self.cat == EPCategory::Custom {
             tilemng::tilemux(self.tile.tile).free_eps(self.ep, 1 + self.replies);
 
             self.tile.free(1 + self.replies);
