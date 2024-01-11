@@ -281,14 +281,14 @@ fn shutdown(msg: &'static tcu::Message) -> Result<(), Error> {
     });
     reply_msg(msg, &reply_buf);
 
-    // call sleep here directly after reply, so that we hopefully don't execute any code while the
-    // kernel resets the tile. this is actually just a workaround for gem5, where we cannot reset
-    // the core properly.
+    // call shutdown here directly after reply, so that we hopefully don't execute any code while
+    // the kernel resets the tile. this is actually just a workaround for gem5, where we cannot
+    // reset the core properly.
     extern "C" {
-        fn start_sleep();
+        fn _shutdown();
     }
     unsafe {
-        start_sleep();
+        _shutdown();
     }
 
     unreachable!();
