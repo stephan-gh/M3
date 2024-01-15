@@ -142,6 +142,7 @@ pub struct TileMux {
     acts: Vec<ActId>,
     queue: base::boxed::Box<crate::com::SendQueue>,
     state: Option<TileState>,
+    shutdown: bool,
 }
 
 impl TileMux {
@@ -160,11 +161,12 @@ impl TileMux {
             acts: Vec::new(),
             queue: crate::com::SendQueue::new(crate::com::QueueId::TileMux(tile_id), tile_id),
             state: None,
+            shutdown: false,
         }
     }
 
     pub fn is_initialized(&self) -> bool {
-        self.state.is_some()
+        self.state.is_some() && !self.shutdown
     }
 
     pub fn has_activities(&self) -> bool {
@@ -271,6 +273,7 @@ impl TileMux {
             // should we start and therefore initialize the tile?
             if let (Some(mux_mem), ep_count) = (mux_mem, ep_count) {
                 tilemux.init_state(ep_count);
+                tilemux.shutdown = false;
 
                 let mgate = match mux_mem {
                     GateObject::Mem(ref mg) => mg.clone(),
@@ -289,6 +292,9 @@ impl TileMux {
                 }
             }
             else {
+                // to ensure that we don't send more requests to this tilemux instance (e.g., in
+                // other kernel threads), we mark it as shutdown and therefore not available.
+                tilemux.shutdown = true;
                 // give tilemux the chance to shutdown properly
                 if platform::tile_desc(tile).is_programmable() {
                     Self::shutdown_async(tilemux).unwrap();
@@ -473,7 +479,7 @@ impl TileMux {
             };
             build_vmsg!(buf, kif::tilemux::Sidecalls::RemMsgs, &msg);
 
-            self.send_sidecall::<kif::tilemux::RemMsgs>(Some(act), &buf, &msg)
+            self.send_sidecall::<kif::tilemux::RemMsgs>(Some(act), &buf, &msg, true)
                 .map(|_| ())
         }
         else {
@@ -495,7 +501,7 @@ impl TileMux {
         let msg = kif::tilemux::ResetStats {};
         build_vmsg!(buf, kif::tilemux::Sidecalls::ResetStats, &msg);
 
-        self.send_sidecall::<kif::tilemux::ResetStats>(None, &buf, &msg)
+        self.send_sidecall::<kif::tilemux::ResetStats>(None, &buf, &msg, true)
             .map(|_| ())
     }
 
@@ -504,7 +510,10 @@ impl TileMux {
         let msg = kif::tilemux::Shutdown {};
         build_vmsg!(buf, kif::tilemux::Sidecalls::Shutdown, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::Shutdown>(tilemux, None, buf, &msg)
+        // don't check here whether tilemux is still initialized, as it needs to be marked as
+        // deinitialized before suspending the thread and we always know that it's initialized when
+        // using this sidecall.
+        Self::send_receive_sidecall_async::<kif::tilemux::Shutdown>(tilemux, None, buf, &msg, false)
             .map(|_| ())
     }
 
@@ -560,7 +569,7 @@ impl TileMux {
         let msg = kif::tilemux::Info {};
         build_vmsg!(buf, kif::tilemux::Sidecalls::Info, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::Info>(tilemux, None, buf, &msg)
+        Self::send_receive_sidecall_async::<kif::tilemux::Info>(tilemux, None, buf, &msg, true)
             .map(|r| kif::syscalls::MuxType::try_from(r.val1).unwrap())
     }
 
@@ -580,7 +589,7 @@ impl TileMux {
         };
         build_vmsg!(buf, kif::tilemux::Sidecalls::ActInit, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::ActInit>(tilemux, None, buf, &msg)
+        Self::send_receive_sidecall_async::<kif::tilemux::ActInit>(tilemux, None, buf, &msg, true)
             .map(|_| ())
     }
 
@@ -596,8 +605,10 @@ impl TileMux {
         };
         build_vmsg!(buf, kif::tilemux::Sidecalls::ActCtrl, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::ActivityCtrl>(tilemux, None, buf, &msg)
-            .map(|_| ())
+        Self::send_receive_sidecall_async::<kif::tilemux::ActivityCtrl>(
+            tilemux, None, buf, &msg, true,
+        )
+        .map(|_| ())
     }
 
     pub fn derive_quota_async(
@@ -616,8 +627,10 @@ impl TileMux {
         };
         build_vmsg!(buf, kif::tilemux::Sidecalls::DeriveQuota, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::DeriveQuota>(tilemux, None, buf, &msg)
-            .map(|r| (r.val1 as quota::Id, r.val2 as quota::Id))
+        Self::send_receive_sidecall_async::<kif::tilemux::DeriveQuota>(
+            tilemux, None, buf, &msg, true,
+        )
+        .map(|r| (r.val1 as quota::Id, r.val2 as quota::Id))
     }
 
     pub fn get_quota_async(
@@ -630,8 +643,8 @@ impl TileMux {
         build_vmsg!(buf, kif::tilemux::Sidecalls::GetQuota, &msg);
 
         let tile_id = (tilemux.tile_id().raw() as quota::Id) << 8;
-        Self::send_receive_sidecall_async::<kif::tilemux::GetQuota>(tilemux, None, buf, &msg).map(
-            |r| {
+        Self::send_receive_sidecall_async::<kif::tilemux::GetQuota>(tilemux, None, buf, &msg, true)
+            .map(|r| {
                 (
                     quota::Quota::new(tile_id | time, r.val1 >> 32, r.val1 & 0xFFFF_FFFF),
                     quota::Quota::new(
@@ -640,8 +653,7 @@ impl TileMux {
                         (r.val2 & 0xFFFF_FFFF) as usize,
                     ),
                 )
-            },
-        )
+            })
     }
 
     pub fn set_quota_async(
@@ -654,7 +666,7 @@ impl TileMux {
         let msg = kif::tilemux::SetQuota { id, time, pts };
         build_vmsg!(buf, kif::tilemux::Sidecalls::SetQuota, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::SetQuota>(tilemux, None, buf, &msg)
+        Self::send_receive_sidecall_async::<kif::tilemux::SetQuota>(tilemux, None, buf, &msg, true)
             .map(|_| ())
     }
 
@@ -667,8 +679,10 @@ impl TileMux {
         let msg = kif::tilemux::RemoveQuotas { time, pts };
         build_vmsg!(buf, kif::tilemux::Sidecalls::RemoveQuotas, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::RemoveQuotas>(tilemux, None, buf, &msg)
-            .map(|_| ())
+        Self::send_receive_sidecall_async::<kif::tilemux::RemoveQuotas>(
+            tilemux, None, buf, &msg, true,
+        )
+        .map(|_| ())
     }
 
     pub fn map_async(
@@ -689,7 +703,7 @@ impl TileMux {
         };
         build_vmsg!(buf, kif::tilemux::Sidecalls::Map, &msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::Map>(tilemux, Some(act), buf, &msg)
+        Self::send_receive_sidecall_async::<kif::tilemux::Map>(tilemux, Some(act), buf, &msg, true)
             .map(|_| ())
     }
 
@@ -725,8 +739,14 @@ impl TileMux {
         };
         build_vmsg!(buf, kif::tilemux::Sidecalls::Translate, msg);
 
-        Self::send_receive_sidecall_async::<kif::tilemux::Translate>(tilemux, Some(act), buf, &msg)
-            .map(|reply| GlobAddr::new(reply.val1 & !(PAGE_MASK as GlobOff)))
+        Self::send_receive_sidecall_async::<kif::tilemux::Translate>(
+            tilemux,
+            Some(act),
+            buf,
+            &msg,
+            true,
+        )
+        .map(|reply| GlobAddr::new(reply.val1 & !(PAGE_MASK as GlobOff)))
     }
 
     pub fn notify_invalidate(&mut self, act: ActId, ep: EpId) -> Result<(), Error> {
@@ -737,7 +757,7 @@ impl TileMux {
         };
         build_vmsg!(buf, kif::tilemux::Sidecalls::EPInval, msg);
 
-        self.send_sidecall::<kif::tilemux::EpInval>(Some(act), &buf, &msg)
+        self.send_sidecall::<kif::tilemux::EpInval>(Some(act), &buf, &msg, true)
             .map(|_| ())
     }
 
@@ -746,11 +766,12 @@ impl TileMux {
         act: Option<ActId>,
         req: &MsgBuf,
         msg: &R,
+        check_init: bool,
     ) -> Result<thread::Event, Error> {
         use crate::tiles::{ActivityMng, State};
 
         // if tilemux is not initialized, we cannot talk to it
-        if !self.is_initialized() {
+        if check_init && !self.is_initialized() {
             return Err(Error::new(Code::RecvGone));
         }
 
@@ -779,11 +800,12 @@ impl TileMux {
         act: Option<ActId>,
         req: base::mem::MsgBufRef<'_>,
         msg: &R,
+        check_init: bool,
     ) -> Result<kif::tilemux::Response, Error> {
         use crate::com::SendQueue;
 
         let tile_id = tilemux.tile_id();
-        let event = tilemux.send_sidecall::<R>(act, &req, msg)?;
+        let event = tilemux.send_sidecall::<R>(act, &req, msg, check_init)?;
         drop(req);
         drop(tilemux);
 
