@@ -11,6 +11,7 @@ use crate::env;
 use crate::kif::{Perm, TileDesc};
 use crate::tcu;
 use crate::time::TimeDuration;
+use crate::util::math;
 
 static TCU_DEV: LazyStaticRefCell<File> = LazyStaticRefCell::default();
 static TCU_EPOLL_FD: LazyStaticCell<libc::c_int> = LazyStaticCell::default();
@@ -87,7 +88,7 @@ pub fn init() {
     mmap::mmap_tcu(
         tcu_fd(),
         tcu::MMIO_EPS_ADDR,
-        tcu::MMIO_EPS_SIZE,
+        math::round_up(tcu::TCU::endpoints_size(), cfg::PAGE_SIZE),
         mmap::MemType::TCUEPs,
         Perm::R,
     )

@@ -45,7 +45,7 @@ LinuxInit::LinuxInit() : fd(init_dev()) {
     init_env(fd);
     mmap_tcu(fd, reinterpret_cast<void *>(m3::TCU::MMIO_ADDR), m3::TCU::MMIO_SIZE, MemType::TCU,
              m3::KIF::Perm::RW);
-    mmap_tcu(fd, reinterpret_cast<void *>(m3::TCU::MMIO_EPS_ADDR), m3::TCU::MMIO_EPS_SIZE,
+    mmap_tcu(fd, reinterpret_cast<void *>(m3::TCU::MMIO_EPS_ADDR), m3::TCU::endpoints_size(),
              MemType::TCUEps, m3::KIF::Perm::R);
 
     auto [rbuf_virt_addr, rbuf_size] = m3::TileDesc(m3::bootenv()->tile_desc).rbuf_std_space();

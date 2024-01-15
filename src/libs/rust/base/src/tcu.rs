@@ -132,37 +132,55 @@ pub const STD_EPS_COUNT: usize = 7;
 pub const INVALID_EP: EpId = 0xFFFF;
 /// The reply EP for messages that want to disable replies
 pub const NO_REPLIES: EpId = INVALID_EP;
-/// Represents unlimited credits for send EPs
-pub const UNLIM_CREDITS: u32 = 0x7F;
 
 /// The base address of the TCU's MMIO area
 pub const MMIO_ADDR: VirtAddr = VirtAddr::new(0xF000_0000);
 /// The size of the TCU's MMIO area
 pub const MMIO_SIZE: usize = cfg::PAGE_SIZE;
-/// The base address of the TCU's privileged MMIO area
-pub const MMIO_PRIV_ADDR: VirtAddr = VirtAddr::new(MMIO_ADDR.as_raw() + MMIO_SIZE as VirtAddrRaw);
 /// The size of the TCU's privileged MMIO area
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
-pub const MMIO_EPS_ADDR: VirtAddr =
-    VirtAddr::new(MMIO_PRIV_ADDR.as_raw() + MMIO_PRIV_SIZE as VirtAddrRaw);
 pub const MMIO_EPS_SIZE: usize = cfg::PAGE_SIZE * 2;
 
 cfg_if! {
     if #[cfg(feature = "hw22")] {
+        /// Represents unlimited credits for send EPs
+        pub const UNLIM_CREDITS: u32 = 0x3F;
+
+        /// The base address of the TCU's privileged MMIO area
+        pub const MMIO_PRIV_ADDR: VirtAddr =
+            VirtAddr::new(MMIO_ADDR.as_raw() + (cfg::PAGE_SIZE * 2) as VirtAddrRaw);
+        /// The base address of the TCU's endpoint MMIO area
+        pub const MMIO_EPS_ADDR: VirtAddr = VirtAddr::new(
+            MMIO_ADDR.as_raw() +
+                ((EXT_REGS + UNPRIV_REGS) * mem::size_of::<Reg>()) as VirtAddrRaw
+        );
+
         /// The number of external registers
         pub const EXT_REGS: usize = 2;
         /// The number of unprivileged registers
         pub const UNPRIV_REGS: usize = 5;
+        /// The number of registers per EP
+        pub const EP_REGS: usize = 3;
     }
     else {
+        /// Represents unlimited credits for send EPs
+        pub const UNLIM_CREDITS: u32 = 0x7F;
+
+        /// The base address of the TCU's privileged MMIO area
+        pub const MMIO_PRIV_ADDR: VirtAddr =
+            VirtAddr::new(MMIO_ADDR.as_raw() + MMIO_SIZE as VirtAddrRaw);
+        /// The base address of the TCU's endpoint MMIO area
+        pub const MMIO_EPS_ADDR: VirtAddr =
+            VirtAddr::new(MMIO_PRIV_ADDR.as_raw() + MMIO_PRIV_SIZE as VirtAddrRaw);
+
         /// The number of external registers
         pub const EXT_REGS: usize = 5;
         /// The number of unprivileged registers
         pub const UNPRIV_REGS: usize = 6;
+        /// The number of registers per EP
+        pub const EP_REGS: usize = 4;
     }
 }
-/// The number of registers per EP
-pub const EP_REGS: usize = 4;
 /// The number of PRINT registers
 pub const PRINT_REGS: usize = 32;
 
@@ -636,8 +654,11 @@ impl TCU {
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
     #[inline(always)]
     pub fn has_msgs(ep: EpId) -> bool {
-        let r3 = Self::read_ep_reg(ep, 3);
-        r3 != 0
+        #[cfg(feature = "hw22")]
+        let unread = Self::read_ep_reg(ep, 2) >> 32;
+        #[cfg(not(feature = "hw22"))]
+        let unread = Self::read_ep_reg(ep, 3);
+        unread != 0
     }
 
     /// Returns true if the given endpoint is valid, i.e., a SEND, RECEIVE, or MEMORY endpoint
@@ -649,23 +670,38 @@ impl TCU {
 
     /// Returns the number of credits for the given endpoint
     pub fn credits(ep: EpId) -> Result<u32, Error> {
-        let r0 = Self::read_ep_reg(ep, 0);
-        if (r0 & 0x7) != EpType::Send.into() {
-            return Err(Error::new(Code::NoSEP));
+        if let Some((cur, _max)) = Self::unpack_credits(ep) {
+            Ok(cur as u32)
         }
-        let cur = (r0 >> 19) & 0x7F;
-        Ok(cur as u32)
+        else {
+            Err(Error::new(Code::NoSEP))
+        }
     }
 
     /// Returns true if the given endpoint is a SEND EP and has missing credits
     pub fn has_missing_credits(ep: EpId) -> bool {
+        if let Some((cur, max)) = Self::unpack_credits(ep) {
+            cur < max
+        }
+        else {
+            false
+        }
+    }
+
+    fn unpack_credits(ep: EpId) -> Option<(u64, u64)> {
         let r0 = Self::read_ep_reg(ep, 0);
         if (r0 & 0x7) != EpType::Send.into() {
-            return false;
+            return None;
         }
+        #[cfg(feature = "hw22")]
+        let cur = (r0 >> 19) & 0x3F;
+        #[cfg(not(feature = "hw22"))]
         let cur = (r0 >> 19) & 0x7F;
+        #[cfg(feature = "hw22")]
+        let max = (r0 >> 25) & 0x3F;
+        #[cfg(not(feature = "hw22"))]
         let max = (r0 >> 26) & 0x7F;
-        cur < max
+        Some((cur, max))
     }
 
     /// Unpacks the given memory EP into the tile id, address, size, and permissions.
@@ -747,13 +783,23 @@ impl TCU {
     pub fn drop_msgs_with(buf_addr: VirtAddr, ep: EpId, label: Label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
+        #[cfg(feature = "hw22")]
+        let unread = Self::read_ep_reg(ep, 3) >> 32;
+        #[cfg(not(feature = "hw22"))]
         let unread = Self::read_ep_reg(ep, 3);
         if unread == 0 {
             return;
         }
 
         let r0 = Self::read_ep_reg(ep, 0);
+        #[cfg(feature = "hw22")]
+        let buf_size = 1 << ((r0 >> 35) & 0x3F);
+        #[cfg(not(feature = "hw22"))]
         let buf_size = 1 << ((r0 >> 35) & 0x7F);
+
+        #[cfg(feature = "hw22")]
+        let msg_size = (r0 >> 41) & 0x3F;
+        #[cfg(not(feature = "hw22"))]
         let msg_size = (r0 >> 42) & 0x3F;
         for i in 0..buf_size {
             if (unread & (1 << i)) != 0 {
@@ -767,6 +813,9 @@ impl TCU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) -> usize {
+        #[cfg(feature = "hw22")]
+        let regs = EXT_REGS + UNPRIV_REGS + (128 * EP_REGS) as usize;
+        #[cfg(not(feature = "hw22"))]
         let regs = EXT_REGS + UNPRIV_REGS as usize;
 
         let s = &s[0..cmp::min(s.len(), PRINT_REGS * mem::size_of::<Reg>() - 1)];
@@ -1021,6 +1070,37 @@ impl TCU {
         Self::write_cfg_reg(ConfigReg::InstrTrace, enable as Reg);
     }
 
+    pub fn mmio_areas() -> [(VirtAddr, usize, PageFlags); 3] {
+        #[cfg(feature = "hw22")]
+        return [
+            (MMIO_ADDR, cfg::PAGE_SIZE * 2, PageFlags::U | PageFlags::RW),
+            (
+                MMIO_PRIV_ADDR,
+                cfg::PAGE_SIZE * 2,
+                PageFlags::U | PageFlags::RW,
+            ),
+            (VirtAddr::null(), 0, PageFlags::empty()),
+        ];
+        #[cfg(not(feature = "hw22"))]
+        return [
+            (MMIO_ADDR, MMIO_SIZE, PageFlags::U | PageFlags::RW),
+            (MMIO_PRIV_ADDR, MMIO_PRIV_SIZE, PageFlags::U | PageFlags::RW),
+            (
+                MMIO_EPS_ADDR,
+                Self::endpoints_size(),
+                PageFlags::U | PageFlags::R,
+            ),
+        ];
+    }
+
+    /// Returns the size of the endpoints region (according to the EPS_SIZE register)
+    pub fn endpoints_size() -> usize {
+        #[cfg(feature = "hw22")]
+        return 128 * EP_REGS * mem::size_of::<Reg>();
+        #[cfg(not(feature = "hw22"))]
+        return Self::read_reg(ExtReg::EpsSize as usize) as usize;
+    }
+
     /// Writes the given address and size into the Data register
     pub fn write_data(addr: VirtAddr, size: usize) {
         #[cfg(feature = "hw22")]
@@ -1174,14 +1254,27 @@ impl TCU {
         msg_ord: u32,
         reply_eps: Option<EpId>,
     ) {
-        regs[0] = (EpType::Receive as Reg)
-            | ((act as Reg) << 3)
-            | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
-            | (((buf_ord - msg_ord) as Reg) << 35)
-            | ((msg_ord as Reg) << 42);
-        regs[1] = buf.as_raw() as Reg;
-        regs[2] = 0;
-        regs[3] = 0;
+        #[cfg(feature = "hw22")]
+        {
+            regs[0] = (EpType::Receive as Reg)
+                | ((act as Reg) << 3)
+                | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
+                | (((buf_ord - msg_ord) as Reg) << 35)
+                | ((msg_ord as Reg) << 41);
+            regs[1] = buf.as_raw() as Reg;
+            regs[2] = 0;
+        }
+        #[cfg(not(feature = "hw22"))]
+        {
+            regs[0] = (EpType::Receive as Reg)
+                | ((act as Reg) << 3)
+                | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
+                | (((buf_ord - msg_ord) as Reg) << 35)
+                | ((msg_ord as Reg) << 42);
+            regs[1] = buf.as_raw() as Reg;
+            regs[2] = 0;
+            regs[3] = 0;
+        }
     }
 
     pub fn config_send(
@@ -1193,14 +1286,27 @@ impl TCU {
         msg_order: u32,
         credits: u32,
     ) {
-        regs[0] = (EpType::Send as Reg)
-            | ((act as Reg) << 3)
-            | ((credits as Reg) << 19)
-            | ((credits as Reg) << 26)
-            | ((msg_order as Reg) << 33);
-        regs[1] = (dst_ep as Reg) | ((Self::tileid_to_nocid(tile) as Reg) << 16);
-        regs[2] = lbl as Reg;
-        regs[3] = 0;
+        #[cfg(feature = "hw22")]
+        {
+            regs[0] = (EpType::Send as Reg)
+                | ((act as Reg) << 3)
+                | ((credits as Reg) << 19)
+                | ((credits as Reg) << 25)
+                | ((msg_order as Reg) << 31);
+            regs[1] = (dst_ep as Reg) | ((Self::tileid_to_nocid(tile) as Reg) << 16);
+            regs[2] = lbl as Reg;
+        }
+        #[cfg(not(feature = "hw22"))]
+        {
+            regs[0] = (EpType::Send as Reg)
+                | ((act as Reg) << 3)
+                | ((credits as Reg) << 19)
+                | ((credits as Reg) << 26)
+                | ((msg_order as Reg) << 33);
+            regs[1] = (dst_ep as Reg) | ((Self::tileid_to_nocid(tile) as Reg) << 16);
+            regs[2] = lbl as Reg;
+            regs[3] = 0;
+        }
     }
 
     pub fn config_mem(
@@ -1217,7 +1323,10 @@ impl TCU {
             | ((Self::tileid_to_nocid(tile) as Reg) << 23);
         regs[1] = addr as Reg;
         regs[2] = size as Reg;
-        regs[3] = 0;
+        #[cfg(not(feature = "hw22"))]
+        {
+            regs[3] = 0;
+        }
     }
 
     /// Configures the given endpoint

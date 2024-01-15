@@ -10,5 +10,6 @@ def build(gen, env):
         libs=['isr'],
         dir=None,
         ldscript='tilemux',
-        varAddr=False
+        varAddr=False,
+        features=["vmtest/" + env['TGT']],
     )

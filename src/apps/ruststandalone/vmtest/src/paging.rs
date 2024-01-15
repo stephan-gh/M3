@@ -80,9 +80,14 @@ pub fn init() {
 
     // map TCU
     let rw = PageFlags::RW;
-    map_ident(tcu::MMIO_ADDR, tcu::MMIO_SIZE, rw);
-    map_ident(tcu::MMIO_PRIV_ADDR, tcu::MMIO_PRIV_SIZE, rw);
-    map_ident(tcu::MMIO_PRIV_ADDR + cfg::PAGE_SIZE, cfg::PAGE_SIZE, rw);
+    for (mmio_addr, mmio_size, mmio_perm) in tcu::TCU::mmio_areas() {
+        if mmio_size == 0 {
+            continue;
+        }
+
+        // always read-write, because we need to write to our own EPs
+        map_ident(mmio_addr, mmio_size, mmio_perm | rw);
+    }
 
     // map text, data, and bss
     unsafe {

@@ -49,7 +49,7 @@ const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
 const DEF_RESMNG_MEM: GlobOff = 32 * 1024 * 1024;
 const DEF_TIME_SLICE: TimeDuration = TimeDuration::from_millis(1);
-const OUR_EPS: usize = 64;
+const OUR_EPS: usize = cfg::RESMNG_EPS;
 
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
 

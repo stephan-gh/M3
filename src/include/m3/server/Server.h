@@ -52,7 +52,8 @@ class Server : public ObjCap {
     };
 
 public:
-    static constexpr size_t MAX_SESSIONS = Math::min(MAX_ACTS, 64);
+    static constexpr size_t MAX_SESSIONS =
+        Math::min(static_cast<size_t>(MAX_ACTS), TCU::MAX_RB_SIZE);
 
     explicit Server(const std::string_view &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, SelSpace::get().alloc_sel()),

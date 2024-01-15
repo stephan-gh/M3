@@ -41,7 +41,15 @@ pub const RBUF_ADDR: VirtAddr =
     VirtAddr::new(RBUF_STD_ADDR.as_raw() + RBUF_STD_SIZE as VirtAddrRaw);
 pub const RBUF_SIZE: usize = 0x1000_0000 - RBUF_STD_SIZE;
 pub const RBUF_SIZE_SPM: usize = 0xE000;
+#[cfg(feature = "hw22")]
+pub const MAX_RB_SIZE: usize = 32;
+#[cfg(not(feature = "hw22"))]
 pub const MAX_RB_SIZE: usize = 64;
+
+#[cfg(feature = "hw22")]
+pub const RESMNG_EPS: usize = 16;
+#[cfg(not(feature = "hw22"))]
+pub const RESMNG_EPS: usize = 64;
 
 #[cfg(target_arch = "riscv64")]
 pub const MEM_OFFSET: usize = 0x1000_0000;

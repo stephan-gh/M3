@@ -262,7 +262,14 @@ fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
         helper::config_local_ep(RPLEP, |regs| {
             TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
             // make it a reply EP
-            regs[0] |= 1 << 55;
+            #[cfg(feature = "hw22")]
+            {
+                regs[0] |= 1 << 53;
+            }
+            #[cfg(not(feature = "hw22"))]
+            {
+                regs[0] |= 1 << 55;
+            }
         });
         let buf_addr = unsafe { buf.bytes.as_ptr().add(cfg::PAGE_SIZE - 16) };
         assert_eq!(

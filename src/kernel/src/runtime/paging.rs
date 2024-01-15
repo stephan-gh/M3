@@ -86,11 +86,16 @@ pub fn init() {
 
     // map TCU
     let rw = PageFlags::RW;
-    map_ident(&mut aspace, tcu::MMIO_ADDR, tcu::MMIO_SIZE, rw);
-    map_ident(&mut aspace, tcu::MMIO_PRIV_ADDR, tcu::MMIO_PRIV_SIZE, rw);
-    map_ident(&mut aspace, tcu::MMIO_EPS_ADDR, tcu::MMIO_EPS_SIZE, rw);
+    for (mmio_addr, mmio_size, mmio_perm) in tcu::TCU::mmio_areas() {
+        if mmio_size == 0 {
+            continue;
+        }
+        // all pages RW for the kernel
+        map_ident(&mut aspace, mmio_addr, mmio_size, mmio_perm | rw);
+    }
 
     // map text, data, and bss
+    let rw = PageFlags::RW;
     unsafe {
         map_segment(&mut aspace, base, &_text_start, &_text_end, PageFlags::RX);
         map_segment(&mut aspace, base, &_data_start, &_data_end, PageFlags::RW);

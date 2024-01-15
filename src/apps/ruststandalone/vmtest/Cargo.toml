@@ -12,3 +12,9 @@ base = { path = "../../../libs/rust/base" }
 heap = { path = "../../../libs/rust/heap" }
 isr = { path = "../../../libs/rust/isr" }
 paging = { path = "../../../libs/rust/paging" }
+
+[features]
+default = []
+gem5 = ["base/gem5"]
+hw = ["base/hw"]
+hw22 = ["base/hw22"]

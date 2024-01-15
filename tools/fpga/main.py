@@ -180,7 +180,7 @@ def main():
     mods = [] if args.mod is None else args.mod
     pmp_size = 16 * 1024 * 1024 if args.vm else 64 * 1024 * 1024
 
-    ld = loader.Loader(pmp_size, args.vm)
+    ld = loader.Loader(args.version, pmp_size, args.vm)
 
     # disable NoC ARQ for program upload
     fpga_inst.set_arq_enable(False)

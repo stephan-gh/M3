@@ -586,12 +586,12 @@ static void test_msg_receive() {
             ASSERT_EQ(kernel::TCU::send(SEP, msg, static_cast<label_t>(i + 1), TCU::NO_REPLIES),
                       Errors::SUCCESS);
             if(wpos == TCU::MAX_RB_SIZE) {
-                expected_unread |= static_cast<uint64_t>(1) << 0;
-                expected_occupied |= static_cast<uint64_t>(1) << 0;
+                expected_unread |= static_cast<TCU::rep_bitmask_t>(1) << 0;
+                expected_occupied |= static_cast<TCU::rep_bitmask_t>(1) << 0;
             }
             else {
-                expected_unread |= static_cast<uint64_t>(1) << wpos;
-                expected_occupied |= static_cast<uint64_t>(1) << wpos;
+                expected_unread |= static_cast<TCU::rep_bitmask_t>(1) << wpos;
+                expected_occupied |= static_cast<TCU::rep_bitmask_t>(1) << wpos;
             }
 
             if(expected_wpos == TCU::MAX_RB_SIZE)
@@ -615,9 +615,9 @@ static void test_msg_receive() {
             ASSERT(rmsg != nullptr);
 
             if(rpos == TCU::MAX_RB_SIZE)
-                expected_unread &= ~(static_cast<uint64_t>(1) << 0);
+                expected_unread &= ~(static_cast<TCU::rep_bitmask_t>(1) << 0);
             else
-                expected_unread &= ~(static_cast<uint64_t>(1) << rpos);
+                expected_unread &= ~(static_cast<TCU::rep_bitmask_t>(1) << rpos);
 
             if(expected_rpos == TCU::MAX_RB_SIZE)
                 expected_rpos = 1;
@@ -636,9 +636,9 @@ static void test_msg_receive() {
             ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, rmsg), Errors::SUCCESS);
 
             if(rpos == TCU::MAX_RB_SIZE)
-                expected_occupied &= ~(static_cast<uint64_t>(1) << 0);
+                expected_occupied &= ~(static_cast<TCU::rep_bitmask_t>(1) << 0);
             else
-                expected_occupied &= ~(static_cast<uint64_t>(1) << rpos);
+                expected_occupied &= ~(static_cast<TCU::rep_bitmask_t>(1) << rpos);
         }
     }
 }

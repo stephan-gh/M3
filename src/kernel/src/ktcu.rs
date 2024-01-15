@@ -351,20 +351,32 @@ pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
     try_write_slice(tile, reg_addr, &[features])
 }
 
+#[allow(unused_variables)]
 pub fn get_ep_count(tile: TileId) -> Result<usize, Error> {
-    let size: Reg = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::EpsSize).as_goff())?;
-    Ok(size as usize / (EP_REGS * mem::size_of::<Reg>()))
+    #[cfg(feature = "hw22")]
+    return Ok(128);
+    #[cfg(not(feature = "hw22"))]
+    {
+        let size: Reg = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::EpsSize).as_goff())?;
+        Ok(size as usize / (EP_REGS * mem::size_of::<Reg>()))
+    }
 }
 
+#[allow(unused_variables)]
 pub fn set_eps_region(tile: TileId, addr: GlobAddr, size: GlobOff) -> Result<(), Error> {
-    // clear this region to ensure that all endpoints are invalid
-    clear(addr.tile(), addr.offset(), size as usize)?;
+    #[cfg(feature = "hw22")]
+    return Err(Error::new(Code::NotSup));
+    #[cfg(not(feature = "hw22"))]
+    {
+        // clear this region to ensure that all endpoints are invalid
+        clear(addr.tile(), addr.offset(), size as usize)?;
 
-    let eps_addr = ((addr.tile().raw() as Reg) << 56) | addr.offset() as Reg;
-    try_write_slice(tile, TCU::ext_reg_addr(ExtReg::EpsAddr).as_goff(), &[
-        eps_addr,
-    ])?;
-    try_write_slice(tile, TCU::ext_reg_addr(ExtReg::EpsSize).as_goff(), &[size])
+        let eps_addr = ((addr.tile().raw() as Reg) << 56) | addr.offset() as Reg;
+        try_write_slice(tile, TCU::ext_reg_addr(ExtReg::EpsAddr).as_goff(), &[
+            eps_addr,
+        ])?;
+        try_write_slice(tile, TCU::ext_reg_addr(ExtReg::EpsSize).as_goff(), &[size])
+    }
 }
 
 pub fn reset_tile(tile: TileId, start: bool) -> Result<(), Error> {

@@ -959,30 +959,22 @@ impl Activity {
         self.aspace.as_mut().unwrap().init();
 
         // map TCU
-        let rw = kif::PageFlags::RW;
-        self.map(
-            tcu::MMIO_ADDR,
-            GlobAddr::new(tcu::MMIO_ADDR.as_goff()),
-            tcu::MMIO_SIZE / cfg::PAGE_SIZE,
-            kif::PageFlags::U | rw,
-        )
-        .unwrap();
-        self.map(
-            tcu::MMIO_PRIV_ADDR,
-            GlobAddr::new(tcu::MMIO_PRIV_ADDR.as_goff()),
-            tcu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
-            kif::PageFlags::U | rw,
-        )
-        .unwrap();
-        self.map(
-            tcu::MMIO_EPS_ADDR,
-            GlobAddr::new(tcu::MMIO_EPS_ADDR.as_goff()),
-            tcu::MMIO_EPS_SIZE / cfg::PAGE_SIZE,
-            kif::PageFlags::U | kif::PageFlags::R,
-        )
-        .unwrap();
+        for (mmio_addr, mmio_size, mmio_perm) in tcu::TCU::mmio_areas() {
+            if mmio_size == 0 {
+                continue;
+            }
+
+            self.map(
+                mmio_addr,
+                GlobAddr::new(mmio_addr.as_goff()),
+                mmio_size / cfg::PAGE_SIZE,
+                mmio_perm,
+            )
+            .unwrap();
+        }
 
         // map text, data, and bss
+        let rw = kif::PageFlags::RW;
         let rx = kif::PageFlags::RX;
         unsafe {
             self.map_segment(base, &_text_start, &_text_end, rx);

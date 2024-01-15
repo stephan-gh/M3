@@ -27,30 +27,43 @@ public:
     }
 
     static size_t endpoint_num() {
-        return m3::TCU::read_reg(m3::TCU::ExtRegs::EPS_SIZE) /
-               (m3::TCU::EP_REGS * sizeof(m3::TCU::reg_t));
+        return m3::TCU::endpoints_size() / (m3::TCU::EP_REGS * sizeof(m3::TCU::reg_t));
     }
 
-    static int credits(epid_t ep) {
-        reg_t r0 = m3::TCU::read_reg(ep, 0);
-        return (r0 >> 19) & 0x7F;
+    static uint credits(epid_t ep) {
+        return m3::TCU::get().credits(ep);
     }
 
     static int max_credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
-        return (r0 >> 26) & 0x7F;
+#if defined(__hw22__)
+        return (r0 >> 25) & m3::TCU::CREDIT_MASK;
+#else
+        return (r0 >> 26) & m3::TCU::CREDIT_MASK;
+#endif
     }
 
     static void recv_pos(epid_t ep, uint8_t *rpos, uint8_t *wpos) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
+#if defined(__hw22__)
+        *rpos = (r0 >> 53) & 0x3F;
+        *wpos = (r0 >> 47) & 0x3F;
+#else
         *rpos = (r0 >> 55) & 0x7F;
         *wpos = (r0 >> 48) & 0x7F;
+#endif
     }
 
     static void recv_masks(epid_t ep, m3::TCU::rep_bitmask_t *unread,
                            m3::TCU::rep_bitmask_t *occupied) {
+#if defined(__hw22__)
+        m3::TCU::reg_t reg = m3::TCU::read_reg(ep, 2);
+        *occupied = reg & 0xFFFF'FFFF;
+        *unread = reg >> 32;
+#else
         *occupied = m3::TCU::read_reg(ep, 2);
         *unread = m3::TCU::read_reg(ep, 3);
+#endif
     }
 
     static const m3::TCU::Message *fetch_msg(epid_t ep, uintptr_t base) {

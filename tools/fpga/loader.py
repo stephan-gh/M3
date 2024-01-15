@@ -22,7 +22,8 @@ PMP_ADDR = SERIAL_ADDR + SERIAL_SIZE
 
 
 class Loader:
-    def __init__(self, pmp_size: int, vm: bool):
+    def __init__(self, tcu_version: int, pmp_size: int, vm: bool):
+        self.tcu_version = tcu_version
         self.pmp_size = pmp_size
         self.vm = vm
 
@@ -212,4 +213,6 @@ class Loader:
         if tile_idx == 6:
             tile_desc |= (1 << 2) << 11  # NIC
             tile_desc |= (1 << 3) << 11  # Serial
+        if self.tcu_version < 3:
+            tile_desc |= (1 << 5) << 11  # IEPS
         return tile_desc
