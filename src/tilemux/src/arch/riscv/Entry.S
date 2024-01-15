@@ -43,6 +43,8 @@ END_FUNC(_start)
 
 // fn _shutdown()
 BEGIN_FUNC(_shutdown)
+    // remove potentially pending interrupts
+    csrw    sip, x0
     // disable supervisor interrupts
     li      t0, 1 << 5
     csrc    sstatus, t0
