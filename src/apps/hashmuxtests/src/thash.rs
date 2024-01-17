@@ -921,8 +921,23 @@ const KMAC_NIST_SAMPLES: [KMACTest; 12] = [
 
 const CSHAKE_BUF_LEN: usize = HashAlgorithm::CSHAKE128.block_bytes;
 
+fn create_cshake_sess() -> Result<HashSession, Error> {
+    match HashSession::new("hash", &HashAlgorithm::CSHAKE128) {
+        // ignore this test if this hash algorithm is not supported
+        Err(e) if e.code() == Code::NotSup => {
+            println!("Ignoring test -- CSHAKE128 not supported");
+            Err(e)
+        },
+        Err(e) => wv_assert_ok!(Err(e)),
+        Ok(sess) => Ok(sess),
+    }
+}
+
 fn cshake_nist(t: &mut dyn WvTester) {
-    let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::CSHAKE128));
+    let mut hash = match create_cshake_sess() {
+        Ok(sess) => sess,
+        Err(_) => return,
+    };
     let mgate = wv_assert_ok!(MemGate::new(256, Perm::RW));
     let mgate_derived = wv_assert_ok!(mgate.derive_cap(0, 256, Perm::RW));
     wv_assert_ok!(hash.ep().configure(mgate_derived.sel()));
@@ -948,7 +963,10 @@ fn cshake_nist(t: &mut dyn WvTester) {
 }
 
 fn kmac_nist(t: &mut dyn WvTester) {
-    let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::CSHAKE128));
+    let mut hash = match create_cshake_sess() {
+        Ok(sess) => sess,
+        Err(_) => return,
+    };
     let mgate = wv_assert_ok!(MemGate::new(512, Perm::RW));
     let mgate_derived = wv_assert_ok!(mgate.derive_cap(0, 512, Perm::RW));
     wv_assert_ok!(hash.ep().configure(mgate_derived.sel()));

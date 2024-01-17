@@ -488,6 +488,17 @@ impl HashSession {
             self.serv.id(),
             algo
         );
+
+        if !KECACC.supports_algo(algo) {
+            log!(
+                LogFlags::Error,
+                "[{}] Algorithm {} not supported",
+                self.serv.id(),
+                algo
+            );
+            return Err(Error::new(Code::NotSup));
+        }
+
         assert!(self.req.is_none());
         self.algo = Some(algo);
         self.state_saved = false;

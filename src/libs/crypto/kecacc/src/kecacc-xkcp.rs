@@ -62,6 +62,10 @@ impl KecAcc {
         }
     }
 
+    pub fn supports_algo(&self, _algo: &HashAlgorithm) -> bool {
+        true
+    }
+
     pub fn is_busy(&self) -> bool {
         false
     }

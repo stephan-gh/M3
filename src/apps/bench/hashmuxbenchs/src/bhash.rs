@@ -16,10 +16,11 @@ use crate::util;
 use m3::client::{HashInput, HashOutput, HashSession};
 use m3::com::{MemCap, MemGate, Perm};
 use m3::crypto::HashAlgorithm;
+use m3::errors::{Code, Error};
 use m3::test::WvTester;
 use m3::time::{CycleInstant, Duration, Profiler};
 use m3::vfs::{OpenFlags, VFS};
-use m3::{format, vec, wv_assert_ok, wv_perf, wv_run_test};
+use m3::{format, println, vec, wv_assert_ok, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, reset);
@@ -67,6 +68,18 @@ fn _prepare_hash_mem(size: usize) -> (MemGate, MemCap) {
     (mgate, mgated)
 }
 
+fn create_sess(algo: &'static HashAlgorithm) -> Result<HashSession, Error> {
+    match HashSession::new("hash-bench", algo) {
+        // ignore this test if this hash algorithm is not supported
+        Err(e) if e.code() == Code::NotSup => {
+            println!("Ignoring test -- {} not supported", algo.name);
+            Err(e)
+        },
+        Err(e) => wv_assert_ok!(Err(e)),
+        Ok(sess) => Ok(sess),
+    }
+}
+
 fn hash_mem(_t: &mut dyn WvTester) {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
@@ -74,7 +87,10 @@ fn hash_mem(_t: &mut dyn WvTester) {
     let prof = Profiler::default().warmup(2).repeats(5);
 
     for algo in HashAlgorithm::ALL.iter() {
-        let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
+        let hash = match create_sess(algo) {
+            Ok(sess) => sess,
+            Err(_) => continue,
+        };
         wv_assert_ok!(hash.ep().configure(mgated.sel()));
 
         let res = prof.run::<CycleInstant, _>(|| {
@@ -141,7 +157,10 @@ fn hash_file(_t: &mut dyn WvTester) {
     let prof = Profiler::default().warmup(2).repeats(5);
 
     for algo in HashAlgorithm::ALL.iter() {
-        let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
+        let hash = match create_sess(algo) {
+            Ok(sess) => sess,
+            Err(_) => continue,
+        };
         let res = prof.run::<CycleInstant, _>(|| {
             let mut file =
                 wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::R | OpenFlags::NEW_SESS));
@@ -176,7 +195,10 @@ fn shake_mem(_t: &mut dyn WvTester) {
             continue;
         }
 
-        let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
+        let hash = match create_sess(algo) {
+            Ok(sess) => sess,
+            Err(_) => continue,
+        };
         wv_assert_ok!(hash.ep().configure(mgated.sel()));
 
         let res = prof.run::<CycleInstant, _>(|| {
@@ -237,7 +259,10 @@ fn shake_file(_t: &mut dyn WvTester) {
             continue;
         }
 
-        let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
+        let hash = match create_sess(algo) {
+            Ok(sess) => sess,
+            Err(_) => continue,
+        };
         let res = prof.run::<CycleInstant, _>(|| {
             let mut file =
                 wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::W | OpenFlags::NEW_SESS));

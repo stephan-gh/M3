@@ -12,7 +12,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::crypto::HashType;
+use base::crypto::{HashAlgorithm, HashType};
 use core::sync::atomic;
 
 const STATE_SIZE: usize = 256;
@@ -84,6 +84,13 @@ pub struct KecAcc {
 impl KecAcc {
     pub const fn new(addr: usize) -> Self {
         KecAcc { addr }
+    }
+
+    pub fn supports_algo(&self, algo: &HashAlgorithm) -> bool {
+        match algo.ty {
+            HashType::CSHAKE128 | HashType::CSHAKE256 => false,
+            _ => true,
+        }
     }
 
     pub fn is_busy(&self) -> bool {
