@@ -9,12 +9,12 @@
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom tile="rocket|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb1">
+            <dom tile="effi|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb1">
                 <app args="/tcutest receiver">
                     <rgate name="chan" msgsize="64" slots="2" />
                 </app>
             </dom>
-            <dom tile="rocket|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb2">
+            <dom tile="effi|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb2">
                 <app args="/tcutest sender">
                     <sgate name="chan" label="1" />
                 </app>

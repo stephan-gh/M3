@@ -14,7 +14,7 @@
                     <mod name="fs" />
                 </app>
             </dom>
-            <dom tile="boom|core">
+            <dom tile="perf|core">
                 <app args="pager">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
@@ -25,7 +25,7 @@
                         <sess name="pipes" />
                         <serv name="test" />
                         <sess name="test" dep="false" />
-                        <tiles type="boom|core" count="2" />
+                        <tiles type="perf|core" count="2" />
                     </app>
                 </app>
             </dom>

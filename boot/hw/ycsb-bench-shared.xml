@@ -11,7 +11,7 @@
                     <mod name="fs" />
                 </app>
             </dom>
-            <dom tile="boom+nic">
+            <dom tile="perf+nic">
                 <app args="pager maxcli=3" usermem="768M">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />

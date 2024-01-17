@@ -16,21 +16,21 @@
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="boom+nic" count="1" />
-                    <tiles type="rocket" count="1" />
-                    <tiles type="boom" count="1" />
-                    <dom tile="boom+nic">
+                    <tiles type="perf+nic" count="1" />
+                    <tiles type="effi" count="1" />
+                    <tiles type="perf" count="1" />
+                    <dom tile="perf+nic">
                         <app args="/sbin/net net 192.168.41.11" daemon="1">
                             <serv name="net" />
                         </app>
                     </dom>
-                    <dom tile="rocket">
+                    <dom tile="effi">
                         <app args="/bin/vamic /testcase1.wav" daemon="1">
                             <mount fs="m3fs" path="/" />
                             <serv name="vamic" />
                         </app>
                     </dom>
-                    <dom tile="boom">
+                    <dom tile="perf">
                         <app args="/bin/vasnd -w 2 -r 8 udp 192.168.41.10 1337">
                             <sess name="net" args="bufs=1M socks=1" />
                             <sess name="vamic" />

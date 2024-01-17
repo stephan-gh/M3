@@ -209,7 +209,7 @@ class Loader:
         if tile_idx < 5:
             tile_desc |= (1 << 1) << 11  # Rocket core
         else:
-            tile_desc |= (1 << 0) << 11  # BOOM core
+            tile_desc |= (1 << 0) << 11  # PERF core
         if tile_idx == 6:
             tile_desc |= (1 << 2) << 11  # NIC
             tile_desc |= (1 << 3) << 11  # Serial

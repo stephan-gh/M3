@@ -38,10 +38,10 @@ static TileDesc desc_with_properties(TileDesc desc, const char *props) {
             res = TileDesc(res.type(), TileISA::X86, 0);
         else if(strcmp(prop, "riscv") == 0)
             res = TileDesc(res.type(), TileISA::RISCV, 0);
-        else if(strcmp(prop, "rocket") == 0)
-            res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::ROCKET);
-        else if(strcmp(prop, "boom") == 0)
-            res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::BOOM);
+        else if(strcmp(prop, "effi") == 0)
+            res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::EFFI);
+        else if(strcmp(prop, "perf") == 0)
+            res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::PERF);
         else if(strcmp(prop, "nic") == 0)
             res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::NIC);
         else if(strcmp(prop, "serial") == 0)

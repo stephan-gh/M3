@@ -16,20 +16,20 @@
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="boom+nic" count="1" />
-                    <tiles type="boom" count="2" />
-                    <dom tile="boom">
+                    <tiles type="perf+nic" count="1" />
+                    <tiles type="perf" count="2" />
+                    <dom tile="perf">
                         <app args="/sbin/m3fs mem" daemon="1">
                             <serv lname="m3fs" gname="app_m3fs" />
                             <mod name="fs" />
                         </app>
                     </dom>
-                    <dom tile="boom+nic">
+                    <dom tile="perf+nic">
                         <app args="/sbin/net net 192.168.41.11" daemon="1">
                             <serv name="net" />
                         </app>
                     </dom>
-                    <dom tile="boom">
+                    <dom tile="perf">
                         <app args="/bin/lvldbserver /tmp/foo 1 udp 192.168.41.10 1339 /data/small-workload.wl">
                             <sess name="net" args="bufs=1M socks=1" />
                             <sess lname="m3fs" gname="app_m3fs" />

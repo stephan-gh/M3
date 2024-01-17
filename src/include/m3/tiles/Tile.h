@@ -72,8 +72,8 @@ public:
      * Examples:
      * - tile with an arbitrary ISA, but preferred the own: "own|core"
      * - Identical tile, but preferred a separate one: "clone|own"
-     * - BOOM core if available, otherwise any core: "boom|core"
-     * - BOOM with NIC if available, otherwise a Rocket: "boom+nic|rocket"
+     * - Performance core if available, otherwise any core: "perf|core"
+     * - Performance core with NIC if available, otherwise a efficiency core: "perf+nic|effi"
      *
      * @param desc the textual description of the tile
      * @param init whether the tile should be initialized with TileMux and PMP EPs should be

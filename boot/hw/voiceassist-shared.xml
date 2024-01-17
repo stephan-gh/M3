@@ -11,16 +11,16 @@
                     <mod name="fs" />
                 </app>
             </dom>
-            <dom tile="boom+nic">
+            <dom tile="perf+nic">
                 <app args="pager maxcli=3">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="rocket" count="1" />
+                    <tiles type="effi" count="1" />
                     <app args="/sbin/net -m 1 net 192.168.41.11" daemon="1">
                         <serv name="net" />
                     </app>
-                    <dom tile="rocket">
+                    <dom tile="effi">
                         <app args="/bin/vamic /testcase1.wav" daemon="1">
                             <mount fs="m3fs" path="/" />
                             <serv name="vamic" />

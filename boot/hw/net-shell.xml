@@ -23,9 +23,9 @@
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="boom+nic" count="1" />
+                    <tiles type="perf+nic" count="1" />
                     <tiles type="core" count="1" />
-                    <dom tile="boom+nic">
+                    <dom tile="perf+nic">
                         <app args="/sbin/net -n 194.94.42.132 -g 192.168.42.1 -a 255.255.255.0 net 192.168.42.200" daemon="1">
                             <serv name="net" />
                         </app>

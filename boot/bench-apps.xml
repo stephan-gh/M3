@@ -20,7 +20,7 @@
                     <dom>
                         <app args="/bin/bench-apps -r 1 4 /bin/fstrace-m3fs -p /tmp/1/ empty /bin/fstrace-m3fs -p /tmp/2/ empty">
                             <mount fs="m3fs" path="/" />
-                            <tiles type="boom|core" count="2" />
+                            <tiles type="perf|core" count="2" />
                         </app>
                     </dom>
                 </app>

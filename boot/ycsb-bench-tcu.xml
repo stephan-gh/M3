@@ -16,21 +16,21 @@
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="boom+nic|core" count="1" />
-                    <tiles type="boom|core" count="2" />
-                    <dom tile="boom|core">
+                    <tiles type="perf+nic|core" count="1" />
+                    <tiles type="perf|core" count="2" />
+                    <dom tile="perf|core">
                         <app args="/sbin/m3fs mem" daemon="1">
                             <serv lname="m3fs" gname="app_m3fs" />
                             <mod name="fs" />
                         </app>
                     </dom>
-                    <dom tile="boom|core">
+                    <dom tile="perf|core">
                         <app args="/bin/lvldbserver /tmp/foo 4 tcu">
                             <sess lname="m3fs" gname="app_m3fs" />
                             <rgate name="req" msgsize="2048" slots="1" />
                         </app>
                     </dom>
-                    <dom tile="boom+nic|core">
+                    <dom tile="perf+nic|core">
                         <app args="/bin/ycsbclient tcu /data/small-workload.wl 4" daemon="1">
                             <sess lname="m3fs" gname="app_m3fs" />
                             <sgate name="req" />

@@ -322,13 +322,13 @@ fn app_tiles(t: &mut dyn WvTester) {
 
     let cfg_str = "<app args=\"foo\">
         <tiles type=\"core\"/>
-        <tiles type=\"core|boom\" count=\"4\"/>
+        <tiles type=\"core|perf\" count=\"4\"/>
         <tiles type=\"net\" count=\"1\" optional=\"true\"/>
     </app>";
     let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
     wv_assert_eq!(t, cfg.tiles(), &[
         TileDesc::new("core".to_string(), 1, false),
-        TileDesc::new("core|boom".to_string(), 4, false),
+        TileDesc::new("core|perf".to_string(), 4, false),
         TileDesc::new("net".to_string(), 1, true),
     ]);
 }
@@ -422,7 +422,7 @@ fn app_serial(t: &mut dyn WvTester) {
 fn app_domains(t: &mut dyn WvTester) {
     let cfg_str = "<app args=\"foo\">
             <app args=\"bar\"/>
-            <dom tile=\"boom\"><app args=\"zap\"/></dom>
+            <dom tile=\"perf\"><app args=\"zap\"/></dom>
         </app>";
     let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
 
@@ -433,6 +433,6 @@ fn app_domains(t: &mut dyn WvTester) {
     wv_assert_eq!(t, *cfg.domains()[0].tile(), TileType("core".to_string()));
     wv_assert_eq!(t, cfg.domains()[0].apps()[0].name(), "bar");
     wv_assert_eq!(t, cfg.domains()[1].pseudo(), false);
-    wv_assert_eq!(t, *cfg.domains()[1].tile(), TileType("boom".to_string()));
+    wv_assert_eq!(t, *cfg.domains()[1].tile(), TileType("perf".to_string()));
     wv_assert_eq!(t, cfg.domains()[1].apps()[0].name(), "zap");
 }

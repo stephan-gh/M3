@@ -2,7 +2,7 @@
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom tile="boom|core">
+            <dom tile="perf|core">
                 <app args="bench-tlbmiss" />
             </dom>
         </app>

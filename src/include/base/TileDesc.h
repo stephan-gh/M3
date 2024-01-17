@@ -52,8 +52,8 @@ enum class TileISA {
 };
 
 enum TileAttr {
-    BOOM = 1 << 0,
-    ROCKET = 1 << 1,
+    PERF = 1 << 0,
+    EFFI = 1 << 1,
     NIC = 1 << 2,
     SERIAL = 1 << 3,
     IMEM = 1 << 4,

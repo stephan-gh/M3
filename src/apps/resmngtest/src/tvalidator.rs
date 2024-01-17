@@ -196,7 +196,7 @@ fn tiles(t: &mut dyn WvTester) {
     {
         let cfg_str = "<app args=\"ourself\">
             <app args=\"foo\">
-                <tiles type=\"boom|core\" count=\"1\"/>
+                <tiles type=\"perf|core\" count=\"1\"/>
                 <tiles type=\"indir\" count=\"1\"/>
             </app>
         </app>";

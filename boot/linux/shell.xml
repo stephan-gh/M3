@@ -8,7 +8,7 @@
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom tile="boom+nic|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb">
+            <dom tile="perf+nic|core" mux="bbl" muxmem="64M" initrd="initrd" dtb="dtb">
                 <app args="/bin/sh" />
             </dom>
         </app>

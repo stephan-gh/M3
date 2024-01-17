@@ -21,7 +21,7 @@
                     <dom>
                         <app args="/bin/bench-scale -i 2 -r 1 find">
                             <mount fs="m3fs" path="/" />
-                            <tiles type="boom|core" count="2" />
+                            <tiles type="perf|core" count="2" />
                             <serv name="m3fs-0" />
                             <serv name="m3fs-1" />
                             <sess name="m3fs-0" dep="false" />

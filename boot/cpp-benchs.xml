@@ -21,12 +21,12 @@
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="boom|core" count="1" />
-                    <dom tile="boom|core">
+                    <tiles type="perf|core" count="1" />
+                    <dom tile="perf|core">
                         <app args="/bin/cppbenchs">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
-                            <tiles type="boom|core" count="2" />
+                            <tiles type="perf|core" count="2" />
                         </app>
                     </dom>
                 </app>

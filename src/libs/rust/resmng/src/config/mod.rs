@@ -280,8 +280,8 @@ impl TileType {
                 "riscv" => desc.isa() == kif::TileISA::RISCV,
 
                 "nic" => desc.attr().contains(kif::TileAttr::NIC),
-                "boom" => desc.attr().contains(kif::TileAttr::BOOM),
-                "rocket" => desc.attr().contains(kif::TileAttr::ROCKET),
+                "perf" => desc.attr().contains(kif::TileAttr::PERF),
+                "effi" => desc.attr().contains(kif::TileAttr::EFFI),
                 "kecacc" => desc.attr().contains(kif::TileAttr::KECACC),
                 "serial" => desc.attr().contains(kif::TileAttr::SERIAL),
                 "imem" => desc.attr().contains(kif::TileAttr::IMEM),

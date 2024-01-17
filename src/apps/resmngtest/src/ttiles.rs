@@ -69,7 +69,7 @@ fn find(t: &mut dyn WvTester) {
     );
 
     let base = TileDesc::new(TileType::Comp, TileISA::RISCV, 0);
-    let riscv = wv_assert_ok!(mng.find_with_attr(base, "boom|core"));
+    let riscv = wv_assert_ok!(mng.find_with_attr(base, "perf|core"));
     wv_assert_eq!(t, riscv.tile_id(), TileId::new(0, 1));
     let arm = wv_assert_ok!(mng.find_with_attr(base, "arm+imem"));
     wv_assert_eq!(t, arm.tile_id(), TileId::new(0, 2));

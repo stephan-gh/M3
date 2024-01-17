@@ -16,14 +16,14 @@
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
-                    <tiles type="rocket+nic" count="2" />
+                    <tiles type="effi+nic" count="2" />
                     <tiles type="core" count="2" />
-                    <dom tile="rocket+nic">
+                    <dom tile="effi+nic">
                         <app args="/sbin/net net0 192.168.1.1" daemon="1">
                             <serv name="net0" />
                         </app>
                     </dom>
-                    <dom tile="rocket+nic">
+                    <dom tile="effi+nic">
                         <app args="/sbin/net net1 192.168.1.2" daemon="1">
                             <serv name="net1" />
                         </app>

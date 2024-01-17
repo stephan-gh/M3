@@ -70,10 +70,10 @@ bitflags! {
     /// otherwise identical tiles.
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub struct TileAttr : TileDescRaw {
-        /// Contains a BOOM core
-        const BOOM          = 1 << 0;
-        /// Contains a Rocket core
-        const ROCKET        = 1 << 1;
+        /// Contains a performance core
+        const PERF          = 1 << 0;
+        /// Contains an efficiency core
+        const EFFI          = 1 << 1;
         /// Contains a NIC
         const NIC           = 1 << 2;
         /// Contains a serial line
@@ -205,20 +205,20 @@ impl TileDesc {
                 "x86" => res = TileDesc::new(TileType::Comp, TileISA::X86, 0),
                 "riscv" => res = TileDesc::new(TileType::Comp, TileISA::RISCV, 0),
 
-                "rocket" => {
+                "effi" => {
                     res = TileDesc::new_with_attr(
                         res.tile_type(),
                         res.isa(),
                         0,
-                        res.attr() | TileAttr::ROCKET,
+                        res.attr() | TileAttr::EFFI,
                     )
                 },
-                "boom" => {
+                "perf" => {
                     res = TileDesc::new_with_attr(
                         res.tile_type(),
                         res.isa(),
                         0,
-                        res.attr() | TileAttr::BOOM,
+                        res.attr() | TileAttr::PERF,
                     )
                 },
                 "nic" => {

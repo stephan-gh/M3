@@ -172,8 +172,8 @@ impl Tile {
     /// Examples:
     /// - tile with an arbitrary ISA, but preferred the own: "own|core"
     /// - Identical tile, but preferred a separate one: "clone|own"
-    /// - BOOM core if available, otherwise any core: "boom|core"
-    /// - BOOM with NIC if available, otherwise a Rocket: "boom+nic|rocket"
+    /// - Performance core if available, otherwise any core: "perf|core"
+    /// - Performance core with NIC if available, otherwise an efficiency core: "perf+nic|effi"
     pub fn get(desc: &str) -> Result<Rc<Self>, Error> {
         Self::get_with(desc, TileArgs::default())
     }

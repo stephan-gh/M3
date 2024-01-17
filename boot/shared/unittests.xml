@@ -14,7 +14,7 @@
                     <mod name="fs" />
                 </app>
             </dom>
-            <dom tile="boom|core">
+            <dom tile="perf|core">
                 <app args="pager maxcli=3">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
@@ -23,7 +23,7 @@
                         <mount fs="m3fs" path="/" />
                         <sess lname="m3fs-clone" gname="m3fs" />
                         <sess name="pipes" />
-                        <tiles type="boom|core" count="2" />
+                        <tiles type="perf|core" count="2" />
                     </app>
                 </app>
             </dom>
