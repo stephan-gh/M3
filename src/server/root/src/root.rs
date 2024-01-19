@@ -202,9 +202,17 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         tile: &mut tiles::TileUsage,
         domain: &config::Domain,
     ) -> Result<(), VerboseError> {
-        if tile.tile_id() != Activity::own().tile_id()
-            && tile.tile_obj().mux_type()? == MuxType::TileMux
-        {
+        if tile.tile_obj().mux_type()? == MuxType::TileMux {
+            if tile.tile_id() == Activity::own().tile_id() {
+                // even for our own tile, we need to fetch the boot modules to ensure that we
+                // assign the PMP regions for the other tiles correctly. For example, if we have
+                // two net instances and one is co-located on our tile, we still need to fetch the
+                // first module to give the second one (running on another tile) the correct PMP
+                // region and not the one of the first module.
+                let _range = self.modules_range(domain)?;
+                return Ok(());
+            }
+
             // determine minimum range of boot modules we need to give access to to cover all boot
             // modules that are run on this tile. note that these should always be contiguous,
             // because we collect the boot modules from the config.
