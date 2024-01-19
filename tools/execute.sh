@@ -168,7 +168,7 @@ get_kernel() {
     count="${kernels//[^,]}"
 
     # if there is just one kernel, pass root arguments to it
-    if [ "$count" = "1" ]; then
+    if [ "${#count}" = "1" ]; then
         # remove trailing ","
         echo -n "${kernels:0:-1}"
 
