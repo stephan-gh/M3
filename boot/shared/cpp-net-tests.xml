@@ -4,17 +4,15 @@
     </mods>
     <kernel args="kernel" />
     <dom>
-        <app args="root">
+        <app args="root" eps="512">
             <app args="m3fs mem" daemon="1">
                 <serv name="m3fs" />
                 <mod name="fs" />
             </app>
-            <dom>
-                <app args="net net0 192.168.112.2" daemon="1">
-                    <serv name="net0" />
-                    <tiles type="nicdev" />
-                </app>
-            </dom>
+            <app args="net net0 192.168.112.2" daemon="1">
+                <serv name="net0" />
+                <tiles type="nicdev" />
+            </app>
             <dom>
                 <app args="net net1 192.168.112.1" daemon="1">
                     <serv name="net1" />
@@ -32,16 +30,14 @@
                         <sem name="net-udp" />
                         <sem name="net-tcp" />
                     </app>
-                    <dom>
-                        <app args="/bin/cppnettests">
-                            <mount fs="m3fs" path="/" />
-                            <sess name="net0" args="bufs=64K socks=2 udp=2000-2001" />
-                            <sess name="net1" args="bufs=64K socks=2 tcp=3000" />
-                            <tiles type="core" count="1" />
-                            <sem name="net-udp" />
-                            <sem name="net-tcp" />
-                        </app>
-                    </dom>
+                    <app args="/bin/cppnettests">
+                        <mount fs="m3fs" path="/" />
+                        <sess name="net0" args="bufs=64K socks=2 udp=2000-2001" />
+                        <sess name="net1" args="bufs=64K socks=2 tcp=3000" />
+                        <tiles type="core" count="1" />
+                        <sem name="net-udp" />
+                        <sem name="net-tcp" />
+                    </app>
                 </app>
             </dom>
         </app>

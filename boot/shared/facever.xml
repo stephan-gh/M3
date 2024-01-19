@@ -9,11 +9,11 @@
                     <sgate name="fs" />
                     <sgate name="storage" />
                 </app>
-            </dom>
-            <dom>
                 <app args="facever fs 256 0" daemon="1">
                     <rgate name="fs" msgsize="512" slots="1" />
                 </app>
+            </dom>
+            <dom>
                 <app args="facever gpu 256 0" daemon="1">
                     <rgate name="gpu" msgsize="512" slots="1" />
                     <sgate name="gpures" />
@@ -24,10 +24,10 @@
                     <rgate name="storage" msgsize="512" slots="1" />
                     <sgate name="gpu" />
                 </app>
-                <app args="facever client 256 0 10">
-                    <sgate name="req" />
-                </app>
             </dom>
+            <app args="facever client 256 0 10">
+                <sgate name="req" />
+            </app>
         </app>
     </dom>
 </config>

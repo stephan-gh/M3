@@ -5,12 +5,10 @@
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom>
-                <app args="m3fs mem" daemon="1">
-                    <serv name="m3fs" />
-                    <mod name="fs" />
-                </app>
-            </dom>
+            <app args="m3fs mem" daemon="1">
+                <serv name="m3fs" />
+                <mod name="fs" />
+            </app>
             <dom>
                 <app args="pager sem=net-udp sem=net-tcp" usermem="256M">
                     <sess name="m3fs" />
@@ -27,16 +25,14 @@
                         <sem name="net-udp" />
                         <sem name="net-tcp" />
                     </app>
-                    <dom>
-                        <app args="/bin/ruststdtest">
-                            <mount fs="m3fs" path="/" />
-                            <sess name="net" args="udp=3000" />
-                            <sess lname="netserv" gname="net" args="bufs=1M socks=2 tcp=2000" />
-                            <sem name="net-udp" />
-                            <sem name="net-tcp" />
-                            <tiles type="core" count="1" />
-                        </app>
-                    </dom>
+                    <app args="/bin/ruststdtest">
+                        <mount fs="m3fs" path="/" />
+                        <sess name="net" args="udp=3000" />
+                        <sess lname="netserv" gname="net" args="bufs=1M socks=2 tcp=2000" />
+                        <sem name="net-udp" />
+                        <sem name="net-tcp" />
+                        <tiles type="core" count="1" />
+                    </app>
                 </app>
             </dom>
         </app>

@@ -5,15 +5,13 @@
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom>
-                <app args="m3fs mem" daemon="1">
-                    <serv name="m3fs" />
-                    <mod name="fs" />
-                </app>
-                <app args="pipes" daemon="1">
-                    <serv name="pipes" />
-                </app>
-            </dom>
+            <app args="m3fs mem" daemon="1">
+                <serv name="m3fs" />
+                <mod name="fs" />
+            </app>
+            <app args="pipes" daemon="1">
+                <serv name="pipes" />
+            </app>
             <dom>
                 <app args="pager maxcli=3">
                     <sess name="m3fs" />

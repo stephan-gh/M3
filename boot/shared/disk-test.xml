@@ -1,20 +1,18 @@
 <config>
     <kernel args="kernel" />
     <dom>
-        <app args="root">
+        <app args="root" eps="512">
             <app args="disk -d -i" daemon="1">
                 <serv name="disk" />
                 <tiles type="idedev" />
             </app>
-            <dom>
-                <app args="m3fs -b 2 disk" daemon="1">
-                    <sess name="disk" args="0" />
-                    <serv name="m3fs" />
-                </app>
-                <app args="disktest">
-                    <sess name="m3fs" args="files=4" />
-                </app>
-            </dom>
+            <app args="m3fs -b 2 disk" daemon="1">
+                <sess name="disk" args="0" />
+                <serv name="m3fs" />
+            </app>
+            <app args="disktest">
+                <sess name="m3fs" args="files=4" />
+            </app>
         </app>
     </dom>
 </config>

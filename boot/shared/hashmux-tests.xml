@@ -8,12 +8,10 @@
             <app args="pipes" daemon="1">
                 <serv name="pipes" />
             </app>
-            <dom>
-                <app args="m3fs mem" daemon="1">
-                    <serv name="m3fs" />
-                    <mod name="fs" />
-                </app>
-            </dom>
+            <app args="m3fs mem" daemon="1">
+                <serv name="m3fs" />
+                <mod name="fs" />
+            </app>
             <dom tile="core+kecacc">
                 <app args="hashmux" daemon="1">
                     <serv name="hash"/>

@@ -5,26 +5,22 @@
     <kernel args="kernel" />
     <dom>
         <app args="root">
+            <app args="m3fs mem" daemon="1">
+                <serv name="m3fs" />
+                <mod name="fs" />
+            </app>
+            <app args="pipes" daemon="1">
+                <serv name="pipes" />
+            </app>
             <dom>
-                <app args="m3fs mem" daemon="1">
-                    <serv name="m3fs" />
-                    <mod name="fs" />
-                </app>
-                <app args="pipes" daemon="1">
-                    <serv name="pipes" />
-                </app>
-            </dom>
-            <dom>
-                <app args="pager -m 4 sem=net-udp sem=net-tcp" usermem="256M">
+                <app args="pager -m 4 sem=net-udp sem=net-tcp" usermem="256M" eps="512">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
                     <mod name="tilemux" perm="r" />
                     <tiles type="core" count="2" />
-                    <dom>
-                        <app args="/sbin/net -m 4 -d lo net 127.0.0.1" daemon="1">
-                            <serv name="net" />
-                        </app>
-                    </dom>
+                    <app args="/sbin/net -m 4 -d lo net 127.0.0.1" daemon="1">
+                        <serv name="net" />
+                    </app>
                     <app args="/bin/netechoserver" daemon="1">
                         <sess name="net" args="bufs=1M socks=2 udp=1337 tcp=1338" />
                         <sem name="net-udp" />

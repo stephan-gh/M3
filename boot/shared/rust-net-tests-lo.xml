@@ -9,16 +9,12 @@
                 <serv name="m3fs" />
                 <mod name="fs" />
             </app>
-            <dom>
-                <app args="net -m 3 -d lo net 127.0.0.1" daemon="1">
-                    <serv name="net" />
-                </app>
-            </dom>
-            <dom>
-                <app args="pipes" daemon="1">
-                    <serv name="pipes" />
-                </app>
-            </dom>
+            <app args="net -m 3 -d lo net 127.0.0.1" daemon="1">
+                <serv name="net" />
+            </app>
+            <app args="pipes" daemon="1">
+                <serv name="pipes" />
+            </app>
             <dom>
                 <app args="pager sem=net-udp sem=net-tcp">
                     <sess name="m3fs" />
@@ -30,18 +26,16 @@
                         <sem name="net-udp" />
                         <sem name="net-tcp" />
                     </app>
-                    <dom>
-                        <app args="/bin/rustnettests 127.0.0.1 127.0.0.1 127.0.0.1">
-                            <mount fs="m3fs" path="/" />
-                            <sess lname="net0" gname="net" args="bufs=64K socks=2 udp=2000-2001" />
-                            <sess lname="net1" gname="net" args="bufs=64K socks=2 tcp=3000" />
-                            <sess name="net" args="bufs=256K raw=yes" />
-                            <sess name="pipes" />
-                            <tiles type="core" count="1" />
-                            <sem name="net-udp" />
-                            <sem name="net-tcp" />
-                        </app>
-                    </dom>
+                    <app args="/bin/rustnettests 127.0.0.1 127.0.0.1 127.0.0.1">
+                        <mount fs="m3fs" path="/" />
+                        <sess lname="net0" gname="net" args="bufs=64K socks=2 udp=2000-2001" />
+                        <sess lname="net1" gname="net" args="bufs=64K socks=2 tcp=3000" />
+                        <sess name="net" args="bufs=256K raw=yes" />
+                        <sess name="pipes" />
+                        <tiles type="core" count="1" />
+                        <sem name="net-udp" />
+                        <sem name="net-tcp" />
+                    </app>
                 </app>
             </dom>
         </app>

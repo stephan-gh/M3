@@ -2,10 +2,8 @@
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom>
-                <app args="hello" />
-                <app args="hello" />
-            </dom>
+            <app args="hello" />
+            <app args="hello" />
         </app>
     </dom>
 </config>
