@@ -25,3 +25,6 @@
 [submodule "m3lx"]
 	path = src/m3lx
 	url = https://github.com/Barkhausen-Institut/M3Lx.git
+[submodule "src/libs/crypto/kecacc-xkcp"]
+	path = src/libs/crypto/kecacc-xkcp
+	url = https://github.com/Barkhausen-Institut/m3-kecacc-xkcp
