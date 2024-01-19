@@ -86,11 +86,8 @@ impl KecAcc {
         KecAcc { addr }
     }
 
-    pub fn supports_algo(&self, algo: &HashAlgorithm) -> bool {
-        match algo.ty {
-            HashType::CSHAKE128 | HashType::CSHAKE256 => false,
-            _ => true,
-        }
+    pub fn supports_algo(&self, _algo: &HashAlgorithm) -> bool {
+        true
     }
 
     pub fn is_busy(&self) -> bool {
