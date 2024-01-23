@@ -13,7 +13,7 @@
  */
 
 use base::cell::StaticRefCell;
-use base::crypto::HashType;
+use base::crypto::{HashAlgorithm, HashType};
 use base::mem;
 
 const STATE_SIZE64: usize = 256 / mem::size_of::<u64>();
