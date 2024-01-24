@@ -167,6 +167,7 @@ help() {
     echo "                             remaining arguments are passed to Linux's build system."
     echo "    mkbbl ...:               (re)build the bbl bootloader. The remaining arguments"
     echo "                             are passed to bbl's build system."
+    echo "    genlxcc:                 Generate compile_commands.json for M³Linux."
     echo ""
     echo "Environment variables:"
     echo "  General:"
@@ -692,7 +693,7 @@ case "$cmd" in
 
     # -- M³Linux --
 
-    mklx|mkbbl)
+    mklx|mkbbl|genlxcc)
         ./src/m3lx/build.sh "$crossname" "$crossdir" "$cmd" "$script" "$@"
         ;;
 esac
