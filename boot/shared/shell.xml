@@ -12,13 +12,15 @@
             <app args="pipes" daemon="1">
                 <serv name="pipes" />
             </app>
-            <app args="m3fs -m 8 mem" daemon="1">
-                <serv name="m3fs" />
-                <mod name="fs" />
-            </app>
-            <app args="net -m 4 -d lo net 127.0.0.1" daemon="1">
-                <serv name="net" />
-            </app>
+            <dom>
+                <app args="m3fs -m 8 mem" daemon="1">
+                    <serv name="m3fs" />
+                    <mod name="fs" />
+                </app>
+                <app args="net -m 4 -d lo net 127.0.0.1" daemon="1">
+                    <serv name="net" />
+                </app>
+            </dom>
             <dom>
                 <app args="pager maxcli=4" usermem="256M" getinfo="1">
                     <sess name="m3fs" />
