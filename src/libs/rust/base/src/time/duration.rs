@@ -16,6 +16,8 @@
 use core::fmt;
 use core::ops::{Add, AddAssign};
 
+use serde::{Deserialize, Serialize};
+
 use crate::time::TimeDuration;
 
 /// A generic duration of time
@@ -38,7 +40,7 @@ impl Duration for TimeDuration {
 }
 
 /// A duration in cycles
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct CycleDuration(u64);
 
 impl CycleDuration {
