@@ -6,7 +6,7 @@ import subprocess
 
 target = os.environ.get('M3_TARGET')
 isa = os.environ.get('M3_ISA', 'x86_64')
-if (target == 'hw' or target == 'hw22') and isa != 'riscv':
+if (target in ['hw', 'hw22', 'hw23']) and isa != 'riscv':
     exit('Unsupport ISA "' + isa + '" for hw')
 
 if isa == 'arm':
@@ -133,7 +133,7 @@ class M3Env(Env):
             ins.append(BuildPath.with_file_ext(env, src, fileext))
 
         bin = env.cxx_exe(gen, out, ins, libs, deps)
-        if env['TGT'] == 'hw' or env['TGT'] == 'hw22':
+        if env['TGT'] in ['hw', 'hw22', 'hw23']:
             hex = env.m3_hex(gen, out + '.hex', bin)
             env.install(gen, env['MEMDIR'], hex)
 

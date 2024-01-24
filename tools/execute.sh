@@ -318,6 +318,8 @@ build_params_hw() {
 
     if [ "$M3_TARGET" = "hw22" ]; then
         args="--version 0"
+    elif [ "$M3_TARGET" = "hw23" ]; then
+        args="--version 2"
     else
         args="--version 3"
     fi
@@ -397,7 +399,7 @@ build_params_hw() {
 
 if [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
     build_params_gem5 "$script"
-elif [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ]; then
+elif [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ] || [ "$M3_TARGET" = "hw23" ]; then
     build_params_hw "$script"
 else
     echo "Unknown target '$M3_TARGET'"

@@ -19,7 +19,7 @@ if [ "$M3_TARGET" = "gem5" ]; then
     if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ] && [ "$M3_ISA" != "riscv" ]; then
         echo "ISA $M3_ISA not supported for target gem5." >&2 && exit 1
     fi
-elif [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ]; then
+elif [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ] || [ "$M3_TARGET" = "hw23" ]; then
     M3_ISA="riscv"
 else
     echo "Target $M3_TARGET not supported." >&2 && exit 1
@@ -99,7 +99,7 @@ help() {
     echo ""
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
-    echo "variables that influence its behaviour are M3_TARGET=(gem5|hw|hw22),"
+    echo "variables that influence its behaviour are M3_TARGET=(gem5|hw|hw22|hw23),"
     echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and"
     echo "M3_BUILD=(debug|release|bench|coverage)."
     echo ""
@@ -170,7 +170,8 @@ help() {
     echo ""
     echo "Environment variables:"
     echo "  General:"
-    echo "    M3_TARGET:               the target: 'gem5', 'hw' or 'hw22', default is 'gem5'."
+    echo "    M3_TARGET:               the target: 'gem5', 'hw', 'hw22', or 'hw23', default"
+    echo "                             is 'gem5'."
     echo "    M3_ISA:                  the ISA to use. On gem5, 'arm', 'riscv', and 'x86_64'"
     echo "                             is supported. On other targets, it is ignored."
     echo "    M3_BUILD:                the build type is 'debug', 'release', 'bench' or"
@@ -208,7 +209,7 @@ help() {
     echo "                             C0T<number>, but ids can also be specified in the form"
     echo "                             of 'C<chip>T<tile>'."
     echo ""
-    echo "  Variables for target hw/hw22:"
+    echo "  Variables for target hw/hw22/hw23:"
     echo "    M3_HW_FPGA_HOST:         the SSH alias for the FPGA PC."
     echo "    M3_HW_FPGA_DIR:          the directory on the FPGA PC to use for temporary"
     echo "                             files. The directory will be created automatically."
@@ -283,7 +284,7 @@ case "$cmd" in
 
     # these commands require on hw that the M3_HW_FPGA_* vars are defined
     run|dbg=*|loadfpga=*)
-        if [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ]; then
+        if [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ] || [ "$M3_TARGET" = "hw23" ]; then
             if [ -z "$M3_HW_FPGA_HOST" ] || [ -z "$M3_HW_FPGA_DIR" ]; then
                 echo "Please define M3_HW_FPGA_HOST and M3_HW_FPGA_DIR." >&2 && exit 1
             fi
@@ -368,8 +369,8 @@ case "$cmd" in
         ;;
 
     loadfpga=*)
-        if [ "$M3_TARGET" != "hw" ] && [ "$M3_TARGET" != "hw22" ]; then
-            echo "Only supported on M3_TARGET=hw and M3_TARGET=hw22." >&2 && exit 1
+        if [ "$M3_TARGET" != "hw" ] && [ "$M3_TARGET" != "hw22" ] && [ "$M3_TARGET" != "hw23" ]; then
+            echo "Only supported on M3_TARGET={hw,hw22,hw23}." >&2 && exit 1
         fi
         if [ -z "$M3_HW_VIVADO" ]; then
             echo "Please define M3_HW_VIVADO to the absolute path to Vivado." >&2 && exit 1

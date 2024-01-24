@@ -178,19 +178,23 @@ class TCU {
 
 public:
     typedef uint64_t reg_t;
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
     typedef uint32_t rep_bitmask_t;
 #else
     typedef uint64_t rep_bitmask_t;
 #endif
 
     static const uintptr_t MMIO_ADDR = 0xF000'0000;
+#if defined(__hw22__) || defined(__hw23__)
+    static const size_t MMIO_SIZE = PAGE_SIZE * 2;
+#else
     static const size_t MMIO_SIZE = PAGE_SIZE;
+#endif
 
     static const reg_t INVALID_EP = 0xFFFF;
     static const reg_t INVALID_ACT = 0xFFFF;
     static const reg_t NO_REPLIES = INVALID_EP;
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
     static const reg_t UNLIM_CREDITS = 0x3F;
     static const reg_t CREDIT_MASK = 0x3F;
     static const size_t MAX_RB_SIZE = 32;
@@ -205,6 +209,10 @@ private:
     static const size_t EXT_REGS = 2;
     static const size_t UNPRIV_REGS = 5;
     static const size_t EP_REGS = 3;
+#elif defined(__hw23__)
+    static const size_t EXT_REGS = 3;
+    static const size_t UNPRIV_REGS = 6;
+    static const size_t EP_REGS = 3;
 #else
     static const size_t EXT_REGS = 5;
     static const size_t UNPRIV_REGS = 6;
@@ -213,7 +221,7 @@ private:
     static const size_t PRINT_REGS = 32;
 
 public:
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
     static const uintptr_t MMIO_EPS_ADDR = MMIO_ADDR + (EXT_REGS + UNPRIV_REGS) * sizeof(reg_t);
 #else
     static const uintptr_t MMIO_EPS_ADDR = MMIO_ADDR + PAGE_SIZE * 2;
@@ -227,6 +235,8 @@ private:
 #else
         TILE_DESC = 1,
         EXT_CMD = 2,
+#endif
+#if defined(__hw__) || defined(__gem5__)
         EPS_ADDR = 3,
         EPS_SIZE = 4,
 #endif
@@ -355,7 +365,7 @@ public:
     bool has_missing_credits(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
         uint16_t cur = (r0 >> 19) & CREDIT_MASK;
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         uint16_t max = (r0 >> 25) & CREDIT_MASK;
 #else
         uint16_t max = (r0 >> 26) & CREDIT_MASK;
@@ -370,7 +380,7 @@ public:
     }
 
     bool has_msgs(epid_t ep) const {
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         reg_t unread = read_reg(ep, 2);
 #else
         reg_t unread = read_reg(ep, 3);
@@ -405,7 +415,7 @@ public:
     }
 
     static size_t endpoints_size() {
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         return 128 * EP_REGS * sizeof(reg_t);
 #else
         return read_reg(ExtRegs::EPS_SIZE);
@@ -453,7 +463,7 @@ private:
     void drop_msgs(size_t buf_addr, epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         word_t unread = read_reg(ep, 2) >> 32;
 #else
         word_t unread = read_reg(ep, 3);
@@ -462,7 +472,7 @@ private:
             return;
 
         reg_t r0 = read_reg(ep, 0);
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         size_t bufsize = static_cast<size_t>(1) << ((r0 >> 35) & 0x3F);
         size_t msgsize = (r0 >> 41) & 0x3F;
 #else
@@ -549,7 +559,7 @@ private:
         return MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         size_t regCount = EXT_REGS + UNPRIV_REGS + (EP_REGS * 128);
 #else
         size_t regCount = EXT_REGS + UNPRIV_REGS;
@@ -565,7 +575,7 @@ private:
         write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::INVALID));
         write_reg(ep, 1, 0);
         write_reg(ep, 2, 0);
-#if !defined(__hw22__)
+#if defined(__hw__) || defined(__gem5__)
         write_reg(ep, 3, 0);
 #endif
     }
@@ -579,13 +589,13 @@ private:
                   static_cast<reg_t>(m3::TCU::EpType::RECEIVE) |
                       (static_cast<reg_t>(INVALID_ACT) << 3) |
                       (static_cast<reg_t>(reply_eps) << 19) | (static_cast<reg_t>(bufSize) << 35) |
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
                       (static_cast<reg_t>(msgSize) << 41));
 #else
                       (static_cast<reg_t>(msgSize) << 42));
 #endif
         write_reg(ep, 1, buf);
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         write_reg(ep, 2, static_cast<reg_t>(unread) << 32 | occupied);
 #else
         write_reg(ep, 2, occupied);
@@ -598,7 +608,7 @@ private:
         write_reg(ep, 0,
                   static_cast<reg_t>(m3::TCU::EpType::SEND) |
                       (static_cast<reg_t>(INVALID_ACT) << 3) | (static_cast<reg_t>(credits) << 19) |
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
                       (static_cast<reg_t>(credits) << 25) | (static_cast<reg_t>(msgorder) << 31) |
                       (static_cast<reg_t>(crd_ep) << 37) | (static_cast<reg_t>(reply) << 53));
 #else
@@ -608,7 +618,7 @@ private:
         write_reg(ep, 1,
                   static_cast<reg_t>(dstep) | (static_cast<reg_t>(tileid_to_nocid(tile)) << 16));
         write_reg(ep, 2, lbl);
-#if !defined(__hw22__)
+#if defined(__hw__) || defined(__gem5__)
         write_reg(ep, 3, 0);
 #endif
     }
@@ -620,7 +630,7 @@ private:
                       (static_cast<reg_t>(tileid_to_nocid(tile)) << 23));
         write_reg(ep, 1, addr);
         write_reg(ep, 2, size);
-#if !defined(__hw22__)
+#if defined(__hw__) || defined(__gem5__)
         write_reg(ep, 3, 0);
 #endif
     }

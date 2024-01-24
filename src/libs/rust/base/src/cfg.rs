@@ -20,9 +20,9 @@ use crate::mem::{VirtAddr, VirtAddrRaw};
 pub const MAX_TILES: usize = 64;
 pub const MAX_CHIPS: usize = 2;
 
-#[cfg(any(feature = "hw", feature = "hw22"))]
+#[cfg(any(feature = "hw", feature = "hw22", feature = "hw23"))]
 pub const MAX_ACTS: usize = 16;
-#[cfg(not(any(feature = "hw", feature = "hw22")))]
+#[cfg(not(any(feature = "hw", feature = "hw22", feature = "hw23")))]
 pub const MAX_ACTS: usize = 64;
 
 pub const DEF_EP_COUNT: usize = 256;
@@ -41,14 +41,14 @@ pub const RBUF_ADDR: VirtAddr =
     VirtAddr::new(RBUF_STD_ADDR.as_raw() + RBUF_STD_SIZE as VirtAddrRaw);
 pub const RBUF_SIZE: usize = 0x1000_0000 - RBUF_STD_SIZE;
 pub const RBUF_SIZE_SPM: usize = 0xE000;
-#[cfg(feature = "hw22")]
+#[cfg(any(feature = "hw22", feature = "hw23"))]
 pub const MAX_RB_SIZE: usize = 32;
-#[cfg(not(feature = "hw22"))]
+#[cfg(not(any(feature = "hw22", feature = "hw23")))]
 pub const MAX_RB_SIZE: usize = 64;
 
-#[cfg(feature = "hw22")]
+#[cfg(any(feature = "hw22", feature = "hw23"))]
 pub const RESMNG_EPS: usize = 16;
-#[cfg(not(feature = "hw22"))]
+#[cfg(not(any(feature = "hw22", feature = "hw23")))]
 pub const RESMNG_EPS: usize = 64;
 
 #[cfg(target_arch = "riscv64")]

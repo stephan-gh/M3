@@ -2,7 +2,7 @@ import os
 
 
 def build(gen, env):
-    if env['TGT'] == 'hw' or env['TGT'] == 'hw22':
+    if env['TGT'] in ['hw', 'hw22', 'hw23']:
         env = env.clone()
 
         pwd = 'src/libs/axieth/'

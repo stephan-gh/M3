@@ -135,17 +135,41 @@ pub const NO_REPLIES: EpId = INVALID_EP;
 
 /// The base address of the TCU's MMIO area
 pub const MMIO_ADDR: VirtAddr = VirtAddr::new(0xF000_0000);
-/// The size of the TCU's MMIO area
-pub const MMIO_SIZE: usize = cfg::PAGE_SIZE;
 /// The size of the TCU's privileged MMIO area
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
-pub const MMIO_EPS_SIZE: usize = cfg::PAGE_SIZE * 2;
 
+/// The number of PRINT registers
+pub const PRINT_REGS: usize = 32;
 cfg_if! {
     if #[cfg(feature = "hw22")] {
+        /// The number of external registers
+        pub const EXT_REGS: usize = 2;
+        /// The number of unprivileged registers
+        pub const UNPRIV_REGS: usize = 5;
+    }
+    else if #[cfg(feature = "hw23")] {
+        /// The number of external registers
+        pub const EXT_REGS: usize = 3;
+        /// The number of unprivileged registers
+        pub const UNPRIV_REGS: usize = 6;
+    }
+    else {
+        /// The number of external registers
+        pub const EXT_REGS: usize = 5;
+        /// The number of unprivileged registers
+        pub const UNPRIV_REGS: usize = 6;
+    }
+}
+cfg_if! {
+    if #[cfg(any(feature = "hw22", feature = "hw23"))] {
+        /// The number of registers per EP
+        pub const EP_REGS: usize = 3;
+
         /// Represents unlimited credits for send EPs
         pub const UNLIM_CREDITS: u32 = 0x3F;
 
+        /// The size of the TCU's MMIO area
+        pub const MMIO_SIZE: usize = cfg::PAGE_SIZE * 2;
         /// The base address of the TCU's privileged MMIO area
         pub const MMIO_PRIV_ADDR: VirtAddr =
             VirtAddr::new(MMIO_ADDR.as_raw() + (cfg::PAGE_SIZE * 2) as VirtAddrRaw);
@@ -154,35 +178,24 @@ cfg_if! {
             MMIO_ADDR.as_raw() +
                 ((EXT_REGS + UNPRIV_REGS) * mem::size_of::<Reg>()) as VirtAddrRaw
         );
-
-        /// The number of external registers
-        pub const EXT_REGS: usize = 2;
-        /// The number of unprivileged registers
-        pub const UNPRIV_REGS: usize = 5;
-        /// The number of registers per EP
-        pub const EP_REGS: usize = 3;
     }
     else {
+        /// The number of registers per EP
+        pub const EP_REGS: usize = 4;
+
         /// Represents unlimited credits for send EPs
         pub const UNLIM_CREDITS: u32 = 0x7F;
 
+        /// The size of the TCU's MMIO area
+        pub const MMIO_SIZE: usize = cfg::PAGE_SIZE;
         /// The base address of the TCU's privileged MMIO area
         pub const MMIO_PRIV_ADDR: VirtAddr =
             VirtAddr::new(MMIO_ADDR.as_raw() + MMIO_SIZE as VirtAddrRaw);
         /// The base address of the TCU's endpoint MMIO area
         pub const MMIO_EPS_ADDR: VirtAddr =
             VirtAddr::new(MMIO_PRIV_ADDR.as_raw() + MMIO_PRIV_SIZE as VirtAddrRaw);
-
-        /// The number of external registers
-        pub const EXT_REGS: usize = 5;
-        /// The number of unprivileged registers
-        pub const UNPRIV_REGS: usize = 6;
-        /// The number of registers per EP
-        pub const EP_REGS: usize = 4;
     }
 }
-/// The number of PRINT registers
-pub const PRINT_REGS: usize = 32;
 
 cfg_if! {
     if #[cfg(feature = "hw22")] {
@@ -192,6 +205,19 @@ cfg_if! {
         pub enum ExtReg {
             /// Stores the privileged flag (for now)
             Features,
+            /// For external commands
+            ExtCmd,
+        }
+    }
+    else if #[cfg(feature = "hw23")] {
+        /// The external registers
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+        #[repr(u64)]
+        pub enum ExtReg {
+            /// Stores the privileged flag (for now)
+            Features,
+            /// Stores the tile description
+            TileDesc,
             /// For external commands
             ExtCmd,
         }
@@ -686,9 +712,9 @@ impl TCU {
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
     #[inline(always)]
     pub fn has_msgs(ep: EpId) -> bool {
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         let unread = Self::read_ep_reg(ep, 2) >> 32;
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         let unread = Self::read_ep_reg(ep, 3);
         unread != 0
     }
@@ -725,13 +751,13 @@ impl TCU {
         if (r0 & 0x7) != EpType::Send.into() {
             return None;
         }
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         let cur = (r0 >> 19) & 0x3F;
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         let cur = (r0 >> 19) & 0x7F;
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         let max = (r0 >> 25) & 0x3F;
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         let max = (r0 >> 26) & 0x7F;
         Some((cur, max))
     }
@@ -815,23 +841,23 @@ impl TCU {
     pub fn drop_msgs_with(buf_addr: VirtAddr, ep: EpId, label: Label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         let unread = Self::read_ep_reg(ep, 3) >> 32;
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         let unread = Self::read_ep_reg(ep, 3);
         if unread == 0 {
             return;
         }
 
         let r0 = Self::read_ep_reg(ep, 0);
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         let buf_size = 1 << ((r0 >> 35) & 0x3F);
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         let buf_size = 1 << ((r0 >> 35) & 0x7F);
 
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         let msg_size = (r0 >> 41) & 0x3F;
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         let msg_size = (r0 >> 42) & 0x3F;
         for i in 0..buf_size {
             if (unread & (1 << i)) != 0 {
@@ -845,9 +871,9 @@ impl TCU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) -> usize {
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         let regs = EXT_REGS + UNPRIV_REGS + (128 * EP_REGS) as usize;
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         let regs = EXT_REGS + UNPRIV_REGS as usize;
 
         let s = &s[0..cmp::min(s.len(), PRINT_REGS * mem::size_of::<Reg>() - 1)];
@@ -1103,7 +1129,7 @@ impl TCU {
     }
 
     pub fn mmio_areas() -> [(VirtAddr, usize, PageFlags); 3] {
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         return [
             (MMIO_ADDR, cfg::PAGE_SIZE * 2, PageFlags::U | PageFlags::RW),
             (
@@ -1113,7 +1139,7 @@ impl TCU {
             ),
             (VirtAddr::null(), 0, PageFlags::empty()),
         ];
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         return [
             (MMIO_ADDR, MMIO_SIZE, PageFlags::U | PageFlags::RW),
             (MMIO_PRIV_ADDR, MMIO_PRIV_SIZE, PageFlags::U | PageFlags::RW),
@@ -1127,9 +1153,9 @@ impl TCU {
 
     /// Returns the size of the endpoints region (according to the EPS_SIZE register)
     pub fn endpoints_size() -> usize {
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         return 128 * EP_REGS * mem::size_of::<Reg>();
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         return Self::read_reg(ExtReg::EpsSize as usize) as usize;
     }
 
@@ -1286,7 +1312,7 @@ impl TCU {
         msg_ord: u32,
         reply_eps: Option<EpId>,
     ) {
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         {
             regs[0] = (EpType::Receive as Reg)
                 | ((act as Reg) << 3)
@@ -1296,7 +1322,7 @@ impl TCU {
             regs[1] = buf.as_raw() as Reg;
             regs[2] = 0;
         }
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         {
             regs[0] = (EpType::Receive as Reg)
                 | ((act as Reg) << 3)
@@ -1318,7 +1344,7 @@ impl TCU {
         msg_order: u32,
         credits: u32,
     ) {
-        #[cfg(feature = "hw22")]
+        #[cfg(any(feature = "hw22", feature = "hw23"))]
         {
             regs[0] = (EpType::Send as Reg)
                 | ((act as Reg) << 3)
@@ -1328,7 +1354,7 @@ impl TCU {
             regs[1] = (dst_ep as Reg) | ((Self::tileid_to_nocid(tile) as Reg) << 16);
             regs[2] = lbl as Reg;
         }
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         {
             regs[0] = (EpType::Send as Reg)
                 | ((act as Reg) << 3)
@@ -1355,7 +1381,7 @@ impl TCU {
             | ((Self::tileid_to_nocid(tile) as Reg) << 23);
         regs[1] = addr as Reg;
         regs[2] = size as Reg;
-        #[cfg(not(feature = "hw22"))]
+        #[cfg(not(any(feature = "hw22", feature = "hw23")))]
         {
             regs[3] = 0;
         }

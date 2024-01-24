@@ -84,9 +84,9 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
 /// at least 512 KiB large.
 pub unsafe fn flush_cache() {
     // * 2 just to be sure (this code is also touching memory)
-    #[cfg(any(feature = "hw", feature = "hw22"))]
+    #[cfg(any(feature = "hw", feature = "hw22", feature = "hw23"))]
     let (cacheline_size, cache_size) = (64, 512 * 1024 * 2);
-    #[cfg(not(any(feature = "hw", feature = "hw22")))]
+    #[cfg(not(any(feature = "hw", feature = "hw22", feature = "hw23")))]
     let (cacheline_size, cache_size) = (64, (32 + 256) * 1024 * 2);
 
     // ensure that we replace all cachelines in cache
@@ -99,7 +99,7 @@ pub unsafe fn flush_cache() {
         }
     }
 
-    #[cfg(any(feature = "hw", feature = "hw22"))]
+    #[cfg(any(feature = "hw", feature = "hw22", feature = "hw23"))]
     unsafe {
         core::arch::asm!("fence.i");
     }

@@ -36,7 +36,7 @@ public:
 
     static int max_credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         return (r0 >> 25) & m3::TCU::CREDIT_MASK;
 #else
         return (r0 >> 26) & m3::TCU::CREDIT_MASK;
@@ -45,7 +45,7 @@ public:
 
     static void recv_pos(epid_t ep, uint8_t *rpos, uint8_t *wpos) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         *rpos = (r0 >> 53) & 0x3F;
         *wpos = (r0 >> 47) & 0x3F;
 #else
@@ -56,7 +56,7 @@ public:
 
     static void recv_masks(epid_t ep, m3::TCU::rep_bitmask_t *unread,
                            m3::TCU::rep_bitmask_t *occupied) {
-#if defined(__hw22__)
+#if defined(__hw22__) || defined(__hw23__)
         m3::TCU::reg_t reg = m3::TCU::read_reg(ep, 2);
         *occupied = reg & 0xFFFF'FFFF;
         *unread = reg >> 32;

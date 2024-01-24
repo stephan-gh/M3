@@ -50,10 +50,7 @@ where
     CFG: FnOnce(&mut [Reg], (TileId, EpId)),
 {
     let mut regs = [0; EP_REGS];
-    cfg(
-        &mut regs,
-        (env::boot().tile_id(), ep),
-    );
+    cfg(&mut regs, (env::boot().tile_id(), ep));
     TCU::set_ep_regs(ep, &regs);
 }
 
@@ -353,9 +350,9 @@ pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
 
 #[allow(unused_variables)]
 pub fn get_ep_count(tile: TileId) -> Result<usize, Error> {
-    #[cfg(feature = "hw22")]
+    #[cfg(any(feature = "hw22", feature = "hw23"))]
     return Ok(128);
-    #[cfg(not(feature = "hw22"))]
+    #[cfg(not(any(feature = "hw22", feature = "hw23")))]
     {
         let size: Reg = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::EpsSize).as_goff())?;
         Ok(size as usize / (EP_REGS * mem::size_of::<Reg>()))
@@ -364,9 +361,9 @@ pub fn get_ep_count(tile: TileId) -> Result<usize, Error> {
 
 #[allow(unused_variables)]
 pub fn set_eps_region(tile: TileId, addr: GlobAddr, size: GlobOff) -> Result<(), Error> {
-    #[cfg(feature = "hw22")]
+    #[cfg(any(feature = "hw22", feature = "hw23"))]
     return Err(Error::new(Code::NotSup));
-    #[cfg(not(feature = "hw22"))]
+    #[cfg(not(any(feature = "hw22", feature = "hw23")))]
     {
         // clear this region to ensure that all endpoints are invalid
         clear(addr.tile(), addr.offset(), size as usize)?;

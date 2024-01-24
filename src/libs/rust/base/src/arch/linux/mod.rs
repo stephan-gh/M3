@@ -11,7 +11,6 @@ use crate::env;
 use crate::kif::Perm;
 use crate::tcu;
 use crate::time::TimeDuration;
-use crate::util::math;
 
 static TCU_DEV: LazyStaticRefCell<File> = LazyStaticRefCell::default();
 static TCU_EPOLL_FD: LazyStaticCell<libc::c_int> = LazyStaticCell::default();
@@ -85,10 +84,11 @@ pub fn init() {
     )
     .expect("Unable to map TCU MMIO region");
 
+    #[cfg(not(any(feature = "hw22", feature = "hw23")))]
     mmap::mmap_tcu(
         tcu_fd(),
         tcu::MMIO_EPS_ADDR,
-        math::round_up(tcu::TCU::endpoints_size(), cfg::PAGE_SIZE),
+        tcu::TCU::endpoints_size(),
         mmap::MemType::TCUEPs,
         Perm::R,
     )

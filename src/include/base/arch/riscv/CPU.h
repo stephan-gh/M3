@@ -21,7 +21,7 @@
 #include <base/CPU.h>
 #include <base/Common.h>
 
-#if defined(__hw__) || defined(__hw22__)
+#if defined(__hw__) || defined(__hw22__) || defined(__hw23__)
 #    define NEED_ALIGNED_MEMACC 1
 #else
 #    define NEED_ALIGNED_MEMACC 0

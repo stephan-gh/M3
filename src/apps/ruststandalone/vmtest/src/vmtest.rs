@@ -262,11 +262,11 @@ fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
         helper::config_local_ep(RPLEP, |regs| {
             TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
             // make it a reply EP
-            #[cfg(feature = "hw22")]
+            #[cfg(any(feature = "hw22", feature = "hw23"))]
             {
                 regs[0] |= 1 << 53;
             }
-            #[cfg(not(feature = "hw22"))]
+            #[cfg(not(any(feature = "hw22", feature = "hw23")))]
             {
                 regs[0] |= 1 << 55;
             }

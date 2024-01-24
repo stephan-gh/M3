@@ -13,9 +13,9 @@ Supported Platforms:
 Currently, M³ runs on the following target platforms:
 
 - gem5, by adding a TCU model to gem5.
-- hw or hw22, a FPGA-based hardware platform.
+- hw, hw22, or hw23, a FPGA-based hardware platform.
 
-The hardware platform comes in two variants: hw and hw22. The former is the current development version of the hardware platform, whereas the latter corresponds to the silicon version from the year 2022. The target platform is specified with the environment variable `M3_TARGET`. For example:
+The hardware platform comes in three variants: hw, hw22, and hw23. hw is the current development version of the hardware platform, whereas hw22 and hw23 correspond to the silicon version from the year 2022 and 2023, respectively. The target platform is specified with the environment variable `M3_TARGET`. For example:
 
     $ export M3_TARGET=gem5
 
@@ -52,7 +52,7 @@ The build directory (`build/RISCV` in the example above) will be created automat
 
 ### 3. Preparations for the hardware platform
 
-These preparations are required when hw/hw22 should be used as the M³ target. To use the hardware platform, pull in the submodule `platform/hw`:
+These preparations are required when hw/hw22/hw23 should be used as the M³ target. To use the hardware platform, pull in the submodule `platform/hw`:
 
     $ git submodule update --init platform/hw
 
@@ -65,11 +65,12 @@ The current workflow assumes that the FPGA is connected to a machine `M_fpga` th
 
 Note that `M_fpga` and `M_m3` can also be the same, in which case `M3_HW_FPGA_HOST` has to be set to localhost and a local SSH server is required.
 
-The bitfiles for the hardware platform can be found in `platform/hw/fpga_tools/bitfiles`. The bitfiles are built for the Xilinx VCU118 FPGA. The following command can be used to load a specific bitfile onto the FPGA. This requires an installation of Vivado or Vivado Lab:
+The bitfiles for the hardware platform can be found in `platform/hw/fpga_tools/bitfiles`. The bitfiles are built for the Xilinx VCU118 FPGA. The following command can be used to load a specific bitfile onto the FPGA. This requires an installation of Vivado or Vivado Lab. For M3_TARGET=hw23, use:
 
     $ ./b loadfpga=fpga_top_v4.6.0.bit
 
-With `M3_TARGET=hw22`, the bitfile `fpga_top_v4.4.12` needs to be used.
+With `M3_TARGET=hw22`, the bitfile `fpga_top_v4.4.12` needs to be used. M3_TARGET=hw is currently
+not supported.
 
 Note that the source of the hardware platform is [openly available](https://github.com/Barkhausen-Institut/M3-hardware) as well.
 
@@ -125,7 +126,7 @@ Linux and bbl need to be built explicitly due to the long build times and differ
 
 As bbl contains Linux as the payload, bbl needs to be rebuilt whenever Linux changes. Note that the M³Linux applications are automatically built with every `b` run and initrd and DTS for Linux are generated before every start.
 
-M³Linux can be used via the boot scripts in `boot/linux/`. Note however, that M³Linux currently only works on RISC-V (both gem5 and hw).
+M³Linux can be used via the boot scripts in `boot/linux/`. Note however, that M³Linux currently only works on RISC-V (both gem5 and hw23).
 
 References:
 -----------

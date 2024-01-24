@@ -34,7 +34,7 @@
 #define MAX_TILES     64
 #define MAX_CHIPS     2
 
-#if defined(__hw__) || defined(__hw22__)
+#if defined(__hw__) || defined(__hw22__) || defined(__hw23__)
 #    define MAX_ACTS 8
 #else
 #    define MAX_ACTS 64
