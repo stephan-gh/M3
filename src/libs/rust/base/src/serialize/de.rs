@@ -272,7 +272,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_seq(self)
+        visitor.visit_unit()
     }
 
     #[inline(always)]
