@@ -119,6 +119,7 @@ impl TileState {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn load_mux<A, M>(
         &mut self,
         name: &str,

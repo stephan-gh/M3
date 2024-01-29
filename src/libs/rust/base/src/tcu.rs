@@ -872,9 +872,9 @@ impl TCU {
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) -> usize {
         #[cfg(any(feature = "hw22", feature = "hw23"))]
-        let regs = EXT_REGS + UNPRIV_REGS + (128 * EP_REGS) as usize;
+        let regs = EXT_REGS + UNPRIV_REGS + (128 * EP_REGS);
         #[cfg(not(any(feature = "hw22", feature = "hw23")))]
-        let regs = EXT_REGS + UNPRIV_REGS as usize;
+        let regs = EXT_REGS + UNPRIV_REGS;
 
         let s = &s[0..cmp::min(s.len(), PRINT_REGS * mem::size_of::<Reg>() - 1)];
 
