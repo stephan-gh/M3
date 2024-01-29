@@ -25,6 +25,9 @@ use rot::cert::{HashBuf, M3RawCertificate};
 use rot::ed25519::{Signer, SigningKey};
 use rot::{Hex, Secret};
 
+const EP_REGS_SIZE: usize = tcu::EP_REGS * mem::size_of::<tcu::Reg>();
+const EPS_PER_PAGE: usize = cfg::PAGE_SIZE / EP_REGS_SIZE;
+
 fn config_local_ep<CFG>(ep: tcu::EpId, cfg: CFG)
 where
     CFG: FnOnce(&mut [tcu::Reg]),
@@ -51,7 +54,8 @@ fn config_local_ep_remote_tcu(noc_id: u16, perm: Perm) {
             rot::TCU_ACT_ID,
             noc_id,
             tcu::MMIO_ADDR.as_goff(),
-            tcu::MMIO_SIZE,
+            // We never configure more than one remote EP at the moment
+            tcu::MMIO_SIZE + tcu::MMIO_PRIV_SIZE + 1 * EP_REGS_SIZE,
             perm,
         );
     });
@@ -99,11 +103,15 @@ pub fn main() -> ! {
         tiles,
         kernel: rot::cert::M3KernelConfig {
             mem_size: cfg.data.kernel_mem_size,
+            eps_num: cfg.data.kernel_ep_pages as u32 * EPS_PER_PAGE as u32,
             cmdline: util::cstr_slice_to_str(&cfg.data.kernel_cmdline),
         },
         mods: BTreeMap::new(),
         pub_key: Hex::new_zeroed(),
     };
+    if cfg!(feature = "hw23") {
+        m3.kernel.eps_num = 0; // hw23 does not have virteps
+    }
 
     // We just use the first mem tile for now and assume it has sufficient space
     let mem_tile_pos = m3
@@ -271,6 +279,9 @@ pub fn main() -> ! {
     mem_offset += total_env_size as GlobOff;
     let kenv_end = mem_offset;
     mem_offset = round_up(mem_offset, cfg::PAGE_SIZE as GlobOff);
+    #[cfg(not(feature = "hw23"))]
+    let keps_offset = mem_offset;
+    mem_offset += (m3.kernel.eps_num as usize * EP_REGS_SIZE) as GlobOff;
     let kernel_offset = mem_offset;
     mem_offset += m3.kernel.mem_size as GlobOff;
 
@@ -342,6 +353,24 @@ pub fn main() -> ! {
 
     // Configure endpoint to kernel TCU
     config_local_ep_remote_tcu(ktile_raw, Perm::RW);
+
+    #[cfg(not(feature = "hw23"))]
+    {
+        // Setup memory region for kernel endpoints
+        crate::clear_mem(keps_offset, (kernel_offset - keps_offset) as usize)
+            .expect("Failed to clear kernel endpoint region");
+        const _: () = assert!(
+            tcu::ExtReg::EpsAddr as u64 + 1 == tcu::ExtReg::EpsSize as u64,
+            "EpsAddr and EpsSize must be consecutive registers (or code needs changes)"
+        );
+        let eps_addr = ((mem_tile_raw as tcu::Reg) << 50) | keps_offset as tcu::Reg;
+        TCU::write_slice(
+            crate::TILE_EP,
+            &[eps_addr, kernel_offset - keps_offset],
+            (TCU::ext_reg_addr(tcu::ExtReg::EpsAddr) - tcu::MMIO_ADDR).as_goff(),
+        )
+        .expect("Failed to configure endpoint memory region in kernel tile TCU");
+    }
 
     // Configure kernel memory endpoint
     config_remote_ep(crate::TILE_EP, 0, |regs| {

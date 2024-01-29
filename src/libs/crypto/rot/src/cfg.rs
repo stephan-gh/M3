@@ -66,8 +66,9 @@ impl CfgData for BlauCfg {
 #[derive(Debug)]
 pub struct RosaCfg {
     pub kernel_mem_size: GlobOff,
+    pub kernel_ep_pages: u8,
     // Can reduce this a bit more to free up space, or reduce number of boot modules
-    pub kernel_cmdline: [u8; 48],
+    pub kernel_cmdline: [u8; 47],
     pub mods: [Mod; Self::MAX_MODS],
 }
 
@@ -80,7 +81,7 @@ impl RosaCfg {
 }
 
 impl CfgData for RosaCfg {
-    const MAGIC: Magic = encode_magic(b"RosaCfg", 1);
+    const MAGIC: Magic = encode_magic(b"RosaCfg", 2);
 }
 
 pub type BromLayerCfg = LayerCfg<(), BromCfg>;

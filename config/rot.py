@@ -18,7 +18,6 @@ assert all(cmd == '' for cmd in cmd_list[1:]), "cmdline must be empty for all ex
 rot_layers = options.rot_layers.split(",")
 assert rot_layers[0], "must specify at least one RoT layer"
 
-num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_mem = 1
 num_flash = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
@@ -41,8 +40,7 @@ for i in range(0, num_mem):
     tile = createMemTile(noc=root.noc,
                          options=options,
                          id=tile_id,
-                         size='3GB',
-                         epCount=num_eps)
+                         size='3GB')
     tiles.append(tile)
     mem_tile = mem_tile or tile
     mem_tile_id = mem_tile_id or tile_id
@@ -54,8 +52,7 @@ for i in range(0, num_flash):
                          options=options,
                          id=tile_id,
                          size=os.environ.get('M3_GEM5_FLASH_SIZE', '512MB'),
-                         memType='Flash',
-                         epCount=num_eps)
+                         memType='Flash')
     tiles.append(tile)
     flash_tile = flash_tile or tile
     flash_tile_id = flash_tile_id or tile_id
@@ -69,8 +66,7 @@ for i in range(0, num_minor):
                           cmdline='',
                           memTile=None,
                           l1size='32kB',
-                          l2size='128kB',
-                          epCount=num_eps)
+                          l2size='128kB')
     tiles.append(tile)
 
 # create the out-of-order core tiles
@@ -82,8 +78,7 @@ for i in range(0, num_o3):
                           cmdline='',
                           memTile=None,
                           l1size='32kB',
-                          l2size='256kB',
-                          epCount=num_eps)
+                          l2size='256kB')
     tiles.append(tile)
 
 options.cpu_type = DEFAULT_MINOR_CPU
@@ -93,8 +88,7 @@ for i in range(0, num_kecacc):
                             id=TileId(0, len(tiles)),
                             cmdline='',
                             memTile=None,
-                            spmsize='64MB',
-                            epCount=num_eps)
+                            spmsize='64MB')
     tiles.append(tile)
 
 old_cpu_options = options.cpu_type, options.cpu_clock
@@ -109,8 +103,7 @@ tile = createRoTTile(noc=root.noc,
                      flashTile=flash_tile,
                      # flashTile=mem_tile,  # RoT can also run fetch data directly from memory tile
                      # FIXME: The RoT boot layers run with 256 KiB but TileMux/RoTS currently need more
-                     spmsize=os.environ.get('M3_GEM5_ROT_MEMSIZE', '64MB'),
-                     epCount=num_eps)
+                     spmsize=os.environ.get('M3_GEM5_ROT_MEMSIZE', '64MB'))
 tiles.append(tile)
 options.cpu_type, options.cpu_clock = old_cpu_options
 
@@ -120,8 +113,7 @@ if hard_disk0 and os.path.isfile(hard_disk0):
                              options=options,
                              id=TileId(0, len(tiles)),
                              memTile=None,
-                             img0=hard_disk0,
-                             epCount=num_eps)
+                             img0=hard_disk0)
     tiles.append(tile)#
 else:
     print('NOTE: Skipping persistent storage tile because no hard disk image was specified')
@@ -132,8 +124,7 @@ if os.path.isdir("/sys/class/net/gem5-tap"):
     ether = createEtherTile(noc=root.noc,
                              options=options,
                              id=TileId(0, len(tiles)),
-                             memTile=None,
-                             epCount=num_eps)
+                             memTile=None)
     tiles.append(ether)
     ether.ethertap = EtherTap(tap=ether.nic.interface)
 else:
@@ -148,8 +139,7 @@ else:
 tile = createSerialTile(noc=root.noc,
                         options=options,
                         id=TileId(0, len(tiles)),
-                        memTile=None,
-                        epCount=num_eps)
+                        memTile=None)
 tiles.append(tile)
 
 runSimulation(root, options, tiles)

@@ -17,7 +17,7 @@
 #define TCU_MMIO_ADDR       0xF0000000
 #define _TCU_EXT_REGS       0
 #define TCU_TILE_DESC       (_TCU_EXT_REGS + (1 * 8))
-#define _TCU_UNPRIV_REGS    (_TCU_EXT_REGS + (3 * 8))
+#define _TCU_UNPRIV_REGS    (_TCU_EXT_REGS + (5 * 8))
 #define TCU_COMMAND         (_TCU_UNPRIV_REGS + (0 * 8))
 #define TCU_DATA_ADDR       (_TCU_UNPRIV_REGS + (1 * 8))
 #define TCU_DATA_SIZE       (_TCU_UNPRIV_REGS + (2 * 8))

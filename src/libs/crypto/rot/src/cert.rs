@@ -56,6 +56,7 @@ impl BinaryPayload {
 #[serde(crate = "base::serde")]
 pub struct M3KernelConfig<'a> {
     pub mem_size: GlobOff,
+    pub eps_num: u32,
     pub cmdline: &'a str,
 }
 
