@@ -100,7 +100,7 @@ fn hash_mapped_mem(t: &mut dyn WvTester) {
 
     const ADDR: VirtAddr = VirtAddr::new(0x3000_0000);
     const SIZE: usize = 32 * 1024; // 32 KiB
-    let mcap = wv_assert_ok!(MemCap::new(SIZE, Perm::RW));
+    let mcap = wv_assert_ok!(MemCap::new(SIZE as GlobOff, Perm::RW));
 
     // Prepare hash session
     let hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
@@ -352,8 +352,8 @@ fn _shake_and_hash(
 
 fn shake_and_hash(t: &mut dyn WvTester) {
     let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHAKE128));
-    let mgate = wv_assert_ok!(MemGate::new(SHAKE_SIZE, Perm::RW));
-    let mgate_derived = wv_assert_ok!(mgate.derive_cap(0, SHAKE_SIZE, Perm::RW));
+    let mgate = wv_assert_ok!(MemGate::new(SHAKE_SIZE as GlobOff, Perm::RW));
+    let mgate_derived = wv_assert_ok!(mgate.derive_cap(0, SHAKE_SIZE as GlobOff, Perm::RW));
     wv_assert_ok!(hash.ep().configure(mgate_derived.sel()));
 
     _shake_and_hash(

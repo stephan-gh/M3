@@ -18,6 +18,7 @@ use m3::com::MemGate;
 use m3::errors::Code;
 use m3::io::{Read, Write};
 use m3::kif;
+use m3::mem::GlobOff;
 use m3::test::WvTester;
 use m3::tiles::OwnActivity;
 use m3::vfs::{File, IndirectPipe, OpenFlags, VFS};
@@ -66,7 +67,7 @@ fn files(t: &mut dyn WvTester) {
 
 fn pipes(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
-    let pipe_mem = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
+    let pipe_mem = wv_assert_ok!(MemGate::new(PIPE_SIZE as GlobOff, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, pipe_mem));
 
     let mut fin = wv_assert_some!(pipe.reader());

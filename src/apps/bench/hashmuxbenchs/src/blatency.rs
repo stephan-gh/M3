@@ -20,6 +20,7 @@ use m3::col::Vec;
 use m3::com::{MemCap, MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
 use m3::io::LogFlags;
+use m3::mem::GlobOff;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::time::{CycleDuration, CycleInstant, Results, TimeDuration, TimeInstant};
@@ -42,7 +43,7 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
 
     let tile = wv_assert_ok!(Tile::new(Activity::own().tile_desc()));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, &format!("hash-c{}", num)));
-    let mcap = wv_assert_ok!(mgate.derive_cap(0, size, Perm::R));
+    let mcap = wv_assert_ok!(mgate.derive_cap(0, size as GlobOff, Perm::R));
 
     wv_assert_ok!(act.delegate_obj(sem.sel()));
     wv_assert_ok!(act.delegate_obj(mcap.sel()));
@@ -86,7 +87,7 @@ const WAIT_MASK: u64 = 262144 - 1;
 
 fn _bench_latency(mgate: &MemGate, size: usize) -> Results<CycleDuration> {
     let hash = wv_assert_ok!(HashSession::new("hash-latency", TEST_ALGO));
-    let mgated = wv_assert_ok!(mgate.derive_cap(0, size, Perm::R));
+    let mgated = wv_assert_ok!(mgate.derive_cap(0, size as GlobOff, Perm::R));
     wv_assert_ok!(hash.ep().configure(mgated.sel()));
 
     // Read pseudo random memory from the memory region filled with SHAKE earlier

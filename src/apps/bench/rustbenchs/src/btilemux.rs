@@ -105,7 +105,7 @@ fn translates(_t: &mut dyn WvTester) {
     let prof = Profiler::default().repeats(10).warmup(2);
     let results = MyResults(prof.runner::<CycleInstant, _>(&mut Tester {
         virt: VirtAddr::null(),
-        mgate: MemGate::new(PAGES * cfg::PAGE_SIZE, Perm::RW).unwrap(),
+        mgate: MemGate::new((PAGES * cfg::PAGE_SIZE) as GlobOff, Perm::RW).unwrap(),
     }));
 
     wv_perf!("TCU read (1 byte) with translate", results);

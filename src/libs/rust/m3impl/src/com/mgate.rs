@@ -47,7 +47,7 @@ impl MemCap {
     /// Creates a new `MemCap` that has access to a region of `size` bytes with permissions `perm`.
     ///
     /// This method will allocate `size` bytes with given permissions from the resource manager.
-    pub fn new(size: usize, perm: Perm) -> Result<Self, Error> {
+    pub fn new(size: GlobOff, perm: Perm) -> Result<Self, Error> {
         Self::new_with(MGateArgs::new(size, perm))
     }
 
@@ -130,7 +130,7 @@ impl MemCap {
     ///
     /// Note that kernel makes sure that only owned permissions can be passed on to the derived
     /// `MemCap`.
-    pub fn derive(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<Self, Error> {
+    pub fn derive(&self, offset: GlobOff, size: GlobOff, perm: Perm) -> Result<Self, Error> {
         let sel = SelSpace::get().alloc_sel();
         self.derive_for(Activity::own().sel(), sel, offset, size, perm)
     }
@@ -142,10 +142,10 @@ impl MemCap {
         act: Selector,
         sel: Selector,
         offset: GlobOff,
-        size: usize,
+        size: GlobOff,
         perm: Perm,
     ) -> Result<Self, Error> {
-        syscalls::derive_mem(act, sel, self.sel(), offset, size as GlobOff, perm)?;
+        syscalls::derive_mem(act, sel, self.sel(), offset, size, perm)?;
         Ok(Self {
             cap: Capability::new(sel, CapFlags::empty()),
             resmng: false,
@@ -242,14 +242,14 @@ pub struct MemGate {
 
 /// The arguments for [`MemGate`] creations.
 pub struct MGateArgs {
-    size: usize,
+    size: GlobOff,
     perm: Perm,
     sel: Selector,
 }
 
 impl MGateArgs {
     /// Creates a new `MGateArgs` object with default settings
-    pub fn new(size: usize, perm: Perm) -> MGateArgs {
+    pub fn new(size: GlobOff, perm: Perm) -> MGateArgs {
         MGateArgs {
             size,
             perm,
@@ -270,7 +270,7 @@ impl MemGate {
     /// Creates a new `MemGate` that has access to a region of `size` bytes with permissions `perm`.
     ///
     /// This method will allocate `size` bytes with given permissions from the resource manager.
-    pub fn new(size: usize, perm: Perm) -> Result<Self, Error> {
+    pub fn new(size: GlobOff, perm: Perm) -> Result<Self, Error> {
         MemCap::new(size, perm)?.activate()
     }
 
@@ -326,13 +326,13 @@ impl MemGate {
     }
 
     /// Like `MemCap::derive`, but creates a `MemGate`
-    pub fn derive(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<Self, Error> {
+    pub fn derive(&self, offset: GlobOff, size: GlobOff, perm: Perm) -> Result<Self, Error> {
         let sel = SelSpace::get().alloc_sel();
         self.derive_for(Activity::own().sel(), sel, offset, size, perm)
     }
 
     /// Derives a `MemCap` from this `MemGate`
-    pub fn derive_cap(&self, offset: GlobOff, size: usize, perm: Perm) -> Result<MemCap, Error> {
+    pub fn derive_cap(&self, offset: GlobOff, size: GlobOff, perm: Perm) -> Result<MemCap, Error> {
         MemCap::new_bind(self.sel()).derive(offset, size, perm)
     }
 
@@ -342,7 +342,7 @@ impl MemGate {
         act: Selector,
         sel: Selector,
         offset: GlobOff,
-        size: usize,
+        size: GlobOff,
         perm: Perm,
     ) -> Result<Self, Error> {
         MemCap::new_bind(self.sel())

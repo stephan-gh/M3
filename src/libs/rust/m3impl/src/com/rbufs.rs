@@ -99,7 +99,7 @@ pub(crate) fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
 
 fn map_rbuf(addr: VirtAddr, size: usize) -> Result<MemGate, Error> {
     let size = math::round_up(size, cfg::PAGE_SIZE);
-    let mgate = MemGate::new(size, Perm::R)?;
+    let mgate = MemGate::new(size as GlobOff, Perm::R)?;
     crate::syscalls::create_map(
         addr,
         Activity::own().sel(),

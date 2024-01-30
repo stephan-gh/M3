@@ -231,7 +231,7 @@ impl Device {
 
         // read MBR from disk
         let mut buffer = [0u8; 512];
-        let size = mem::size_of_val(&buffer) + mem::size_of::<PRD>();
+        let size = (mem::size_of_val(&buffer) + mem::size_of::<PRD>()) as GlobOff;
         let mg_buf = MemGate::new(size, Perm::RW)?;
         let dev_buf = mg_buf.derive_cap(0, size, Perm::RW)?;
         chan.set_dma_buffer(&dev_buf)?;

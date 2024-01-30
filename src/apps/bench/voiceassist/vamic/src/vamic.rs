@@ -81,7 +81,7 @@ impl MicSession {
         sess.img = Some(
             AUDIO_DATA
                 .borrow()
-                .derive_cap(0, AUDIO_SIZE.get(), Perm::R)?,
+                .derive_cap(0, AUDIO_SIZE.get() as GlobOff, Perm::R)?,
         );
 
         xchg.out_args().push(AUDIO_SIZE.get());
@@ -119,7 +119,7 @@ pub fn main() -> Result<(), Error> {
 
     // create buffer
     AUDIO_SIZE.set(info.size);
-    AUDIO_DATA.set(MemGate::new(buf_size, Perm::RW).expect("unable to allocate buffer"));
+    AUDIO_DATA.set(MemGate::new(buf_size as GlobOff, Perm::RW).expect("unable to allocate buffer"));
 
     // read file into buffer
     let mut local = [0u8; 1024];

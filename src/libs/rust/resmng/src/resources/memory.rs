@@ -195,12 +195,10 @@ impl MemSlice {
     }
 
     pub fn derive(&self) -> Result<MemCap, Error> {
-        self.mem
-            .mcap
-            .derive(self.offset, self.size as usize, self.perm)
+        self.mem.mcap.derive(self.offset, self.size, self.perm)
     }
 
-    pub fn derive_with(&self, off: GlobOff, size: usize) -> Result<MemCap, Error> {
+    pub fn derive_with(&self, off: GlobOff, size: GlobOff) -> Result<MemCap, Error> {
         self.mem.mcap.derive(self.offset + off, size, self.perm)
     }
 

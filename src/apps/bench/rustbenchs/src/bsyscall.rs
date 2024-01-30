@@ -229,7 +229,7 @@ fn create_map(_t: &mut dyn WvTester) {
         }
     }
 
-    let mut tester = Tester(MemGate::new(cfg::PAGE_SIZE * 2, Perm::RW).unwrap());
+    let mut tester = Tester(MemGate::new((cfg::PAGE_SIZE * 2) as GlobOff, Perm::RW).unwrap());
     wv_perf!("create_map", prof.runner::<CycleInstant, _>(&mut tester));
 }
 

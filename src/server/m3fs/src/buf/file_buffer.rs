@@ -51,9 +51,10 @@ impl_boxitem!(FileBufferEntry);
 
 impl FileBufferEntry {
     fn new(blocks: BlockRange, blocksize: usize) -> Result<Self, Error> {
+        let size = (blocks.count as usize * blocksize + PRDT_SIZE) as GlobOff;
         Ok(FileBufferEntry {
             blocks,
-            data: MemCap::new(blocks.count as usize * blocksize + PRDT_SIZE, Perm::RWX)?,
+            data: MemCap::new(size, Perm::RWX)?,
 
             prev: None,
             next: None,

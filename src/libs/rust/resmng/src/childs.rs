@@ -327,7 +327,7 @@ pub trait Child {
 
         let alloc = self.mem().pool.borrow_mut().allocate(size)?;
         let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
-        let mcap = MemCap::new_bind(mem_sel).derive(alloc.addr(), alloc.size() as usize, perm)?;
+        let mcap = MemCap::new_bind(mem_sel).derive(alloc.addr(), alloc.size(), perm)?;
         self.add_mem(alloc, None);
         Ok((mcap, alloc))
     }
@@ -507,9 +507,7 @@ pub trait Child {
             .find(mdesc.name().global())
             .ok_or_else(|| Error::new(Code::NotFound))?;
 
-        let mcap = bmod
-            .memory()
-            .derive(0, bmod.size() as usize, mdesc.perm())?;
+        let mcap = bmod.memory().derive(0, bmod.size(), mdesc.perm())?;
         let our_sel = mcap.sel();
         self.res_mut().mods.push(mcap);
         self.delegate(our_sel, sel)

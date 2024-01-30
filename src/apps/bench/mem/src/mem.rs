@@ -22,6 +22,7 @@ use m3::com::MemGate;
 use m3::env;
 use m3::errors::Error;
 use m3::kif;
+use m3::mem::GlobOff;
 use m3::time::{CycleInstant, Profiler};
 use m3::{format, vec, wv_perf};
 
@@ -32,7 +33,7 @@ pub fn main() -> Result<(), Error> {
     let buf = vec![0u8; 1024 * 1024];
     let mut buf2 = vec![0u8; 1024 * 1024];
 
-    let mgate = MemGate::new(buf.len(), kif::Perm::W).expect("Unable to create mgate");
+    let mgate = MemGate::new(buf.len() as GlobOff, kif::Perm::W).expect("Unable to create mgate");
 
     for i in 0..=28 {
         let prof = Profiler::default().repeats(10).warmup(2);

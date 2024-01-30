@@ -91,7 +91,12 @@ impl TileState {
 
     pub fn inherit_mem_regions(&mut self, tile: &TileUsage) -> Result<(), Error> {
         for (mgate, size) in tile.state().pmp_regions.iter() {
-            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size, true, true)?;
+            self.add_mem_region(
+                mgate.derive(0, *size as GlobOff, Perm::RWX)?,
+                *size,
+                true,
+                true,
+            )?;
         }
         Ok(())
     }

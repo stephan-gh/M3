@@ -58,7 +58,7 @@ fn mem_off(id: SessId) -> GlobOff {
 
 impl Channel {
     pub fn new(id: SessId, mem: Rc<MemGate>, writing: bool) -> Result<Self, Error> {
-        let cmem = mem.derive_cap(mem_off(id), BUF_SIZE, kif::Perm::RW)?;
+        let cmem = mem.derive_cap(mem_off(id), BUF_SIZE as GlobOff, kif::Perm::RW)?;
 
         Ok(Channel {
             id,

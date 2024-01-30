@@ -23,7 +23,7 @@ use m3::com::{recv_msg, GateIStream, MemGate, RGateArgs, RecvGate, SendGate};
 use m3::errors::Error;
 use m3::io::LogFlags;
 use m3::kif::Perm;
-use m3::mem::{size_of, MsgBuf};
+use m3::mem::{size_of, GlobOff, MsgBuf};
 use m3::time::{CycleDuration, CycleInstant, Duration, Profiler};
 use m3::util::math::next_log2;
 use m3::{env, reply_vmsg};
@@ -265,7 +265,7 @@ fn storage(args: &[&str]) {
     let node = Node::new("storage".to_string(), ctrl_msg_size, data_size);
 
     let mem_gate = if data_size > 0 {
-        Some(MemGate::new(data_size, Perm::W).expect("Unable to create memory gate"))
+        Some(MemGate::new(data_size as GlobOff, Perm::W).expect("Unable to create memory gate"))
     }
     else {
         None

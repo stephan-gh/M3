@@ -163,7 +163,7 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
     ));
     wv_assert_ok!(act.delegate_obj(scap.sel()));
 
-    let mcap = wv_assert_ok!(mgate.derive_cap(0, params.size, Perm::R));
+    let mcap = wv_assert_ok!(mgate.derive_cap(0, params.size as mem::GlobOff, Perm::R));
 
     assert_eq!(params.size % params.div, 0);
     let slice = params.size / params.div;

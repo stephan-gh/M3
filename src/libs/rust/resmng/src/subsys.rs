@@ -424,7 +424,7 @@ impl Subsystem {
                     tile_usage
                         .state_mut()
                         .add_mem_region(
-                            m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
+                            m.mgate().derive(0, m.capacity(), Perm::RWX)?,
                             m.capacity() as usize,
                             false,
                             false,
@@ -666,7 +666,7 @@ impl Subsystem {
         let cfg_range = cfg.cfg_range();
         let cfg_str = &self.cfg_str()[cfg_range.0..cfg_range.1];
         sub.add_config(cfg_str, |size| {
-            let cfg_slice = res.memory_mut().alloc_mem(size as GlobOff)?;
+            let cfg_slice = res.memory_mut().alloc_mem(size)?;
             // alloc_mem gives us full pages; cut it down to the string size
             cfg_slice.derive_with(0, size)?.activate()
         })
@@ -721,9 +721,9 @@ pub struct SubsystemBuilder {
 impl SubsystemBuilder {
     pub fn add_config<F>(&mut self, cfg: &str, alloc: F) -> Result<(), Error>
     where
-        F: FnOnce(usize) -> Result<MemGate, Error>,
+        F: FnOnce(GlobOff) -> Result<MemGate, Error>,
     {
-        let cfg_mem = alloc(cfg.len())?;
+        let cfg_mem = alloc(cfg.len() as GlobOff)?;
         cfg_mem.write(cfg.as_bytes(), 0)?;
 
         // deactivate the memory gates so that the child can activate them for itself
@@ -934,7 +934,7 @@ fn pass_down_mods(
                 })?;
 
                 // derive memory cap with potentially reduced permissions
-                let mgate = bmod.memory().derive(0, bmod.size() as usize, m.perm())?;
+                let mgate = bmod.memory().derive(0, bmod.size(), m.perm())?;
 
                 sub.add_mod(mgate, bmod.name());
             }

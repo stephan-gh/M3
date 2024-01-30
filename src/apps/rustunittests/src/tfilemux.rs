@@ -21,6 +21,7 @@ use m3::client::Pipes;
 use m3::com::MemGate;
 use m3::io::{Read, Write};
 use m3::kif;
+use m3::mem::GlobOff;
 use m3::test::WvTester;
 use m3::vfs::{BufReader, FileRef, GenericFile, IndirectPipe, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
@@ -71,7 +72,7 @@ fn pipe_mux(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut pipes = vec![];
     for _ in 0..NUM {
-        let mgate = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
+        let mgate = wv_assert_ok!(MemGate::new(PIPE_SIZE as GlobOff, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, mgate));
         pipes.push(Pipe {
             reader: pipe.reader().unwrap(),

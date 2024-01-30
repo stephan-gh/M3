@@ -169,7 +169,7 @@ fn create_mgate(t: &mut dyn WvTester) {
 
         // create 4-page mapping
         let virt = VirtAddr::new(0x3000_0000);
-        let mem = wv_assert_ok!(MemGate::new(PAGE_SIZE * 4, Perm::RW));
+        let mem = wv_assert_ok!(MemGate::new((PAGE_SIZE * 4) as GlobOff, Perm::RW));
         wv_assert_ok!(syscalls::create_map(
             virt,
             Activity::own().sel(),
@@ -281,7 +281,7 @@ fn create_map(t: &mut dyn WvTester) {
 
     let virt = VirtAddr::null();
     let meminv = wv_assert_ok!(MemGate::new(64, Perm::RW)); // not page-granular
-    let mem = wv_assert_ok!(MemGate::new(PAGE_SIZE * 4, Perm::RW));
+    let mem = wv_assert_ok!(MemGate::new((PAGE_SIZE * 4) as GlobOff, Perm::RW));
 
     // invalid activity selector
     wv_assert_err!(

@@ -15,14 +15,15 @@
 use m3::client::HashSession;
 use m3::com::{MemGate, Perm};
 use m3::crypto::HashAlgorithm;
+use m3::mem::GlobOff;
 use m3::wv_assert_ok;
 
 pub fn prepare_shake_mem(size: usize) -> MemGate {
-    let mgate = wv_assert_ok!(MemGate::new(size, Perm::RW));
+    let mgate = wv_assert_ok!(MemGate::new(size as GlobOff, Perm::RW));
     let hash = wv_assert_ok!(HashSession::new("hash-prepare", &HashAlgorithm::SHAKE128));
 
     // Fill memory with pseudo-random data from SHAKE128
-    let mgated = wv_assert_ok!(mgate.derive_cap(0, size, Perm::W));
+    let mgated = wv_assert_ok!(mgate.derive_cap(0, size as GlobOff, Perm::W));
     wv_assert_ok!(hash.ep().configure(mgated.sel()));
     wv_assert_ok!(hash.output(0, size));
     mgate

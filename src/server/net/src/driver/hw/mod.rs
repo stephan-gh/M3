@@ -21,7 +21,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::kif::{PageFlags, Perm};
-use m3::mem::{PhysAddrRaw, VirtAddr};
+use m3::mem::{GlobOff, PhysAddrRaw, VirtAddr};
 use m3::tiles::Activity;
 use m3::vec;
 
@@ -47,7 +47,7 @@ pub struct AXIEthDevice {
 
 impl AXIEthDevice {
     pub fn new() -> Result<Self, Error> {
-        let bufs = MemGate::new(ALL_BUF_SIZE, Perm::RW)?;
+        let bufs = MemGate::new(ALL_BUF_SIZE as GlobOff, Perm::RW)?;
         Activity::own().pager().unwrap().map_mem(
             BUF_VIRT_ADDR,
             bufs.sel(),

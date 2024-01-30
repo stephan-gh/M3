@@ -26,6 +26,7 @@ use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
+use m3::mem::GlobOff;
 use m3::rc::Rc;
 use m3::server::{
     server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
@@ -191,7 +192,8 @@ impl VTermSession {
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
     MEM.set(Rc::new(
-        MemGate::new(DEF_MAX_CLIENTS * chan::BUF_SIZE, Perm::RW).expect("Unable to alloc memory"),
+        MemGate::new((DEF_MAX_CLIENTS * chan::BUF_SIZE) as GlobOff, Perm::RW)
+            .expect("Unable to alloc memory"),
     ));
 
     let mut hdl = RequestHandler::new().expect("Unable to create request handler");

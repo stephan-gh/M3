@@ -15,7 +15,7 @@
 
 use m3::com::MemGate;
 use m3::kif::Perm;
-use m3::mem::VirtAddr;
+use m3::mem::{GlobOff, VirtAddr};
 use m3::test::WvTester;
 use m3::tiles::Activity;
 use m3::{wv_assert_ok, wv_run_test};
@@ -28,7 +28,7 @@ fn large_pages(_t: &mut dyn WvTester) {
     if let Some(pager) = Activity::own().pager() {
         const VIRT: VirtAddr = VirtAddr::new(0x3000_0000);
         const MEM_SIZE: usize = 6 * 1024 * 1024;
-        let mem = wv_assert_ok!(MemGate::new(MEM_SIZE, Perm::RW));
+        let mem = wv_assert_ok!(MemGate::new(MEM_SIZE as GlobOff, Perm::RW));
         wv_assert_ok!(pager.map_mem(VIRT, mem.sel(), MEM_SIZE, Perm::RW));
 
         let ptr = VIRT.as_mut_ptr::<u64>();

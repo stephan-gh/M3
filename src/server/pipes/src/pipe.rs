@@ -22,6 +22,7 @@ use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
+use m3::mem::GlobOff;
 use m3::rc::Rc;
 use m3::send_vmsg;
 use m3::server::SessId;
@@ -229,7 +230,7 @@ impl State {
                 ChanType::READ => kif::Perm::R,
                 ChanType::WRITE => kif::Perm::W,
             };
-            let cmem = mem.derive(0, self.mem_size, perm)?;
+            let cmem = mem.derive(0, self.mem_size as GlobOff, perm)?;
             // activate it on client's EP
             log!(
                 LogFlags::PipeReqs,

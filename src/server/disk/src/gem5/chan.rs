@@ -162,8 +162,11 @@ impl Channel {
             lba,
         );
 
-        let dev_buf =
-            buf.derive_cap(buf_off as GlobOff, bytes + mem::size_of::<PRD>(), Perm::RW)?;
+        let dev_buf = buf.derive_cap(
+            buf_off as GlobOff,
+            (bytes + mem::size_of::<PRD>()) as GlobOff,
+            Perm::RW,
+        )?;
         self.set_dma_buffer(&dev_buf)?;
 
         dev.read_write(self, dev_op, buf, buf_off, lba, dev.sector_size(), count)

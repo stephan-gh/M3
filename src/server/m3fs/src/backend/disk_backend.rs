@@ -169,10 +169,10 @@ impl Backend for DiskBackend {
     }
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
-        let tmp = MemCap::new(512 + PRDT_SIZE, Perm::RW)?;
+        let tmp = MemCap::new((512 + PRDT_SIZE) as GlobOff, Perm::RW)?;
         // use a separate MemGate for the disk service, because both have to activate the gate,
         // which can only be done once per MemGate.
-        let tmp_disk = tmp.derive(0, 512 + PRDT_SIZE, Perm::RW)?;
+        let tmp_disk = tmp.derive(0, (512 + PRDT_SIZE) as GlobOff, Perm::RW)?;
         self.disk.delegate_mem(&tmp_disk, BlockRange::new(0))?;
         self.disk.read(0, BlockRange::new(0), 512, None)?;
         let super_block = tmp.activate()?.read_obj::<SuperBlock>(0)?;
@@ -180,14 +180,13 @@ impl Backend for DiskBackend {
         // use separate transfer buffer for each entry to allow parallel disk requests
         self.blocksize = super_block.block_size as usize;
         let size = (self.blocksize + PRDT_SIZE) * crate::buf::META_BUFFER_SIZE;
-        self.metabuf = Some(MemGate::new(size, Perm::RW)?);
+        self.metabuf = Some(MemGate::new(size as GlobOff, Perm::RW)?);
         // separate MemGate for the same reason as above
-        self.metabuf_disk = Some(
-            self.metabuf
-                .as_ref()
-                .unwrap()
-                .derive_cap(0, size, Perm::RW)?,
-        );
+        self.metabuf_disk = Some(self.metabuf.as_ref().unwrap().derive_cap(
+            0,
+            size as GlobOff,
+            Perm::RW,
+        )?);
 
         // store the MemCap as blockno 0, bc we won't load the superblock again
         self.disk
