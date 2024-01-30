@@ -228,19 +228,20 @@ impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
 
     #[inline(always)]
     fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {
-        self.push_word(v as u64);
+        self.push_word(v.to_bits() as u64);
         Ok(())
     }
 
     #[inline(always)]
     fn serialize_f64(self, v: f64) -> Result<Self::Ok, Self::Error> {
-        self.push_word(v as u64);
+        self.push_word(v.to_bits());
         Ok(())
     }
 
     #[inline(always)]
-    fn serialize_char(self, _v: char) -> Result<Self::Ok, Self::Error> {
-        unimplemented!()
+    fn serialize_char(self, v: char) -> Result<Self::Ok, Self::Error> {
+        self.push_word(v as u64);
+        Ok(())
     }
 
     #[inline(always)]

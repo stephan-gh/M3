@@ -39,6 +39,7 @@ mod tpaging;
 mod tpipe;
 mod trgate;
 mod tsems;
+mod tserialize;
 mod tserver;
 mod tsgate;
 mod tsrvmsgs;
@@ -50,6 +51,7 @@ pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, tboxlist::run);
     wv_run_suite!(tester, tbufio::run);
+    wv_run_suite!(tester, tserialize::run);
     wv_run_suite!(tester, tdir::run);
     wv_run_suite!(tester, tdlist::run);
     wv_run_suite!(tester, tenvvars::run);

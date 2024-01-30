@@ -193,27 +193,29 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     }
 
     #[inline(always)]
-    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_f32(f32::from_bits(self.pop_word()? as u32))
     }
 
     #[inline(always)]
-    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_f64(f64::from_bits(self.pop_word()?))
     }
 
     #[inline(always)]
-    fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_char(
+            char::from_u32(self.pop_word()? as u32).ok_or_else(|| Error::new(Code::InvArgs))?,
+        )
     }
 
     #[inline(always)]
@@ -304,7 +306,12 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_seq(self)
+        let len = self.pop_word()? as usize;
+        visitor.visit_seq(SizedSeqAccess {
+            de: self,
+            pos: 0,
+            len,
+        })
     }
 
     #[inline(always)]
@@ -388,6 +395,34 @@ impl<'de, 'a> SeqAccess<'de> for &'a mut M3Deserializer<'de> {
         T: DeserializeSeed<'de>,
     {
         seed.deserialize(&mut **self).map(Some)
+    }
+}
+
+struct SizedSeqAccess<'de, 'a> {
+    de: &'a mut M3Deserializer<'de>,
+    pos: usize,
+    len: usize,
+}
+
+impl<'de, 'a> SeqAccess<'de> for SizedSeqAccess<'de, 'a> {
+    type Error = Error;
+
+    #[inline(always)]
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        if self.pos >= self.len {
+            Ok(None)
+        }
+        else {
+            self.pos += 1;
+            seed.deserialize(&mut *self.de).map(Some)
+        }
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.len)
     }
 }
 
