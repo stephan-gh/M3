@@ -276,12 +276,14 @@ impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
 
     #[inline(always)]
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        // nothing to do
+        Ok(())
     }
 
     #[inline(always)]
     fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        // nothing to do
+        Ok(())
     }
 
     #[inline(always)]
@@ -341,18 +343,19 @@ impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        unimplemented!()
+        Ok(self)
     }
 
     #[inline(always)]
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
-        _variant_index: u32,
+        idx: u32,
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        unimplemented!()
+        self.serialize_u32(idx)?;
+        Ok(self)
     }
 
     #[inline(always)]
@@ -423,16 +426,16 @@ impl<'a, S: Sink> ser::SerializeTupleStruct for &'a mut M3Serializer<S> {
     type Ok = ();
 
     #[inline(always)]
-    fn serialize_field<T: ?Sized>(&mut self, _value: &T) -> Result<(), Self::Error>
+    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
         T: serde::Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     #[inline(always)]
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        Ok(())
     }
 }
 
@@ -441,16 +444,16 @@ impl<'a, S: Sink> ser::SerializeTupleVariant for &'a mut M3Serializer<S> {
     type Ok = ();
 
     #[inline(always)]
-    fn serialize_field<T: ?Sized>(&mut self, _value: &T) -> Result<(), Self::Error>
+    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
         T: serde::Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     #[inline(always)]
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        Ok(())
     }
 }
 

@@ -41,6 +41,7 @@ fn basics(t: &mut dyn WvTester) {
     ser.push(10.8f64);
     ser.push('a');
     ser.push(true);
+    ser.push(());
 
     let mut de = M3Deserializer::new(&vec);
     wv_assert_eq!(t, de.pop::<u8>(), Ok(1u8));
@@ -55,6 +56,7 @@ fn basics(t: &mut dyn WvTester) {
     wv_assert_eq!(t, de.pop::<f64>(), Ok(10.8f64));
     wv_assert_eq!(t, de.pop::<char>(), Ok('a'));
     wv_assert_eq!(t, de.pop::<bool>(), Ok(true));
+    wv_assert_eq!(t, de.pop::<()>(), Ok(()));
 }
 
 fn strings(t: &mut dyn WvTester) {
@@ -90,6 +92,14 @@ fn structs(t: &mut dyn WvTester) {
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     #[serde(crate = "m3::serde")]
+    struct FooUnit;
+
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+    #[serde(crate = "m3::serde")]
+    struct FooTupleStruct(u32, bool, u8);
+
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+    #[serde(crate = "m3::serde")]
     enum Bar {
         A,
         B,
@@ -100,6 +110,13 @@ fn structs(t: &mut dyn WvTester) {
     enum Zoo {
         A(u32),
         B(bool),
+    }
+
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+    #[serde(crate = "m3::serde")]
+    enum ZooTupleVariant {
+        A(u32, u64),
+        B(bool, u8),
     }
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -116,10 +133,14 @@ fn structs(t: &mut dyn WvTester) {
         b: true,
         c: String::from("test"),
     });
+    ser.push(FooUnit);
+    ser.push(FooTupleStruct(4, true, 16));
     ser.push(Bar::A);
     ser.push(Bar::B);
     ser.push(Zoo::A(2));
     ser.push(Zoo::B(false));
+    ser.push(ZooTupleVariant::A(0, 10));
+    ser.push(ZooTupleVariant::B(true, 255));
     ser.push(Zar::A { a: 4, b: 6 });
     ser.push(Zar::B {
         c: String::from("zar"),
@@ -135,10 +156,26 @@ fn structs(t: &mut dyn WvTester) {
             c: String::from("test")
         })
     );
+    wv_assert_eq!(t, de.pop::<FooUnit>(), Ok(FooUnit));
+    wv_assert_eq!(
+        t,
+        de.pop::<FooTupleStruct>(),
+        Ok(FooTupleStruct(4, true, 16))
+    );
     wv_assert_eq!(t, de.pop::<Bar>(), Ok(Bar::A));
     wv_assert_eq!(t, de.pop::<Bar>(), Ok(Bar::B));
     wv_assert_eq!(t, de.pop::<Zoo>(), Ok(Zoo::A(2)));
     wv_assert_eq!(t, de.pop::<Zoo>(), Ok(Zoo::B(false)));
+    wv_assert_eq!(
+        t,
+        de.pop::<ZooTupleVariant>(),
+        Ok(ZooTupleVariant::A(0, 10))
+    );
+    wv_assert_eq!(
+        t,
+        de.pop::<ZooTupleVariant>(),
+        Ok(ZooTupleVariant::B(true, 255))
+    );
     wv_assert_eq!(t, de.pop::<Zar>(), Ok(Zar::A { a: 4, b: 6 }));
     wv_assert_eq!(
         t,

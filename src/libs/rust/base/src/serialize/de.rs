@@ -281,12 +281,12 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     fn deserialize_unit_struct<V>(
         self,
         _name: &'static str,
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_unit()
     }
 
     #[inline(always)]
@@ -327,12 +327,12 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         self,
         _name: &'static str,
         _len: usize,
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_seq(self)
     }
 
     #[inline(always)]
@@ -457,11 +457,11 @@ impl<'de, 'a> VariantAccess<'de> for &'a mut M3Deserializer<'de> {
     }
 
     #[inline(always)]
-    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_seq(self)
     }
 
     #[inline(always)]
