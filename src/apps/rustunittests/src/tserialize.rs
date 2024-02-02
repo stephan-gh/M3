@@ -24,6 +24,7 @@ pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, strings);
     wv_run_test!(t, sequences);
     wv_run_test!(t, structs);
+    wv_run_test!(t, enums);
 }
 
 fn basics(t: &mut dyn WvTester) {
@@ -98,6 +99,35 @@ fn structs(t: &mut dyn WvTester) {
     #[serde(crate = "m3::serde")]
     struct FooTupleStruct(u32, bool, u8);
 
+    let mut vec = vec![];
+    let mut ser = M3Serializer::new(VecSink::new(&mut vec));
+    ser.push(Foo {
+        a: 1,
+        b: true,
+        c: String::from("test"),
+    });
+    ser.push(FooUnit);
+    ser.push(FooTupleStruct(4, true, 16));
+
+    let mut de = M3Deserializer::new(&vec);
+    wv_assert_eq!(
+        t,
+        de.pop::<Foo>(),
+        Ok(Foo {
+            a: 1,
+            b: true,
+            c: String::from("test")
+        })
+    );
+    wv_assert_eq!(t, de.pop::<FooUnit>(), Ok(FooUnit));
+    wv_assert_eq!(
+        t,
+        de.pop::<FooTupleStruct>(),
+        Ok(FooTupleStruct(4, true, 16))
+    );
+}
+
+fn enums(t: &mut dyn WvTester) {
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     #[serde(crate = "m3::serde")]
     enum Bar {
@@ -128,13 +158,6 @@ fn structs(t: &mut dyn WvTester) {
 
     let mut vec = vec![];
     let mut ser = M3Serializer::new(VecSink::new(&mut vec));
-    ser.push(Foo {
-        a: 1,
-        b: true,
-        c: String::from("test"),
-    });
-    ser.push(FooUnit);
-    ser.push(FooTupleStruct(4, true, 16));
     ser.push(Bar::A);
     ser.push(Bar::B);
     ser.push(Zoo::A(2));
@@ -147,21 +170,6 @@ fn structs(t: &mut dyn WvTester) {
     });
 
     let mut de = M3Deserializer::new(&vec);
-    wv_assert_eq!(
-        t,
-        de.pop::<Foo>(),
-        Ok(Foo {
-            a: 1,
-            b: true,
-            c: String::from("test")
-        })
-    );
-    wv_assert_eq!(t, de.pop::<FooUnit>(), Ok(FooUnit));
-    wv_assert_eq!(
-        t,
-        de.pop::<FooTupleStruct>(),
-        Ok(FooTupleStruct(4, true, 16))
-    );
     wv_assert_eq!(t, de.pop::<Bar>(), Ok(Bar::A));
     wv_assert_eq!(t, de.pop::<Bar>(), Ok(Bar::B));
     wv_assert_eq!(t, de.pop::<Zoo>(), Ok(Zoo::A(2)));
