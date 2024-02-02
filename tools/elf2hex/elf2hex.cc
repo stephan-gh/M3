@@ -17,19 +17,20 @@
 #include <cstdio>
 #include <elf.h>
 #include <err.h>
+#include <inttypes.h>
 
 static constexpr size_t BYTES_PER_LINE = 8;
 
 static void dumpSection(FILE *f, uint64_t paddr, Elf64_Off offset, uint64_t size) {
     fseek(f, static_cast<off_t>(offset), SEEK_SET);
-    printf("@%08lx\n", paddr / BYTES_PER_LINE);
+    printf("@%08" PRIx64 "\n", paddr / BYTES_PER_LINE);
     while(size > 0) {
         uint64_t bytes = 0;
         size_t n = fread(&bytes, 1, sizeof(bytes), f);
         if(n == 0)
             break;
 
-        printf("%016lx\n", bytes);
+        printf("%016" PRIx64 "\n", bytes);
         if(n > size)
             size = 0;
         else
@@ -66,7 +67,8 @@ int main(int argc, char **argv) {
         if(phdr.p_filesz > 0)
             dumpSection(f, phdr.p_paddr, phdr.p_offset, phdr.p_filesz);
         if(phdr.p_memsz > phdr.p_filesz)
-            printf("z%08lx:%08lx\n", (phdr.p_paddr + phdr.p_filesz) / BYTES_PER_LINE,
+            printf("z%08" PRIx64 ":%08" PRIx64 "\n",
+                   (phdr.p_paddr + phdr.p_filesz) / BYTES_PER_LINE,
                    (phdr.p_memsz - phdr.p_filesz + BYTES_PER_LINE - 1) / BYTES_PER_LINE);
     }
 
