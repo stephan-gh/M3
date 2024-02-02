@@ -59,7 +59,7 @@ static m3::blockno_t last_block = 0;
 static m3::Bitmap *block_bitmap;
 static m3::Bitmap *inode_bitmap;
 
-static uint blks_per_extent;
+static unsigned int blks_per_extent;
 static bool use_rand;
 
 static m3::blockno_t alloc_block(bool new_ext) {
@@ -104,8 +104,8 @@ static bool append_to_extent(m3::INode *ino, m3::Extent *extent, m3::blockno_t b
     return false;
 }
 
-static bool create_indir_block(m3::INode *ino, m3::blockno_t *indir, uint i, m3::blockno_t bno,
-                               int level, uint div, bool new_ext) {
+static bool create_indir_block(m3::INode *ino, m3::blockno_t *indir, unsigned int i,
+                               m3::blockno_t bno, int level, unsigned int div, bool new_ext) {
     m3::Extent *extents = new m3::Extent[sb.extents_per_block()];
     if(*indir == 0) {
         *indir = alloc_block(false);
@@ -132,7 +132,7 @@ static bool create_indir_block(m3::INode *ino, m3::blockno_t *indir, uint i, m3:
 
 static m3::blockno_t store_blockno(const char *path, m3::INode *ino, m3::blockno_t bno,
                                    bool new_ext) {
-    uint i = ino->extents == 0 ? 0 : ino->extents - 1;
+    unsigned int i = ino->extents == 0 ? 0 : ino->extents - 1;
     // if the block number does not fit into the last extent, try the next one (this will always
     // be empty and thus we can use it)
     for(bool res = false; !res; i++) {
@@ -299,7 +299,7 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    srand(static_cast<uint>(time(nullptr)));
+    srand(static_cast<unsigned int>(time(nullptr)));
 
     sb.blocksize = 4096;
     sb.total_blocks = strtoul(argv[3], nullptr, 0);
