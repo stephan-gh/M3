@@ -21,7 +21,6 @@
 use core::cmp;
 
 use crate::cell::{RefMut, StaticCell, StaticRefCell};
-use crate::env;
 use crate::errors::Error;
 use crate::io::{LogFlags, Serial, Write};
 use crate::tcu::{TileId, TCU};
@@ -173,8 +172,9 @@ pub fn init(tile_id: TileId, name: &str, color: LogColor) {
     LOG_READY.set(true);
     Log::get().unwrap().init(tile_id, name, color);
 
+    #[cfg(not(feature = "bench"))]
     // set log flags afterwards so that we can properly print errors during parsing
-    if let Some(log) = env::boot_var("LOG") {
+    if let Some(log) = crate::env::boot_var("LOG") {
         let flags = log
             .split(',')
             .map(|flag| {
