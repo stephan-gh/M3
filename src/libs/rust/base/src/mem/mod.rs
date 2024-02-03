@@ -29,7 +29,9 @@ pub use self::globaddr::{GlobAddr, GlobAddrRaw, GlobOff};
 pub use self::map::MemMap;
 pub use self::physaddr::{PhysAddr, PhysAddrRaw};
 pub use self::virtaddr::{VirtAddr, VirtAddrRaw};
-pub use core::mem::{align_of, align_of_val, forget, replace, size_of, size_of_val, MaybeUninit};
+pub use core::mem::{
+    align_of, align_of_val, forget, offset_of, replace, size_of, size_of_val, MaybeUninit,
+};
 
 #[macro_export]
 macro_rules! impl_prim_int {
