@@ -12,6 +12,7 @@ members = [
     "apps/bench/voiceassist/vamic",
     "apps/bench/voiceassist/varcv",
     "apps/bench/ycsb/ycsbclient",
+    "apps/chantests",
     "apps/coreutils/hashsum",
     "apps/disktest",
     "apps/hashmuxtests",

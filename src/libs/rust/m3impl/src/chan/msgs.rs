@@ -14,7 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-//! A synchronous uni-directional communication channel, similar to `std::sync::mpsc::sync_channel`.
+//! A synchronous uni-directional message-passing channel, similar to
+//! `std::sync::mpsc::sync_channel`.
 //!
 //! A channel consists of a sender and a receiver and allows the sender to send messages to the
 //! receiver. These messages are not buffered, but delivered synchronously to the receiver.
@@ -26,8 +27,9 @@
 //! delivers a single data type.
 
 use crate::cap::Selector;
-use crate::com::stream::recv_msg;
-use crate::com::{rgate::ReceivingGate, GateCap, RecvCap, RecvGate, SGateArgs, SendCap, SendGate};
+use crate::com::{
+    recv_msg, GateCap, ReceivingGate, RecvCap, RecvGate, SGateArgs, SendCap, SendGate,
+};
 use crate::errors::{Code, Error};
 use crate::serialize::{Deserialize, Serialize};
 
@@ -135,12 +137,12 @@ impl Receiver {
 }
 
 /// Creates a new synchronous communication channel with default settings (256b message size)
-pub fn sync_channel() -> Result<(SenderCap, ReceiverCap), Error> {
-    sync_channel_with(256)
+pub fn create() -> Result<(SenderCap, ReceiverCap), Error> {
+    create_with(256)
 }
 
 /// Creates a new synchronous communication channel with the given maximum message size
-pub fn sync_channel_with(msg_size: usize) -> Result<(SenderCap, ReceiverCap), Error> {
+pub fn create_with(msg_size: usize) -> Result<(SenderCap, ReceiverCap), Error> {
     let rx = ReceiverCap::new(msg_size)?;
     let tx = SenderCap::new(&rx.rcap)?;
     Ok((tx, rx))

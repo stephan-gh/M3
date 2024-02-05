@@ -23,6 +23,8 @@
 pub mod io;
 #[macro_use]
 pub mod com;
+#[macro_use]
+pub mod chan;
 
 pub mod net;
 

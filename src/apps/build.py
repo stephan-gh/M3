@@ -2,6 +2,7 @@ dirs = [
     'allocator',
     'bench',
     'bsdutils',
+    'chantests',
     'coreutils',
     'cppnettests',
     'disktest',

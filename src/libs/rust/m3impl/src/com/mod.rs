@@ -44,7 +44,6 @@
 #[macro_use]
 mod stream;
 
-pub mod chan;
 mod ep;
 mod epmng;
 mod gate;

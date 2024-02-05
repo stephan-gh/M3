@@ -17,7 +17,6 @@
  */
 
 use m3::cap::Selector;
-use m3::com::chan;
 use m3::com::{recv_msg, RecvCap, RecvGate, SGateArgs, SendCap, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
@@ -26,14 +25,12 @@ use m3::tiles::{Activity, ActivityArgs, ChildActivity, OwnActivity, RunningActiv
 use m3::time::TimeDuration;
 use m3::util::math;
 
-use m3::{run_with_channels, send_vmsg, wv_assert_eq, wv_assert_ok, wv_run_test};
+use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, run_stop);
     wv_run_test!(t, run_arguments);
     wv_run_test!(t, run_send_receive);
-    wv_run_test!(t, run_send_receive_chan);
-    wv_run_test!(t, run_send_receive_chan_macro);
     wv_run_test!(t, exec_fail);
     wv_run_test!(t, exec_hello);
     wv_run_test!(t, exec_rust_hello);
@@ -136,69 +133,6 @@ fn run_send_receive(t: &mut dyn WvTester) {
     wv_assert_ok!(send_vmsg!(&sgate, RecvGate::def(), 42, 23));
 
     wv_assert_eq!(t, act.wait(), Ok(Code::NoFreeTile));
-}
-
-fn run_send_receive_chan(t: &mut dyn WvTester) {
-    let (tx, rx) = wv_assert_ok!(chan::sync_channel());
-    let (res_tx, res_rx) = wv_assert_ok!(chan::sync_channel());
-
-    let tile = wv_assert_ok!(Tile::get("compat|own"));
-    let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
-
-    wv_assert_ok!(act.delegate_obj(rx.sel()));
-    wv_assert_ok!(act.delegate_obj(res_tx.sel()));
-
-    let mut sink = act.data_sink();
-    sink.push(rx.sel());
-    sink.push(res_tx.sel());
-
-    let act = wv_assert_ok!(act.run(|| {
-        let mut source = Activity::own().data_source();
-        let rx0 = wv_assert_ok!(chan::Receiver::new_bind(source.pop()?));
-        let res_tx0 = wv_assert_ok!(chan::Sender::new_bind(source.pop()?));
-
-        let i1 = rx0.recv::<u32>()?;
-        let res = (i1 + 5) as i32;
-        res_tx0.send(res)?;
-        Ok(())
-    }));
-
-    // since there is no buffering inside the channels,
-    // all communication needs to be done before we wait
-    // for the activities to finish.
-    let tx = wv_assert_ok!(tx.activate());
-    let res_rx = wv_assert_ok!(res_rx.activate());
-    wv_assert_ok!(tx.send::<u32>(42));
-    let res: i32 = wv_assert_ok!(res_rx.recv());
-    wv_assert_eq!(t, res, 42 + 5);
-
-    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
-}
-
-fn run_send_receive_chan_macro(t: &mut dyn WvTester) {
-    let (tx, rx) = wv_assert_ok!(chan::sync_channel());
-    let (res_tx, res_rx) = wv_assert_ok!(chan::sync_channel());
-
-    let tile = wv_assert_ok!(Tile::get("compat|own"));
-    let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
-
-    let act = wv_assert_ok!(run_with_channels!(
-        act,
-        |rx0: chan::Receiver, res_tx0: chan::Sender| {
-            let i1 = rx0.recv::<u32>()?;
-            let res = (i1 + 5) as i32;
-            res_tx0.send(res)?;
-            Ok(())
-        }(rx, res_tx)
-    ));
-
-    let tx = wv_assert_ok!(tx.activate());
-    let res_rx = wv_assert_ok!(res_rx.activate());
-    wv_assert_ok!(tx.send::<u32>(42));
-    let res: i32 = wv_assert_ok!(res_rx.recv());
-    wv_assert_eq!(t, res, 42 + 5);
-
-    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn exec_fail(_t: &mut dyn WvTester) {
