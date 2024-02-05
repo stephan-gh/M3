@@ -298,20 +298,25 @@ pub struct Buffer {
 impl Buffer {
     pub fn new(act: &Activity, buf_addr: VirtAddr, buf_size: GlobOff) -> Result<Self, Error> {
         let map_size = math::round_up(buf_size, cfg::PAGE_SIZE as GlobOff);
-        let pmem = MemCap::new_with(MGateArgs::new(map_size, Perm::RW))?;
-        act.pager()
-            .unwrap()
-            .map_mem(buf_addr, pmem.sel(), map_size as usize, Perm::RW)?;
-        // fault the region in; the pager does this in one go since it's coming from a single
-        // memory capability.
-        act.pager().unwrap().pagefault(buf_addr, Perm::W)?;
 
-        let buf = MemCap::new_foreign(act.sel(), buf_addr, map_size as GlobOff, Perm::RW)?;
+        let pmem = if let Some(pg) = act.pager() {
+            let pmem = MemCap::new_with(MGateArgs::new(map_size, Perm::RW))?;
+            pg.map_mem(buf_addr, pmem.sel(), map_size as usize, Perm::RW)?;
+            // fault the region in; the pager does this in one go since it's coming from a single
+            // memory capability.
+            pg.pagefault(buf_addr, Perm::W)?;
+            Some(pmem)
+        }
+        else {
+            None
+        };
+
+        let buf = MemCap::new_foreign(act.sel(), buf_addr, map_size, Perm::RW)?;
         Ok(Self {
-            _pmem: Some(pmem),
+            _pmem: pmem,
             buf,
             range: (buf_addr, buf_size),
-            unmap: act.id() == Activity::own().id(),
+            unmap: act.pager.is_some() && act.id() == Activity::own().id(),
         })
     }
 

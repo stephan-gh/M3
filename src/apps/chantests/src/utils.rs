@@ -1,8 +1,9 @@
 use m3::errors::Error;
 use m3::io::LogFlags;
-use m3::log;
-use m3::tiles::{ActivityArgs, ChildActivity, Tile};
+use m3::mem::VirtAddr;
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
 use m3::time::{CycleDuration, CycleInstant, Duration};
+use m3::{cfg, log};
 
 #[macro_export]
 macro_rules! create_data {
@@ -27,4 +28,16 @@ pub fn compute_for(name: &str, duration: CycleDuration) {
 
     let end = CycleInstant::now().as_cycles() + duration.as_raw();
     while CycleInstant::now().as_cycles() < end {}
+}
+
+pub fn buffer_addr() -> VirtAddr {
+    // TODO that's a bit of guess work here; at some point we might want to have an abstraction in
+    // libm3 that manages our address space or so.
+    let tile_desc = Activity::own().tile_desc();
+    if tile_desc.has_virtmem() {
+        VirtAddr::new(0x3000_0000)
+    }
+    else {
+        VirtAddr::from(cfg::MEM_OFFSET + tile_desc.mem_size() / 2)
+    }
 }

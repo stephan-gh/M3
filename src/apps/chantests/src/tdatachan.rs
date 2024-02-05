@@ -23,7 +23,7 @@ use m3::chan::data::{
 use m3::col::{String, ToString};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
-use m3::mem::{GlobOff, VirtAddr};
+use m3::mem::GlobOff;
 use m3::serialize::{Deserialize, Serialize};
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity};
@@ -137,30 +137,21 @@ fn run_chain<'a: 'static, T>(
 {
     const MSG_SIZE: usize = 128;
     const CHUNK_TIME: u64 = 100;
-    const BUFFER_ADDR: VirtAddr = VirtAddr::new(0x3000_0000);
+
+    let buf_addr = utils::buffer_addr();
 
     let n1 = wv_assert_ok!(utils::create_activity("n1"));
     let n2 = wv_assert_ok!(utils::create_activity("n2"));
 
-    let (n0n1_s, n0n1_r) = wv_assert_ok!(datachan::create(
-        &n1,
-        MSG_SIZE,
-        credits,
-        BUFFER_ADDR,
-        buf_size
-    ));
-    let (n1n2_s, n1n2_r) = wv_assert_ok!(datachan::create(
-        &n2,
-        MSG_SIZE,
-        credits,
-        BUFFER_ADDR,
-        buf_size
-    ));
+    let (n0n1_s, n0n1_r) =
+        wv_assert_ok!(datachan::create(&n1, MSG_SIZE, credits, buf_addr, buf_size));
+    let (n1n2_s, n1n2_r) =
+        wv_assert_ok!(datachan::create(&n2, MSG_SIZE, credits, buf_addr, buf_size));
     let (n2n0_s, n2n0_r) = wv_assert_ok!(datachan::create(
         Activity::own(),
         MSG_SIZE,
         credits,
-        BUFFER_ADDR,
+        buf_addr,
         buf_size
     ));
 

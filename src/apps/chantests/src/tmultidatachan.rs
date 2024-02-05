@@ -24,7 +24,7 @@ use m3::chan::multidata::{
 use m3::col::{String, ToString};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
-use m3::mem::{GlobOff, VirtAddr};
+use m3::mem::GlobOff;
 use m3::serialize::{Deserialize, Serialize};
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity};
@@ -184,31 +184,28 @@ fn run_chain<'a: 'static, T>(
 {
     const MSG_SIZE: usize = 128;
     const CHUNK_TIME: u64 = 100;
-    const BUFFER_ADDR: VirtAddr = VirtAddr::new(0x3000_0000);
+
+    let buf_addr = utils::buffer_addr();
 
     let n1 = wv_assert_ok!(utils::create_activity("n1"));
     let n2 = wv_assert_ok!(utils::create_activity("n2"));
     let n3 = wv_assert_ok!(utils::create_activity("n3"));
 
     let (n0n1_s, n0n1_r) = wv_assert_ok!(mdatachan::create_single(
-        &n1,
-        MSG_SIZE,
-        credits,
-        BUFFER_ADDR,
-        buf_size
+        &n1, MSG_SIZE, credits, buf_addr, buf_size
     ));
     let (n1m_s, n1m_r) = wv_assert_ok!(mdatachan::create_fanout(
         [&n2, &n3].iter().map(|&a| a.deref()),
         MSG_SIZE,
         credits,
-        BUFFER_ADDR,
+        buf_addr,
         buf_size
     ));
     let (mn0_s, mn0_r) = wv_assert_ok!(mdatachan::create_fanin(
         Activity::own(),
         MSG_SIZE,
         credits,
-        BUFFER_ADDR,
+        buf_addr,
         buf_size,
         2
     ));
