@@ -269,9 +269,15 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
             continue;
         }
 
-        if(sscanf(readbuf, "%Lu: C0T%d.tcu%n", &timestamp, &tile, &numchars) != 2)
+        // read only up to the end of the tile id to ensure that it matches until the end if scanf
+        // reports that 2 conversions were done.
+        if(sscanf(readbuf, "%Lu: C0T%d%n", &timestamp, &tile, &numchars) != 2)
+            continue;
+        // now that we know that, check if the following is indeed ".tcu" and only then continue
+        if(strncmp(readbuf + numchars, ".tcu", 4) != 0)
             continue;
 
+        numchars += 4;
         std::string line(readbuf + numchars);
 
         if(strstr(line.c_str(), "rv") && std::regex_search(line, match, msg_rcv_regex)) {
