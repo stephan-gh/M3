@@ -21,6 +21,7 @@ use m3::{println, wv_run_suite};
 
 mod tdatachan;
 mod tmsgchan;
+mod tmultidatachan;
 mod utils;
 
 #[no_mangle]
@@ -28,6 +29,7 @@ pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, tmsgchan::run);
     wv_run_suite!(tester, tdatachan::run);
+    wv_run_suite!(tester, tmultidatachan::run);
     println!("{}", tester);
     Ok(())
 }
