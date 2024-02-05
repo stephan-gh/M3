@@ -13,4 +13,5 @@
  * General Public License version 2 for more details.
  */
 
+pub mod data;
 pub mod msgs;
