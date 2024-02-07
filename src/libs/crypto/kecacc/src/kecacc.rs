@@ -12,7 +12,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::crypto::{HashAlgorithm, HashType};
+use base::crypto::HashType;
 use core::sync::atomic;
 
 const STATE_SIZE: usize = 256;
@@ -86,7 +86,7 @@ impl KecAcc {
         KecAcc { addr }
     }
 
-    pub fn supports_algo(&self, _algo: &HashAlgorithm) -> bool {
+    pub fn supports_algo(&self, _hash_type: HashType) -> bool {
         true
     }
 

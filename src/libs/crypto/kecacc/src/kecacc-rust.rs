@@ -70,8 +70,8 @@ impl KecAcc {
         }
     }
 
-    pub fn supports_algo(&self, algo: &HashAlgorithm) -> bool {
-        match algo.ty {
+    pub fn supports_algo(&self, hash_type: HashType) -> bool {
+        match hash_type {
             HashType::CSHAKE128 | HashType::CSHAKE256 => false,
             _ => true,
         }

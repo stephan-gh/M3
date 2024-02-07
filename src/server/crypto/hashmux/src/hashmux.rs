@@ -489,7 +489,7 @@ impl HashSession {
             algo
         );
 
-        if !KECACC.supports_algo(algo) {
+        if !KECACC.supports_algo(algo.ty) {
             log!(
                 LogFlags::Error,
                 "[{}] Algorithm {} not supported",
