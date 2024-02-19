@@ -212,6 +212,7 @@ pub fn main() -> ! {
         );
         rot::derive_cdi(&ctx.data.kmac_cdi, cdi_bytes, &mut next_ctx.kmac_cdi);
     }
+    let cached = cfg.data.next_cache.check(&next_ctx.kmac_cdi);
     m3.pub_key = Hex({
         rot::derive_key(
             &next_ctx.kmac_cdi,
@@ -219,9 +220,12 @@ pub fn main() -> ! {
             &[],
             &mut next_ctx.derived_private_key.secret[..],
         );
-        let next_sig_key = SigningKey::from_bytes(&next_ctx.derived_private_key.secret);
-        log!(LogFlags::RoTDbg, "Derived next layer {:?}", next_sig_key);
-        next_sig_key.verifying_key().to_bytes()
+        if !cached {
+            let next_sig_key = SigningKey::from_bytes(&next_ctx.derived_private_key.secret);
+            log!(LogFlags::RoTDbg, "Derived next layer {:?}", next_sig_key);
+            cfg.data.next_cache.data.pub_key = Hex(next_sig_key.verifying_key().to_bytes());
+        }
+        cfg.data.next_cache.data.pub_key.0
     });
 
     {
@@ -233,14 +237,18 @@ pub fn main() -> ! {
             sign_raw.get(),
         );
 
-        let sig_key = SigningKey::from_bytes(&ctx.data.derived_private_key.secret);
-        let signature = Hex(sig_key.sign(sign_raw.get().as_bytes()).to_bytes());
-        log!(LogFlags::RoTDbg, "Signed: {}", signature);
+        if !cached {
+            let sig_key = SigningKey::from_bytes(&ctx.data.derived_private_key.secret);
+            let signature = Hex(sig_key.sign(sign_raw.get().as_bytes()).to_bytes());
+            log!(LogFlags::RoTDbg, "Signed: {}", signature);
+            cfg.data.next_cache.data.signature = signature;
+            cfg.data.next_cache.update_mac(&next_ctx.kmac_cdi);
+        }
 
         let cert = M3RawCertificate {
             payload: sign_raw,
-            signature,
-            pub_key: Hex(sig_key.verifying_key().to_bytes()),
+            signature: Hex(cfg.data.next_cache.data.signature.0),
+            pub_key: Hex(ctx.data.signed_payload.pub_key.0),
             parent: rot::cert::Certificate {
                 payload: ctx.data.signed_payload,
                 signature: ctx.data.signature,

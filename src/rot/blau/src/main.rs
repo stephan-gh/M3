@@ -48,38 +48,46 @@ fn main() -> ! {
     // Derive signing key used by next layer
     let mut next_seed: Secret<SecretKey> = Secret::new_zeroed();
     rot::derive_key(&next_cdi, "ED25519", &[], &mut next_seed.secret[..]);
-    let next_sig_key = SigningKey::from_bytes(&next_seed.secret);
-    log!(LogFlags::RoTDbg, "Derived next layer {:?}", next_sig_key);
+    let cached = cfg.data.cache.check(&ctx.data.kmac_cdi) && cfg.data.next_cache.check(&next_cdi);
+    if !cached {
+        let next_sig_key = SigningKey::from_bytes(&next_seed.secret);
+        log!(LogFlags::RoTDbg, "Derived next layer {:?}", next_sig_key);
+        cfg.data.next_cache.data.pub_key = Hex(next_sig_key.verifying_key().to_bytes());
+    }
 
     // Prepare signature payload by hashing next layer again
     let mut payload = BinaryPayload {
         hash: Hex::new_zeroed(),
-        pub_key: Hex(next_sig_key.verifying_key().to_bytes()),
+        pub_key: Hex(cfg.data.next_cache.data.pub_key.0),
     };
     rot::hash(rot::cert::HASH_TYPE, next, &mut payload.hash[..]);
     log!(LogFlags::RoTBoot, "{:#?}", payload);
 
-    // Derive own signing key
-    let mut seed: Secret<SecretKey> = Secret::new_zeroed();
-    rot::derive_key(&ctx.data.kmac_cdi, "ED25519", &[], &mut seed.secret[..]);
-    let sig_key = SigningKey::from_bytes(&seed.secret);
-    log!(LogFlags::RoTDbg, "Derived own {:?}", sig_key);
-    log!(
-        LogFlags::Info,
-        "Verification key: {}",
-        Hex(sig_key.verifying_key().to_bytes())
-    );
+    if !cached {
+        // Derive own signing key
+        let mut seed: Secret<SecretKey> = Secret::new_zeroed();
+        rot::derive_key(&ctx.data.kmac_cdi, "ED25519", &[], &mut seed.secret[..]);
+        let sig_key = SigningKey::from_bytes(&seed.secret);
+        log!(LogFlags::RoTDbg, "Derived own {:?}", sig_key);
 
-    // Create signature
-    let signature = Hex(sig_key.sign(payload.as_bytes()).to_bytes());
-    log!(LogFlags::RoTDbg, "Signed: {}", signature);
+        // Create signature
+        let signature = Hex(sig_key.sign(payload.as_bytes()).to_bytes());
+        log!(LogFlags::RoTDbg, "Signed: {}", signature);
+
+        cfg.data.cache.data = Hex(sig_key.verifying_key().to_bytes());
+        cfg.data.next_cache.data.signature = signature;
+
+        cfg.data.cache.update_mac(&ctx.data.kmac_cdi);
+        cfg.data.next_cache.update_mac(&next_cdi);
+    };
+    log!(LogFlags::Info, "Verification key: {}", cfg.data.cache.data);
 
     // Switch to next layer
     let next_ctx = rot::LayerCtx::new(rot::BLAU_NEXT_ADDR, rot::BlauCtx {
         kmac_cdi: next_cdi,
         derived_private_key: next_seed,
-        signer_public_key: Hex(sig_key.verifying_key().to_bytes()),
-        signature,
+        signer_public_key: Hex(cfg.data.cache.data.0),
+        signature: Hex(cfg.data.next_cache.data.signature.0),
         signed_payload: payload,
     });
     unsafe { next_ctx.switch() }
