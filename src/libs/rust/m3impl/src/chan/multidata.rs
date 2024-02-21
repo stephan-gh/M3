@@ -14,6 +14,7 @@
  */
 
 use core::fmt::Debug;
+use core::marker::PhantomData;
 
 use crate::cfg;
 use crate::chan::data::{
@@ -217,13 +218,31 @@ impl BlockReceiver for MultiReceiver {
         self.receiver[0].buf_size()
     }
 
+    fn receive<'a, U, T>(&'a self) -> Result<Self::Block<'a, U, T>, Error>
+    where
+        U: Serialize + Deserialize<'static> + Debug,
+        T: Clone + 'a,
+    {
+        let mut blocks = Vec::with_capacity(self.receiver.len());
+        for r in &self.receiver {
+            match r.receive() {
+                Ok(b) => {
+                    blocks.push(b);
+                },
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(MultiBlock { blocks })
+    }
+
     fn iter<'a, U, T>(&'a self) -> impl Iterator<Item = Self::Block<'a, U, T>>
     where
         U: Serialize + Deserialize<'static> + Debug,
         T: Clone + 'a,
     {
         MultiBlockIterator {
-            recv: self.receiver.iter().map(|r| r.iter()).collect(),
+            recv: self,
+            phantom: PhantomData::default(),
         }
     }
 }
@@ -268,26 +287,18 @@ impl<'a, U, T: Clone> MultiBlock<'a, U, T> {
     }
 }
 
-pub struct MultiBlockIterator<'a, U, T: 'a, I: Iterator<Item = Block<'a, U, T>>> {
-    recv: Vec<I>,
+pub struct MultiBlockIterator<'a, U, T> {
+    recv: &'a MultiReceiver,
+    phantom: PhantomData<(U, T)>,
 }
 
-impl<'a, U: Deserialize<'static> + Debug, T: 'a, I: Iterator<Item = Block<'a, U, T>>> Iterator
-    for MultiBlockIterator<'a, U, T, I>
+impl<'a, U: Serialize + Deserialize<'static> + Debug, T: Clone + 'a> Iterator
+    for MultiBlockIterator<'a, U, T>
 {
     type Item = MultiBlock<'a, U, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut blocks = Vec::with_capacity(self.recv.len());
-        for r in &mut self.recv {
-            match r.next() {
-                Some(b) => {
-                    blocks.push(b);
-                },
-                None => return None,
-            }
-        }
-        Some(MultiBlock { blocks })
+        self.recv.receive().ok()
     }
 }
 

@@ -383,6 +383,12 @@ pub trait BlockReceiver {
 
     fn buf_range(&self) -> (VirtAddr, GlobOff);
     fn buf_size(&self) -> GlobOff;
+
+    fn receive<'a, U, T>(&'a self) -> Result<Self::Block<'a, U, T>, Error>
+    where
+        U: Serialize + Deserialize<'static> + Debug,
+        T: Clone + 'a;
+
     fn iter<'a, U, T>(&'a self) -> impl Iterator<Item = Self::Block<'a, U, T>>
     where
         U: Serialize + Deserialize<'static> + Debug,
@@ -415,6 +421,42 @@ impl BlockReceiver for Receiver {
 
     fn buf_size(&self) -> GlobOff {
         self.buf_range().1
+    }
+
+    fn receive<'a, U, T>(&'a self) -> Result<Self::Block<'a, U, T>, Error>
+    where
+        U: Serialize + Deserialize<'static> + Debug,
+        T: Clone + 'a,
+    {
+        log!(
+            LogFlags::LibDataChan,
+            "{}: waiting for request ...",
+            self.name
+        );
+        let mut is = recv_msg(&self.recv)?;
+
+        let req: Request<U> = is.pop().unwrap();
+        log!(LogFlags::LibDataChan, "{}: received {:?}", self.name, &req);
+
+        // safety: we assume here that ReceiverDesc actually comes from a ReceiverCap that was
+        // created for our activity. if so, we know that this region exists and is writable
+        let all_buf = unsafe {
+            core::slice::from_raw_parts_mut(
+                self.buf_range.0.as_mut_ptr::<T>(),
+                self.buf_range.1 as usize / size_of::<T>(),
+            )
+        };
+        let ioff = req.off / size_of::<T>();
+        let isize = req.size / size_of::<T>();
+        let buf = &mut all_buf[ioff..ioff + isize];
+
+        Ok(Block {
+            is,
+            name: &self.name,
+            buf,
+            last: req.last,
+            user: req.user,
+        })
     }
 
     fn iter<'a, U, T>(&'a self) -> impl Iterator<Item = Self::Block<'a, U, T>>
@@ -469,7 +511,9 @@ pub struct BlockIterator<'a, U, T> {
     phantom: PhantomData<(U, T)>,
 }
 
-impl<'a, U: Deserialize<'static> + Debug, T: Clone + 'a> Iterator for BlockIterator<'a, U, T> {
+impl<'a, U: Serialize + Deserialize<'static> + Debug, T: Clone + 'a> Iterator
+    for BlockIterator<'a, U, T>
+{
     type Item = Block<'a, U, T> where T: Clone + 'a;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -477,42 +521,9 @@ impl<'a, U: Deserialize<'static> + Debug, T: Clone + 'a> Iterator for BlockItera
             return None;
         }
 
-        log!(
-            LogFlags::LibDataChan,
-            "{}: waiting for request ...",
-            self.recv.name
-        );
-        let mut is = recv_msg(&self.recv.recv).ok()?;
-
-        let req: Request<U> = is.pop().unwrap();
-        log!(
-            LogFlags::LibDataChan,
-            "{}: received {:?}",
-            self.recv.name,
-            &req
-        );
-
-        self.seen_last = req.last;
-
-        // safety: we assume here that ReceiverDesc actually comes from a ReceiverCap that was
-        // created for our activity. if so, we know that this region exists and is writable
-        let all_buf = unsafe {
-            core::slice::from_raw_parts_mut(
-                self.recv.buf_range.0.as_mut_ptr::<T>(),
-                self.recv.buf_range.1 as usize / size_of::<T>(),
-            )
-        };
-        let ioff = req.off / size_of::<T>();
-        let isize = req.size / size_of::<T>();
-        let buf = &mut all_buf[ioff..ioff + isize];
-
-        Some(Block {
-            is,
-            name: &self.recv.name,
-            buf,
-            last: req.last,
-            user: req.user,
-        })
+        let blk = self.recv.receive().ok()?;
+        self.seen_last = blk.is_last();
+        Some(blk)
     }
 }
 
