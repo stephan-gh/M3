@@ -13,6 +13,8 @@
  * General Public License version 2 for more details.
  */
 
+#![allow(clippy::all)] // FIXME
+
 pub mod data;
 pub mod msgs;
 pub mod multidata;

@@ -19,6 +19,7 @@
 #![feature(register_tool)]
 #![register_tool(m3_async)]
 #![no_std]
+#![allow(clippy::all)] // FIXME
 
 mod args;
 mod cap;

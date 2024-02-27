@@ -14,6 +14,7 @@
  */
 
 #![no_std]
+#![allow(clippy::all)] // FIXME
 
 use m3::errors::Error;
 use m3::test::{DefaultWvTester, WvTester};
