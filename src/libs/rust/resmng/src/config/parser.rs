@@ -18,7 +18,7 @@ use m3::errors::{Code, Error};
 use m3::format;
 use m3::kif;
 use m3::rc::Rc;
-use m3::tcu::Label;
+use m3::tcu::{Label, UNLIM_CREDITS};
 use m3::util::parse;
 
 use crate::config;
@@ -529,6 +529,9 @@ fn parse_sgate(p: &mut ConfigParser) -> Result<config::SGateDesc, Error> {
         Err(Error::new(Code::InvArgs))
     }
     else {
+        if credits == 0 {
+            credits = UNLIM_CREDITS;
+        }
         Ok(config::SGateDesc::new(name, credits, label))
     }
 }
