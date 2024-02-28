@@ -21,11 +21,9 @@ use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif::{Perm, TileISA};
 use m3::log;
-use m3::mem::GlobOff;
+use m3::mem::{offset_of, GlobOff};
 use m3::net::{log_net, NetLogEvent, MAC};
 use m3::time::TimeDuration;
-
-use memoffset::offset_of;
 
 use pci::Device;
 

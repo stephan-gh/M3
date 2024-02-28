@@ -15,7 +15,6 @@ thread = { path = "../../libs/rust/thread" }
 pci = { path = "../../libs/rust/pci" }
 bitflags = "2.1.0"
 log = "0.4.17"
-memoffset = { version = "0.8.0", features = [ "unstable_const" ] }
 num_enum = { version = "0.6.1", default-features = false }
 smoltcp = { git = "https://github.com/smoltcp-rs/smoltcp.git", tag = "v0.8.2", default-features = false, features = [ "log", "alloc", "proto-ipv4", "socket-tcp", "socket-udp", "socket-raw", "medium-ethernet" ] }
 

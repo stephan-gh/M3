@@ -16,7 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(core_intrinsics)]
 #![cfg_attr(not(feature = "linux"), no_std)]
 
 #[macro_use]
