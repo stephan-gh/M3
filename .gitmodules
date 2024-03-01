@@ -1,6 +1,6 @@
 [submodule "hw/gem5"]
 	path = platform/gem5
-	url = https://github.com/Barkhausen-Institut/gem5-TCU.git
+	url = https://github.com/stephan-gh/gem5-TCU.git
 [submodule "platform/hw"]
 	path = platform/hw
 	url = https://github.com/Barkhausen-Institut/tcu-if.git
